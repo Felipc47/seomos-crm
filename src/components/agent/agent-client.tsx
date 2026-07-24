@@ -171,7 +171,7 @@ function ProfileSection({
           <Label htmlFor="agent-instructions">Instrucciones</Label>
           <Textarea
             id="agent-instructions"
-            rows={5}
+            rows={20}
             placeholder="Qué debe y no debe hacer el agente…"
             value={form.instructions ?? ""}
             onChange={(e) => setForm({ ...form, instructions: e.target.value })}

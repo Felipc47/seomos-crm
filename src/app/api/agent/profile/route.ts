@@ -38,7 +38,7 @@ const putSchema = z.object({
   tone: z.string().max(1000).nullable().optional(),
   // Holgado a propósito: un playbook comercial completo cabe varias veces
   // (~8k tokens). El costo por turno lo gobierna el modelo elegido.
-  instructions: z.string().max(32000).nullable().optional(),
+  instructions: z.string().max(128000).nullable().optional(),
   escalationRules: z.string().max(8000).nullable().optional(),
   greeting: z.string().max(2000).nullable().optional(),
 });
