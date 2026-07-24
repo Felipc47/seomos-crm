@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Archive,
   ArchiveRestore,
@@ -16,7 +16,8 @@ import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
 import { StageTag } from "@/components/ui/stage-tag";
-import { useStageColors } from "@/components/use-stage-colors";
+import { stageColor } from "@/lib/stage-colors";
+import { useStages } from "@/components/use-stage-colors";
 import { formatTime, previewText } from "./helpers";
 
 function EmptyState({ onSeeded }: { onSeeded: () => void }) {
@@ -143,16 +144,25 @@ export function ConversationList({
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "unread" | "archived">("all");
-  const colorFor = useStageColors();
+  const [stageFilter, setStageFilter] = useState("");
+  const stages = useStages();
+  const colorFor = useMemo(() => {
+    const byName = Object.fromEntries(
+      stages.map((s) => [s.name, stageColor(s)])
+    );
+    return (name: string | null) =>
+      name ? (byName[name] ?? "#5B6B8C") : "#5B6B8C";
+  }, [stages]);
 
   const loading = conversationsProp === null;
   const conversations = conversationsProp ?? [];
   const q = query.trim().toLowerCase();
   const matches = (c: ConversationDto) =>
-    !q ||
-    c.contact.name.toLowerCase().includes(q) ||
-    c.contact.phone.includes(q) ||
-    (c.preview ?? "").toLowerCase().includes(q);
+    (!stageFilter || c.stageName === stageFilter) &&
+    (!q ||
+      c.contact.name.toLowerCase().includes(q) ||
+      c.contact.phone.includes(q) ||
+      (c.preview ?? "").toLowerCase().includes(q));
 
   const inboxed = conversations.filter((c) => !c.archivedAt && matches(c));
   const archived = conversations.filter((c) => c.archivedAt && matches(c));
@@ -216,6 +226,19 @@ export function ConversationList({
             </button>
           ))}
         </div>
+        <select
+          value={stageFilter}
+          onChange={(e) => setStageFilter(e.target.value)}
+          aria-label="Filtrar por etapa del lead"
+          className="mt-2.5 w-full rounded-[11px] border bg-surface-2 px-3 py-[9px] text-[13px] font-bold outline-none transition-colors focus:border-brand focus:ring-[3px] focus:ring-brand-soft"
+        >
+          <option value="">Todas las etapas</option>
+          {stages.map((s) => (
+            <option key={s.id} value={s.name}>
+              {s.name}
+            </option>
+          ))}
+        </select>
       </header>
 
       <div className="flex-1 overflow-y-auto px-3 pb-4 pt-1">

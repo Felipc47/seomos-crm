@@ -19,6 +19,7 @@ import type { ContactDto } from "@/lib/types";
 import { formatPhone } from "@/lib/utils";
 import { stageColor } from "@/lib/stage-colors";
 import { ContactAvatar } from "@/components/avatar";
+import { useStages } from "@/components/use-stage-colors";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -33,7 +34,9 @@ export function ContactsClient() {
   const toast = useToast();
   const [contacts, setContacts] = useState<ContactDto[]>([]);
   const [query, setQuery] = useState("");
+  const [stageFilter, setStageFilter] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const stages = useStages();
   const [editing, setEditing] = useState<ContactDto | null>(null);
   const [deleting, setDeleting] = useState<ContactDto | null>(null);
   const [detail, setDetail] = useState<ContactDto | null>(null);
@@ -109,6 +112,12 @@ export function ContactsClient() {
     void refetch();
   }
 
+  // Filtro por etapa del lead: en cliente, igual que la búsqueda (el DTO ya
+  // trae la etapa del contacto).
+  const visible = contacts.filter(
+    (c) => !stageFilter || c.stage?.name === stageFilter
+  );
+
   async function removeContact(c: ContactDto) {
     setBusy(true);
     const res = await fetch(`/api/contacts/${c.id}`, {
@@ -171,6 +180,19 @@ export function ContactsClient() {
           </a>
         </div>
         <div className="ml-auto flex items-center gap-2.5">
+          <select
+            value={stageFilter}
+            onChange={(e) => setStageFilter(e.target.value)}
+            aria-label="Filtrar por etapa del lead"
+            className="h-[38px] rounded-[10px] border bg-surface px-3 text-[12.5px] font-bold outline-none transition-colors hover:bg-surface-2 focus:border-brand"
+          >
+            <option value="">Todas las etapas</option>
+            {stages.map((s) => (
+              <option key={s.id} value={s.name}>
+                {s.name}
+              </option>
+            ))}
+          </select>
           <span className="text-[13px] font-bold">Ver archivados</span>
           <Switch
             size="sm"
@@ -199,9 +221,17 @@ export function ContactsClient() {
               automáticamente.
             </p>
           </div>
+        ) : visible.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+            <p className="text-sm font-medium">Sin contactos en esta etapa</p>
+            <p className="max-w-sm text-xs text-muted-foreground">
+              Ningún contacto{showArchived ? "" : " activo"} tiene su lead en
+              «{stageFilter}».
+            </p>
+          </div>
         ) : (
           <ul className="mx-auto flex max-w-[1000px] flex-col gap-3">
-            {contacts.map((c) => (
+            {visible.map((c) => (
               <li
                 key={c.id}
                 className="flex flex-wrap items-center gap-3 rounded-[14px] border bg-surface px-4 py-3.5 transition-colors hover:border-brand/50 md:gap-4 md:px-5 md:py-4"
