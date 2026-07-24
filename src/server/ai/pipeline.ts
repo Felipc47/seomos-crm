@@ -18,6 +18,7 @@ import {
   quoteAppearsInInbound,
 } from "@/server/ai/schedule-confirm";
 import { refreshLeadProfile } from "@/server/ai/lead-profile";
+import { armFollowUp } from "@/server/ai/follow-up";
 import { buildAgentSystemPrompt } from "@/server/ai/prompts";
 import { isGoogleConfigured } from "@/lib/env";
 import {
@@ -484,6 +485,10 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
       await applyHandoff(conversationId, organizationId, "modelo");
       return;
     }
+    case "follow_up_later": {
+      await executeFollowUpLater(conversation, action);
+      return;
+    }
     case "schedule_meeting": {
       const inboundTexts = history
         .filter((m) => m.direction === "in" && m.text)
@@ -780,6 +785,38 @@ async function executeScheduleMeeting(
 }
 
 type Conversation = typeof schema.conversation.$inferSelect;
+
+/**
+ * 008: el cliente pidió ser contactado más tarde. Se despide y arma la rutina
+ * de seguimiento (lead → «Contactar luego», intento en 12h o cuando pidió el
+ * cliente). En el sandbox del Laboratorio solo se despide: una evaluación no
+ * arma rutinas reales.
+ */
+async function executeFollowUpLater(
+  conversation: Conversation,
+  action: Extract<AgentActionType, { action: "follow_up_later" }>
+): Promise<void> {
+  await deliverReply(
+    conversation,
+    action.reply ??
+      "¡Claro, con mucho gusto! Te escribo más adelante para retomar. Que estés muy bien."
+  );
+  if (conversation.isTest) return;
+
+  const requested = action.datetime ? new Date(action.datetime) : null;
+  const due = await armFollowUp({
+    organizationId: conversation.organizationId,
+    contactId: conversation.contactId,
+    requestedAt:
+      requested && !Number.isNaN(requested.getTime()) ? requested : null,
+  });
+  if (due) {
+    publish(conversation.organizationId, {
+      type: "conversation.updated",
+      data: { conversation: { id: conversation.id } },
+    });
+  }
+}
 
 /**
  * Entrega la respuesta: envío real o persistencia sandbox (is_test).

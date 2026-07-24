@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Sparkles, Trash2 } from "lucide-react";
 import { SchedulingSection } from "@/components/agent/scheduling-section";
+import { FollowUpSection } from "@/components/agent/follow-up-section";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -123,6 +124,9 @@ export function AgentClient() {
       <div className="grid gap-6 p-6 lg:grid-cols-2">
         <ProfileSection profile={profile} onSave={saveProfile} />
         <KbSection entries={entries} kbSize={kbSize} onChanged={() => void refetch()} />
+        <div className="lg:col-span-2">
+          <FollowUpSection />
+        </div>
         <div className="lg:col-span-2">
           <SchedulingSection />
         </div>

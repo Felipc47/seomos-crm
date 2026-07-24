@@ -111,16 +111,18 @@ export function StageManager({
                   variant={
                     s.kind === "won"
                       ? "success"
-                      : s.kind === "scheduled"
-                        ? "warning"
-                        : "secondary"
+                      : s.kind === "lost"
+                        ? "secondary"
+                        : "warning"
                   }
                 >
                   {s.kind === "won"
                     ? "ganado"
-                    : s.kind === "scheduled"
-                      ? "automática"
-                      : "perdido"}
+                    : s.kind === "lost"
+                      ? "perdido"
+                      : s.kind === "follow_up" || s.kind === "no_reply"
+                        ? "seguimiento"
+                        : "automática"}
                 </Badge>
               ) : (
                 <Button

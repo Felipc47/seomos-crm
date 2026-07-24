@@ -40,6 +40,15 @@ const leadgenSettingsSchema = z.object({
 });
 export type LeadgenSettings = z.infer<typeof leadgenSettingsSchema>;
 
+const followUpSettingsSchema = z.object({
+  /** Rutina de seguimiento automático (008): 12h → +1 día hábil → cierre. */
+  enabled: z.boolean().default(true),
+  /** Plantilla aprobada para los intentos con la ventana de 24h cerrada;
+   * null = esos intentos se omiten (la rutina avanza igual). */
+  templateId: z.string().trim().min(1).nullable().default(null),
+});
+export type FollowUpSettings = z.infer<typeof followUpSettingsSchema>;
+
 function parseMetadata(metadata: string | null): Record<string, unknown> {
   if (!metadata) return {};
   try {
@@ -107,5 +116,22 @@ export async function saveLeadgenSettings(
 ): Promise<void> {
   await writeMetadata(organizationId, {
     leadgen: leadgenSettingsSchema.parse(settings),
+  });
+}
+
+export async function getFollowUpSettings(
+  organizationId: string
+): Promise<FollowUpSettings> {
+  const meta = await readMetadata(organizationId);
+  const parsed = followUpSettingsSchema.safeParse(meta.followUp ?? {});
+  return parsed.success ? parsed.data : followUpSettingsSchema.parse({});
+}
+
+export async function saveFollowUpSettings(
+  organizationId: string,
+  settings: FollowUpSettings
+): Promise<void> {
+  await writeMetadata(organizationId, {
+    followUp: followUpSettingsSchema.parse(settings),
   });
 }

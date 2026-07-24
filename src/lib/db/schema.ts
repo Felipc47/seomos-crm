@@ -185,9 +185,21 @@ export const pipelineStage = pgTable(
       .references(() => organization.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     position: integer("position").notNull(),
-    /** open = etapa normal · scheduled / won / lost = anclas no borrables
-     * (`scheduled` la alimenta el sistema al agendar una reunión). */
-    kind: text("kind", { enum: ["open", "scheduled", "won", "lost"] })
+    /** open = etapa normal · el resto son anclas no borrables del sistema:
+     * `scheduled` la alimenta el agendamiento; `follow_up` («Contactar
+     * luego»), `no_reply` («No contestó») y `no_interest` («No interesado»)
+     * las alimenta la rutina de seguimiento automático (008). */
+    kind: text("kind", {
+      enum: [
+        "open",
+        "scheduled",
+        "won",
+        "lost",
+        "follow_up",
+        "no_reply",
+        "no_interest",
+      ],
+    })
       .notNull()
       .default("open"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -210,12 +222,17 @@ export const lead = pgTable(
       .references(() => pipelineStage.id),
     position: integer("position").notNull().default(0),
     lastActivityAt: timestamp("last_activity_at"),
+    /** Próximo intento de la rutina de seguimiento (008); NULL = sin rutina. */
+    followUpDueAt: timestamp("follow_up_due_at"),
+    /** Intentos de seguimiento ya enviados (0, 1 o 2). */
+    followUpAttempts: integer("follow_up_attempts").notNull().default(0),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex("lead_contact_uq").on(t.contactId),
     index("lead_org_stage_idx").on(t.organizationId, t.stageId, t.position),
+    index("lead_follow_up_due_idx").on(t.followUpDueAt),
   ]
 );
 

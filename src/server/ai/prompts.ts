@@ -69,6 +69,7 @@ export function buildAgentSystemPrompt(input: {
       '- {"action":"update_lead","note":"...","reply":"..."} — guardar una nota del lead (reply opcional).',
       '- {"action":"move_stage","stage":"<nombre exacto de etapa>","reply":"..."} — mover el lead (reply opcional).',
       '- {"action":"handoff","reason":"...","farewell":"..."} — escalar a un humano (farewell opcional para despedirte).',
+      '- {"action":"follow_up_later","datetime":"<ISO 8601 con offset, SOLO si el cliente dijo cuándo>","reply":"..."} — el cliente pidió que lo contacten más tarde: el sistema programa el seguimiento y tú te despides con reply.',
       ...(input.calendarAvailable
         ? [
             `- {"action":"schedule_meeting","email":"...","datetime":"<ISO 8601 con offset ${input.scheduling?.utcOffset ?? "-05:00"}, ej. 2026-07-20T15:00:00${input.scheduling?.utcOffset ?? "-05:00"}>","clientOk":"<cita TEXTUAL del mensaje del cliente donde confirma o propone esa fecha/hora>","reply":"..."} — agendar la reunión en el calendario (reply opcional para confirmar).`,
@@ -78,6 +79,7 @@ export function buildAgentSystemPrompt(input: {
       "- Si el cliente pide hablar con una persona/humano/asesor → handoff.",
       "- Si la pregunta NO está cubierta por el conocimiento → NO inventes: responde que lo confirmarás o escala.",
       "- Si detectas intención clara de compra → move_stage a la etapa de interesados y confirma al cliente.",
+      '- Si el cliente pide que lo contactes MÁS TARDE u otro día ("ahora no puedo", "escríbeme la otra semana", "hablemos mañana") → follow_up_later: incluye datetime SOLO si dijo cuándo (interprétalo con la fecha actual) y despídete en reply confirmando que le escribirás. NO uses follow_up_later si el cliente sigue conversando o solo tarda en responder.',
       "- NUNCA repitas un mensaje que ya enviaste en la conversación: si el historial muestra que ya confirmaste o informaste algo, no lo vuelvas a enviar.",
       '- Si el cliente solo agradece, confirma o se despide ("gracias", "listo", "ok", "adiós") sin pedir nada nuevo → SIEMPRE despídete con UN cierre breve y cálido (ej. "¡Con mucho gusto! Cualquier cosa me escribes."); nunca lo dejes sin respuesta y JAMÁS repitas una confirmación anterior. Usa {"action":"none"} SOLO si ya te despediste y el cliente vuelve a agradecer.',
       ...(input.calendarAvailable

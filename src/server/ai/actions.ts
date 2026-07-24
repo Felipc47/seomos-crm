@@ -23,6 +23,15 @@ export const AgentAction = z.discriminatedUnion("action", [
     reason: z.string().optional(),
     farewell: z.string().optional(),
   }),
+  // 008: el cliente pidió que lo contacten más tarde → rutina de seguimiento.
+  z.object({
+    action: z.literal("follow_up_later"),
+    /** Cuándo pidió el cliente ser contactado (ISO 8601 con offset), si lo
+     * dijo. Laxo a propósito: el pipeline valida el formato y sin fecha usa
+     * el default de 12 horas. */
+    datetime: z.string().optional(),
+    reply: z.string().optional(),
+  }),
   // 004: agendar la sesión de diagnóstico en Google Calendar. Solo se ofrece
   // al modelo cuando la conexión de Calendar está activa (ver prompts.ts).
   z.object({

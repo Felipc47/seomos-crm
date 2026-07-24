@@ -3,6 +3,8 @@
  * forma determinística — sin columna nueva en BD. Las anclas won/lost tienen
  * color fijo; las etapas abiertas rotan una paleta por posición.
  */
+import type { StageKind } from "@/lib/types";
+
 const OPEN_PALETTE = [
   "#5B6B8C", // azul acero (Nuevo)
   "#E8A13D", // ámbar (En conversación)
@@ -14,13 +16,17 @@ const OPEN_PALETTE = [
 ] as const;
 
 export function stageColor(stage: {
-  kind: "open" | "scheduled" | "won" | "lost";
+  kind: StageKind;
   position: number;
 }): string {
   if (stage.kind === "won") return "#3EA672";
   if (stage.kind === "lost") return "#B0564C";
   // Agendado: azul calendario, distinto de las abiertas y de las anclas.
   if (stage.kind === "scheduled") return "#4A78B8";
+  // 008: etapas de seguimiento — colores fijos, reconocibles en el tablero.
+  if (stage.kind === "follow_up") return "#9A7BB8"; // malva (Contactar luego)
+  if (stage.kind === "no_reply") return "#B8935A"; // ocre (No contestó)
+  if (stage.kind === "no_interest") return "#8A8F98"; // gris (No interesado)
   return OPEN_PALETTE[stage.position % OPEN_PALETTE.length] ?? OPEN_PALETTE[0];
 }
 

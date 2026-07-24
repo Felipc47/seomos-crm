@@ -62,7 +62,7 @@ export const DELETE = withAuth(async (session, req: Request, ctx: Params) => {
     return apiError(
       409,
       "anchor_stage",
-      'Las etapas ancla ("ganado" y "perdido") no se pueden eliminar'
+      "Las etapas del sistema (ganado, perdido, agendado y las de seguimiento) no se pueden eliminar"
     );
   }
 

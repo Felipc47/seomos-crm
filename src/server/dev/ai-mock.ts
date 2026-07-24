@@ -80,6 +80,14 @@ export function aiMockCompletion(messages: InMessage[]): string {
     return JSON.stringify({ veredicto: "verde", hallazgos: [] });
   }
 
+  // 008: mensaje de seguimiento (ventana de 24h abierta). Determinista para
+  // que el self-test verifique que el intento retoma la conversación.
+  if (system.includes("[SEGUIMIENTO]")) {
+    return JSON.stringify({
+      text: "¡Hola de nuevo! Te escribo para retomar nuestra conversación pendiente. ¿Te viene bien seguir ahora?",
+    });
+  }
+
   // Ficha del lead (pasada aparte, tras el turno): extrae del transcript lo
   // que el "cliente" dijo. Determinista: reconoce las frases del guion E2E.
   if (system.includes("analista de CRM")) {
@@ -176,6 +184,25 @@ export function aiMockCompletion(messages: InMessage[]): string {
       email: emailMatch[0],
       datetime: start.toISOString(),
       clientOk: text.includes("sin confirmar") ? undefined : lastUser,
+    });
+  }
+
+  // 008: el cliente pide que lo contacten más tarde → rutina de seguimiento.
+  // "en dos horas" incluye datetime (el cliente dijo cuándo); el resto usa el
+  // default de 12 horas del servidor.
+  if (
+    text.includes("más tarde") ||
+    text.includes("mas tarde") ||
+    text.includes("otra semana") ||
+    text.includes("ahora no puedo")
+  ) {
+    const saidWhen = text.includes("en dos horas");
+    return JSON.stringify({
+      action: "follow_up_later",
+      ...(saidWhen
+        ? { datetime: new Date(Date.now() + 2 * 3600_000).toISOString() }
+        : {}),
+      reply: "¡Claro, sin problema! Te escribo más adelante para retomar. ¡Que estés muy bien!",
     });
   }
 

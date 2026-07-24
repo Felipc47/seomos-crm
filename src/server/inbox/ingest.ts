@@ -6,6 +6,7 @@ import { getCredentialsByPhoneNumberId } from "@/server/whatsapp/credentials";
 import type { WebhookValue } from "@/server/inbox/webhook";
 import { applyStatusUpdate } from "@/server/inbox/status";
 import { onLeadActivity } from "@/server/inbox/lead-activity";
+import { cancelFollowUpOnInbound } from "@/server/ai/follow-up";
 import { detectOptOut } from "@/server/inbox/opt-out";
 import { transcribeInboundAudio } from "@/server/ai/media";
 import { translateStoredError } from "@/server/whatsapp/delivery-errors";
@@ -228,6 +229,10 @@ export async function ingestInboundMessage(input: {
     .where(eq(schema.conversation.id, conversation.id));
 
   await onLeadActivity(organizationId, contact.id, waTimestamp);
+
+  // 008: el cliente respondió → la rutina de seguimiento muere y, si estaba
+  // en «Contactar luego»/«No contestó», el lead vuelve a la conversación.
+  await cancelFollowUpOnInbound(organizationId, contact.id);
 
   // Política de Meta (006): si el contacto pide la baja, se respeta al vuelo.
   // Vale también por nota de voz, usando su transcripción (007).

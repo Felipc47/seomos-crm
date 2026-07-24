@@ -42,12 +42,22 @@ export type TemplateDto = {
   rejectionReason: string | null;
 };
 
+/** Kinds de etapa: `scheduled` la mueve el sistema al agendar; `follow_up`,
+ * `no_reply` y `no_interest` los mueve la rutina de seguimiento (008). */
+export type StageKind =
+  | "open"
+  | "scheduled"
+  | "won"
+  | "lost"
+  | "follow_up"
+  | "no_reply"
+  | "no_interest";
+
 export type StageDto = {
   id: string;
   name: string;
   position: number;
-  /** `scheduled` la mueve el sistema al confirmarse una reunión. */
-  kind: "open" | "scheduled" | "won" | "lost";
+  kind: StageKind;
 };
 
 export type ContactDto = {
@@ -68,7 +78,7 @@ export type ContactDto = {
   /** Etapa del lead del contacto (solo lectura; listado de Contactos). */
   stage?: {
     name: string;
-    kind: "open" | "scheduled" | "won" | "lost";
+    kind: StageKind;
     position: number;
   } | null;
 };
