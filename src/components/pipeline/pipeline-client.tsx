@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   DndContext,
@@ -16,6 +16,8 @@ import {
 } from "@dnd-kit/core";
 import {
   AlarmClock,
+  Columns3,
+  LayoutList,
   MessageCircle,
   Plus,
   Search,
@@ -30,7 +32,12 @@ import type { StageDto } from "@/lib/types";
 import { cn, formatPhone } from "@/lib/utils";
 import { stageColor } from "@/lib/stage-colors";
 import { ContactAvatar } from "@/components/avatar";
+import { useViewPreference } from "@/components/use-view-preference";
 import { useToast } from "@/components/ui/toast";
+import {
+  ViewToggle,
+  type ViewOption,
+} from "@/components/ui/view-toggle";
 import { formatTime } from "@/components/inbox/helpers";
 import { StageManager } from "./stage-manager";
 import { LeadClosureDialog } from "./lead-closure-dialog";
@@ -48,6 +55,14 @@ export type BoardLead = {
   conversationId: string | null;
 };
 
+const PIPELINE_VIEWS = ["board", "list"] as const;
+type PipelineView = (typeof PIPELINE_VIEWS)[number];
+
+const PIPELINE_VIEW_OPTIONS: readonly ViewOption<PipelineView>[] = [
+  { value: "board", label: "Tablero", icon: Columns3 },
+  { value: "list", label: "Lista", icon: LayoutList },
+];
+
 export function PipelineClient() {
   const [stages, setStages] = useState<StageDto[]>([]);
   const [leads, setLeads] = useState<BoardLead[]>([]);
@@ -60,6 +75,11 @@ export function PipelineClient() {
     position: number;
   } | null>(null);
   const [moving, setMoving] = useState(false);
+  const [view, setView] = useViewPreference<PipelineView>(
+    "seomos.pipeline.view",
+    "board",
+    PIPELINE_VIEWS
+  );
   const toast = useToast();
 
   // Mouse y touch por separado: en táctil el drag se activa con long-press
@@ -145,8 +165,12 @@ export function PipelineClient() {
     if (!lead || lead.stageId === overStage) return;
     const stage = stages.find((item) => item.id === overStage);
     if (!stage) return;
+    requestMove(lead, stage);
+  }
 
-    const position = leads.filter((l) => l.stageId === overStage).length;
+  function requestMove(lead: BoardLead, stage: StageDto) {
+    if (lead.stageId === stage.id) return;
+    const position = leads.filter((item) => item.stageId === stage.id).length;
     if (isNegativeStage(stage.kind)) {
       setPendingMove({ lead, stage, position });
       return;
@@ -162,6 +186,19 @@ export function PipelineClient() {
       l.contact.phone.replace(/\s/g, "").includes(q.replace(/\s/g, "")),
     [q]
   );
+  const visibleLeads = useMemo(() => {
+    const stagePositions = new Map(
+      stages.map((stage) => [stage.id, stage.position])
+    );
+    return leads
+      .filter(match)
+      .sort(
+        (a, b) =>
+          (stagePositions.get(a.stageId) ?? Number.MAX_SAFE_INTEGER) -
+            (stagePositions.get(b.stageId) ?? Number.MAX_SAFE_INTEGER) ||
+          a.position - b.position
+      );
+  }, [leads, match, stages]);
 
   return (
     <div className="flex h-full flex-col">
@@ -178,39 +215,55 @@ export function PipelineClient() {
             className="w-full bg-transparent text-[16px] outline-none placeholder:text-faint md:text-[13px]"
           />
         </div>
-        <button
-          onClick={() => setManaging(true)}
-          className="ml-auto inline-flex shrink-0 items-center gap-2 rounded-[10px] border bg-surface px-[15px] py-[9px] text-[13px] font-bold transition-colors hover:bg-surface-2"
-        >
-          <SlidersHorizontal className="h-4 w-4" strokeWidth={2} />
-          Gestionar etapas
-        </button>
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <ViewToggle
+            value={view}
+            options={PIPELINE_VIEW_OPTIONS}
+            onChange={setView}
+            ariaLabel="Visualización del pipeline"
+          />
+          <button
+            onClick={() => setManaging(true)}
+            className="inline-flex shrink-0 items-center gap-2 rounded-[10px] border bg-surface px-2.5 py-[9px] text-[13px] font-bold transition-colors hover:bg-surface-2 sm:px-[15px]"
+          >
+            <SlidersHorizontal className="h-4 w-4" strokeWidth={2} />
+            <span className="hidden sm:inline">Gestionar etapas</span>
+          </button>
+        </div>
       </header>
 
-      <div className="flex-1 overflow-x-auto overflow-y-hidden px-4 py-4 md:px-6 md:py-[22px]">
-        <DndContext
-          sensors={sensors}
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
-        >
-          <div className="flex h-full min-w-min items-stretch gap-[18px]">
-            {stages.map((stage) => (
-              <StageColumn
-                key={stage.id}
-                stage={stage}
-                leads={leads
-                  .filter((l) => l.stageId === stage.id)
-                  .filter(match)
-                  .sort((a, b) => a.position - b.position)}
-              />
-            ))}
-            <AddStageColumn onCreated={() => void refetch()} />
-          </div>
-          <DragOverlay>
-            {activeLead ? <LeadCard lead={activeLead} overlay /> : null}
-          </DragOverlay>
-        </DndContext>
-      </div>
+      {view === "board" ? (
+        <div className="flex-1 overflow-x-auto overflow-y-hidden px-4 py-4 md:px-6 md:py-[22px]">
+          <DndContext
+            sensors={sensors}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+          >
+            <div className="flex h-full min-w-min items-stretch gap-[18px]">
+              {stages.map((stage) => (
+                <StageColumn
+                  key={stage.id}
+                  stage={stage}
+                  leads={visibleLeads.filter((lead) => lead.stageId === stage.id)}
+                />
+              ))}
+              <AddStageColumn onCreated={() => void refetch()} />
+            </div>
+            <DragOverlay>
+              {activeLead ? <LeadCard lead={activeLead} overlay /> : null}
+            </DragOverlay>
+          </DndContext>
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto px-4 py-4 md:px-7 md:py-[22px]">
+          <PipelineList
+            leads={visibleLeads}
+            stages={stages}
+            moving={moving}
+            onMove={requestMove}
+          />
+        </div>
+      )}
 
       {managing && (
         <StageManager
@@ -235,6 +288,134 @@ export function PipelineClient() {
           }
         />
       )}
+    </div>
+  );
+}
+
+function PipelineList({
+  leads,
+  stages,
+  moving,
+  onMove,
+}: {
+  leads: BoardLead[];
+  stages: StageDto[];
+  moving: boolean;
+  onMove: (lead: BoardLead, stage: StageDto) => void;
+}) {
+  if (leads.length === 0) {
+    return (
+      <div className="flex h-full min-h-56 flex-col items-center justify-center gap-2 text-center">
+        <p className="text-sm font-bold">Sin prospectos encontrados</p>
+        <p className="text-xs text-mute">
+          Prueba con otro nombre o número de teléfono.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-[1180px]">
+      <div className="mb-2 hidden grid-cols-[minmax(210px,1.6fr)_minmax(130px,.8fr)_minmax(170px,1fr)_minmax(130px,.8fr)_minmax(150px,.9fr)_42px] gap-4 px-4 text-[11px] font-extrabold uppercase tracking-[.06em] text-faint lg:grid">
+        <span>Prospecto</span>
+        <span>Teléfono</span>
+        <span>Etapa</span>
+        <span>Actividad</span>
+        <span>Seguimiento</span>
+        <span className="sr-only">Acciones</span>
+      </div>
+      <div className="space-y-2.5">
+        {leads.map((lead) => {
+          const reason = closureReasonLabel(lead.closureReason);
+          return (
+            <article
+              key={lead.id}
+              data-testid="lead-list-row"
+              className="grid gap-3 rounded-[14px] border bg-surface p-4 transition-colors hover:border-brand/50 lg:grid-cols-[minmax(210px,1.6fr)_minmax(130px,.8fr)_minmax(170px,1fr)_minmax(130px,.8fr)_minmax(150px,.9fr)_42px] lg:items-center lg:gap-4"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <ContactAvatar
+                  name={lead.contact.name}
+                  seed={lead.contact.id}
+                  size="md"
+                />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold">
+                    {lead.contact.name}
+                  </p>
+                  {reason && (
+                    <p className="truncate text-[11px] font-semibold text-mute">
+                      Motivo: {reason}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <p className="truncate text-[12px] font-bold text-mute">
+                <span className="mr-1 font-semibold text-faint lg:hidden">
+                  Teléfono:
+                </span>
+                {formatPhone(lead.contact.phone)}
+              </p>
+
+              <label className="min-w-0">
+                <span className="mb-1 block text-[11px] font-semibold text-faint lg:sr-only">
+                  Etapa
+                </span>
+                <select
+                  value={lead.stageId}
+                  disabled={moving}
+                  aria-label={`Cambiar etapa de ${lead.contact.name}`}
+                  onChange={(event) => {
+                    const stage = stages.find(
+                      (item) => item.id === event.target.value
+                    );
+                    if (stage) onMove(lead, stage);
+                  }}
+                  className="h-9 w-full rounded-[9px] border bg-surface-2 px-2.5 text-[12px] font-bold outline-none transition-colors hover:bg-background focus:border-brand focus:ring-2 focus:ring-brand-soft disabled:opacity-60"
+                >
+                  {stages.map((stage) => (
+                    <option key={stage.id} value={stage.id}>
+                      {stage.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <p className="text-[12px] font-semibold text-mute">
+                <span className="mr-1 text-faint lg:hidden">Actividad:</span>
+                {lead.lastActivityAt
+                  ? formatTime(lead.lastActivityAt)
+                  : "Sin actividad"}
+              </p>
+
+              {lead.followUpDueAt ? (
+                <p className="flex items-center gap-1.5 text-[12px] font-bold text-[#80619E]">
+                  <AlarmClock className="h-3.5 w-3.5 shrink-0" />
+                  {formatTime(lead.followUpDueAt)}
+                </p>
+              ) : (
+                <p className="text-[12px] text-faint">Sin seguimiento</p>
+              )}
+
+              <div className="flex justify-end">
+                {lead.conversationId ? (
+                  <Link
+                    href={`/inbox?contact=${lead.contact.id}`}
+                    aria-label={`Abrir conversación de ${lead.contact.name}`}
+                    title="Abrir WhatsApp"
+                    className="flex h-[38px] w-[38px] items-center justify-center rounded-[9px] bg-[rgba(62,189,107,.14)] text-[#2FA35A] transition-colors hover:bg-[rgba(62,189,107,.24)]"
+                  >
+                    <MessageCircle className="h-[17px] w-[17px]" strokeWidth={2.2} />
+                  </Link>
+                ) : (
+                  <span aria-hidden className="h-[38px] w-[38px]" />
+                )}
+              </div>
+            </article>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -292,6 +473,7 @@ function LeadCard({ lead, overlay = false }: { lead: BoardLead; overlay?: boolea
   const reason = closureReasonLabel(lead.closureReason);
   return (
     <div
+      data-testid="lead-board-card"
       className={cn(
         "cursor-grab rounded-[13px] border bg-surface p-[13px] shadow-sm transition-shadow",
         overlay && "rotate-2 shadow-pop"

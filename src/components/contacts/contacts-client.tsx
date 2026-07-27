@@ -8,8 +8,11 @@ import {
   Download,
   Eye,
   FileDown,
+  LayoutGrid,
   MessageCircle,
+  Pencil,
   Plus,
+  Rows3,
   Search,
   Trash2,
   Upload,
@@ -19,6 +22,7 @@ import type { ContactDto } from "@/lib/types";
 import { formatPhone } from "@/lib/utils";
 import { stageColor } from "@/lib/stage-colors";
 import { ContactAvatar } from "@/components/avatar";
+import { useViewPreference } from "@/components/use-view-preference";
 import { useStages } from "@/components/use-stage-colors";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,6 +33,18 @@ import { StageTag } from "@/components/ui/stage-tag";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
+import {
+  ViewToggle,
+  type ViewOption,
+} from "@/components/ui/view-toggle";
+
+const CONTACT_VIEWS = ["list", "grid"] as const;
+type ContactView = (typeof CONTACT_VIEWS)[number];
+
+const CONTACT_VIEW_OPTIONS: readonly ViewOption<ContactView>[] = [
+  { value: "list", label: "Lista", icon: Rows3 },
+  { value: "grid", label: "Cuadrícula", icon: LayoutGrid },
+];
 
 export function ContactsClient() {
   const toast = useToast();
@@ -43,6 +59,11 @@ export function ContactsClient() {
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [view, setView] = useViewPreference<ContactView>(
+    "seomos.contacts.view",
+    "list",
+    CONTACT_VIEWS
+  );
   const fileRef = useRef<HTMLInputElement>(null);
 
   const refetch = useCallback(async () => {
@@ -132,6 +153,11 @@ export function ContactsClient() {
     }
   }
 
+  function toggleArchived(c: ContactDto) {
+    void patch(c.id, { archived: !c.archivedAt });
+    toast(c.archivedAt ? "Contacto desarchivado" : "Contacto archivado");
+  }
+
   return (
     <div className="flex h-full flex-col">
       <header className="flex flex-wrap items-center gap-x-[18px] gap-y-2.5 border-b bg-surface px-4 py-3 md:px-[30px] md:py-[18px]">
@@ -179,7 +205,13 @@ export function ContactsClient() {
             Plantilla
           </a>
         </div>
-        <div className="ml-auto flex items-center gap-2.5">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2.5">
+          <ViewToggle
+            value={view}
+            options={CONTACT_VIEW_OPTIONS}
+            onChange={setView}
+            ariaLabel="Visualización de contactos"
+          />
           <select
             value={stageFilter}
             onChange={(e) => setStageFilter(e.target.value)}
@@ -230,91 +262,23 @@ export function ContactsClient() {
             </p>
           </div>
         ) : (
-          <ul className="mx-auto flex max-w-[1000px] flex-col gap-3">
-            {visible.map((c) => (
-              <li
-                key={c.id}
-                className="flex flex-wrap items-center gap-3 rounded-[14px] border bg-surface px-4 py-3.5 transition-colors hover:border-brand/50 md:gap-4 md:px-5 md:py-4"
-              >
-                <ContactAvatar name={c.name} seed={c.id} size="lg" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate font-display text-base font-semibold">
-                      {c.name}
-                    </span>
-                    {c.archivedAt && <Badge variant="secondary">Archivado</Badge>}
-                    {c.optedOutAt && (
-                      <Badge variant="destructive" title="Pidió no recibir más mensajes">
-                        Baja
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="truncate text-[13px] text-mute">
-                    <span className="font-bold text-foreground">
-                      {formatPhone(c.phone)}
-                    </span>
-                    {c.notes ? ` · ${c.notes.slice(0, 80)}` : ""}
-                  </p>
-                </div>
-                {c.stage && (
-                  <StageTag
-                    name={c.stage.name}
-                    color={stageColor(c.stage)}
-                    className="shrink-0"
-                  />
-                )}
-                <div className="ml-auto flex shrink-0 items-center gap-2">
-                  <button
-                    aria-label="Ver detalles"
-                    title="Ver detalles"
-                    onClick={() => setDetail(c)}
-                    className="flex h-[38px] w-[38px] items-center justify-center rounded-[9px] border bg-surface-2 text-mute transition-colors hover:text-foreground"
-                  >
-                    <Eye className="h-[17px] w-[17px]" strokeWidth={2} />
-                  </button>
-                  <button
-                    onClick={() => setEditing(c)}
-                    className="rounded-[9px] bg-brand px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-brand-hover"
-                  >
-                    Editar
-                  </button>
-                  <Link
-                    href={`/inbox?contact=${c.id}`}
-                    aria-label="Abrir conversación"
-                    title="Abrir chat"
-                    className="flex h-[38px] w-[38px] items-center justify-center rounded-[9px] border bg-surface-2 text-mute transition-colors hover:text-foreground"
-                  >
-                    <MessageCircle className="h-[17px] w-[17px]" strokeWidth={2} />
-                  </Link>
-                  <button
-                    aria-label={c.archivedAt ? "Desarchivar" : "Archivar"}
-                    title={c.archivedAt ? "Desarchivar" : "Archivar"}
-                    onClick={() => {
-                      void patch(c.id, { archived: !c.archivedAt });
-                      toast(
-                        c.archivedAt ? "Contacto desarchivado" : "Contacto archivado"
-                      );
-                    }}
-                    className="flex h-[38px] w-[38px] items-center justify-center rounded-[9px] border bg-surface-2 text-mute transition-colors hover:text-foreground"
-                  >
-                    {c.archivedAt ? (
-                      <ArchiveRestore className="h-[17px] w-[17px]" strokeWidth={2} />
-                    ) : (
-                      <Archive className="h-[17px] w-[17px]" strokeWidth={2} />
-                    )}
-                  </button>
-                  <button
-                    aria-label="Eliminar contacto"
-                    title="Eliminar"
-                    onClick={() => setDeleting(c)}
-                    className="flex h-[38px] w-[38px] items-center justify-center rounded-[9px] border border-brand/40 bg-brand-tint text-brand transition-colors hover:bg-brand-soft"
-                  >
-                    <Trash2 className="h-[17px] w-[17px]" strokeWidth={2} />
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
+          view === "list" ? (
+            <ContactList
+              contacts={visible}
+              onDetail={setDetail}
+              onEdit={setEditing}
+              onToggleArchived={toggleArchived}
+              onDelete={setDeleting}
+            />
+          ) : (
+            <ContactGrid
+              contacts={visible}
+              onDetail={setDetail}
+              onEdit={setEditing}
+              onToggleArchived={toggleArchived}
+              onDelete={setDeleting}
+            />
+          )
         )}
       </div>
 
@@ -351,12 +315,7 @@ export function ContactsClient() {
             onClose={() => setDetail(null)}
             onEdit={() => setEditing(detail)}
             onToggleArchived={() => {
-              void patch(detail.id, { archived: !detail.archivedAt });
-              toast(
-                detail.archivedAt
-                  ? "Contacto desarchivado"
-                  : "Contacto archivado"
-              );
+              toggleArchived(detail);
             }}
             onDelete={() => setDeleting(detail)}
             onToggleOptOut={() => {
@@ -407,6 +366,216 @@ export function ContactsClient() {
           onConfirm={() => void removeContact(deleting)}
         />
       )}
+    </div>
+  );
+}
+
+type ContactCollectionProps = {
+  contacts: ContactDto[];
+  onDetail: (contact: ContactDto) => void;
+  onEdit: (contact: ContactDto) => void;
+  onToggleArchived: (contact: ContactDto) => void;
+  onDelete: (contact: ContactDto) => void;
+};
+
+function ContactList({
+  contacts,
+  onDetail,
+  onEdit,
+  onToggleArchived,
+  onDelete,
+}: ContactCollectionProps) {
+  return (
+    <ul className="mx-auto flex max-w-[1000px] flex-col gap-3">
+      {contacts.map((contact) => (
+        <li
+          key={contact.id}
+          data-testid="contact-list-row"
+          className="flex flex-wrap items-center gap-3 rounded-[14px] border bg-surface px-4 py-3.5 transition-colors hover:border-brand/50 md:gap-4 md:px-5 md:py-4"
+        >
+          <ContactAvatar name={contact.name} seed={contact.id} size="lg" />
+          <ContactIdentity
+            contact={contact}
+            className="flex-1"
+            showNotesInline
+          />
+          {contact.stage && (
+            <StageTag
+              name={contact.stage.name}
+              color={stageColor(contact.stage)}
+              className="shrink-0"
+            />
+          )}
+          <ContactActions
+            contact={contact}
+            onDetail={onDetail}
+            onEdit={onEdit}
+            onToggleArchived={onToggleArchived}
+            onDelete={onDelete}
+          />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ContactGrid({
+  contacts,
+  onDetail,
+  onEdit,
+  onToggleArchived,
+  onDelete,
+}: ContactCollectionProps) {
+  return (
+    <ul className="mx-auto grid max-w-[1180px] grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {contacts.map((contact) => (
+        <li
+          key={contact.id}
+          data-testid="contact-grid-card"
+          className="flex min-w-0 flex-col rounded-[16px] border bg-surface p-4 transition-all hover:-translate-y-0.5 hover:border-brand/50 hover:shadow-sm"
+        >
+          <div className="flex min-w-0 items-start gap-3">
+            <ContactAvatar name={contact.name} seed={contact.id} size="lg" />
+            <ContactIdentity contact={contact} className="flex-1" />
+          </div>
+          <div className="mt-4 flex min-h-6 items-center">
+            {contact.stage ? (
+              <StageTag
+                name={contact.stage.name}
+                color={stageColor(contact.stage)}
+              />
+            ) : (
+              <span className="text-[12px] font-semibold text-faint">
+                Sin etapa
+              </span>
+            )}
+          </div>
+          <p className="mt-3 min-h-10 overflow-hidden text-[12.5px] leading-5 text-mute">
+            {contact.notes || "Sin notas todavía."}
+          </p>
+          <div className="mt-4 border-t pt-3">
+            <ContactActions
+              contact={contact}
+              compact
+              onDetail={onDetail}
+              onEdit={onEdit}
+              onToggleArchived={onToggleArchived}
+              onDelete={onDelete}
+            />
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ContactIdentity({
+  contact,
+  className,
+  showNotesInline = false,
+}: {
+  contact: ContactDto;
+  className?: string;
+  showNotesInline?: boolean;
+}) {
+  return (
+    <div className={`min-w-0 ${className ?? ""}`}>
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+        <span className="min-w-0 truncate font-display text-base font-semibold">
+          {contact.name}
+        </span>
+        {contact.archivedAt && <Badge variant="secondary">Archivado</Badge>}
+        {contact.optedOutAt && (
+          <Badge variant="destructive" title="Pidió no recibir más mensajes">
+            Baja
+          </Badge>
+        )}
+      </div>
+      <p className="truncate text-[13px] text-mute">
+        <span className="font-bold text-foreground">
+          {formatPhone(contact.phone)}
+        </span>
+        {showNotesInline && contact.notes
+          ? ` · ${contact.notes.slice(0, 80)}`
+          : ""}
+      </p>
+    </div>
+  );
+}
+
+function ContactActions({
+  contact,
+  compact = false,
+  onDetail,
+  onEdit,
+  onToggleArchived,
+  onDelete,
+}: Omit<ContactCollectionProps, "contacts"> & {
+  contact: ContactDto;
+  compact?: boolean;
+}) {
+  const actionClass =
+    "flex h-[38px] w-[38px] items-center justify-center rounded-[9px] border bg-surface-2 text-mute transition-colors hover:text-foreground";
+  return (
+    <div
+      className={
+        compact
+          ? "flex flex-wrap items-center justify-end gap-2"
+          : "ml-auto flex shrink-0 items-center gap-2"
+      }
+    >
+      <button
+        aria-label={`Ver detalles de ${contact.name}`}
+        title="Ver detalles"
+        onClick={() => onDetail(contact)}
+        className={actionClass}
+      >
+        <Eye className="h-[17px] w-[17px]" strokeWidth={2} />
+      </button>
+      <button
+        aria-label={`Editar ${contact.name}`}
+        title="Editar"
+        onClick={() => onEdit(contact)}
+        className={
+          compact
+            ? actionClass
+            : "h-[38px] rounded-[9px] bg-brand px-4 text-[13px] font-bold text-white transition-colors hover:bg-brand-hover"
+        }
+      >
+        {compact ? (
+          <Pencil className="h-[17px] w-[17px]" strokeWidth={2} />
+        ) : (
+          "Editar"
+        )}
+      </button>
+      <Link
+        href={`/inbox?contact=${contact.id}`}
+        aria-label={`Abrir conversación de ${contact.name}`}
+        title="Abrir chat"
+        className={actionClass}
+      >
+        <MessageCircle className="h-[17px] w-[17px]" strokeWidth={2} />
+      </Link>
+      <button
+        aria-label={`${contact.archivedAt ? "Desarchivar" : "Archivar"} ${contact.name}`}
+        title={contact.archivedAt ? "Desarchivar" : "Archivar"}
+        onClick={() => onToggleArchived(contact)}
+        className={actionClass}
+      >
+        {contact.archivedAt ? (
+          <ArchiveRestore className="h-[17px] w-[17px]" strokeWidth={2} />
+        ) : (
+          <Archive className="h-[17px] w-[17px]" strokeWidth={2} />
+        )}
+      </button>
+      <button
+        aria-label={`Eliminar ${contact.name}`}
+        title="Eliminar"
+        onClick={() => onDelete(contact)}
+        className="flex h-[38px] w-[38px] items-center justify-center rounded-[9px] border border-brand/40 bg-brand-tint text-brand transition-colors hover:bg-brand-soft"
+      >
+        <Trash2 className="h-[17px] w-[17px]" strokeWidth={2} />
+      </button>
     </div>
   );
 }
