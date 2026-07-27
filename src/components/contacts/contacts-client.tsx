@@ -22,6 +22,7 @@ import type { ContactDto } from "@/lib/types";
 import { formatPhone } from "@/lib/utils";
 import { stageColor } from "@/lib/stage-colors";
 import { ContactAvatar } from "@/components/avatar";
+import { ProspectEditorDialog } from "@/components/contacts/prospect-editor-dialog";
 import { useViewPreference } from "@/components/use-view-preference";
 import { useStages } from "@/components/use-stage-colors";
 import { Badge } from "@/components/ui/badge";
@@ -283,13 +284,11 @@ export function ContactsClient() {
       </div>
 
       {editing && (
-        <EditDialog
-          contact={editing}
+        <ProspectEditorDialog
+          contactId={editing.id}
           onClose={() => setEditing(null)}
-          onSave={async (patchBody) => {
-            await patch(editing.id, patchBody);
-            setEditing(null);
-            toast("Cambios guardados");
+          onSaved={async () => {
+            await refetch();
           }}
         />
       )}
@@ -908,68 +907,5 @@ function ContactDetailPanel({
         </button>
       </footer>
     </>
-  );
-}
-
-function EditDialog({
-  contact,
-  onClose,
-  onSave,
-}: {
-  contact: ContactDto;
-  onClose: () => void;
-  onSave: (patch: { name: string; notes: string }) => Promise<void>;
-}) {
-  const [name, setName] = useState(contact.name);
-  const [notes, setNotes] = useState(contact.notes ?? "");
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex animate-[fade-in_.16s_ease] items-center justify-center bg-black/50 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md animate-[pop-in_.2s_ease] rounded-2xl bg-surface p-6 shadow-[0_24px_60px_rgba(0,0,0,.35)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="mb-4 font-display text-[19px] font-bold">
-          Editar contacto
-        </h3>
-        <div className="space-y-3.5">
-          <div className="space-y-1.5">
-            <label className="text-[12.5px] font-bold" htmlFor="edit-name">
-              Nombre
-            </label>
-            <Input
-              id="edit-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[12.5px] font-bold" htmlFor="edit-notes">
-              Notas
-            </label>
-            <Textarea
-              id="edit-notes"
-              rows={4}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
-        </div>
-        <div className="mt-5 flex justify-end gap-2.5">
-          <Button variant="ghost" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button
-            disabled={!name.trim()}
-            onClick={() => void onSave({ name: name.trim(), notes })}
-          >
-            Guardar
-          </Button>
-        </div>
-      </div>
-    </div>
   );
 }

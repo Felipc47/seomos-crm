@@ -182,7 +182,7 @@ async function waitCount(page, testId, expected) {
     "Cuadrícula conserva la acción de chat"
   );
   await mariaCard.getByRole("button", { name: "Editar María Fernanda López" }).click();
-  await page.getByRole("heading", { name: "Editar contacto" }).waitFor();
+  await page.getByRole("heading", { name: "Editar prospecto" }).waitFor();
   await page.getByRole("button", { name: "Cancelar" }).click();
   await mariaCard.getByRole("button", { name: "Eliminar María Fernanda López" }).click();
   await page.getByRole("alertdialog", { name: "Eliminar contacto" }).waitFor();

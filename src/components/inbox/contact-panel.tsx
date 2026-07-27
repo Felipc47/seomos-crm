@@ -12,6 +12,7 @@ import {
 import { cn, formatPhone } from "@/lib/utils";
 import { stageColor, stageTint } from "@/lib/stage-colors";
 import { ContactAvatar } from "@/components/avatar";
+import { ProspectEditorDialog } from "@/components/contacts/prospect-editor-dialog";
 import { ScheduleDialog } from "@/components/schedule-dialog";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -34,6 +35,7 @@ export function ContactPanel({
   onPatchConversation,
   onResetConversation,
   onDeleteContact,
+  onContactUpdated,
   onClose,
 }: {
   conversation: ConversationDto;
@@ -47,12 +49,12 @@ export function ContactPanel({
   onResetConversation: () => Promise<boolean>;
   /** Borra el contacto de forma permanente (cascada). */
   onDeleteContact: (contactId: string) => Promise<boolean>;
+  /** Refresca la identidad visible en la lista y el encabezado del chat. */
+  onContactUpdated: () => void | Promise<void>;
   onClose: () => void;
 }) {
   const toast = useToast();
-  const [mode, setMode] = useState<"view" | "edit">("view");
-  const [draftName, setDraftName] = useState("");
-  const [draftEmail, setDraftEmail] = useState("");
+  const [editing, setEditing] = useState(false);
   const [contactEmail, setContactEmail] = useState<string | null>(null);
   const [scheduling, setScheduling] = useState(false);
   const [notes, setNotes] = useState("");
@@ -60,7 +62,6 @@ export function ContactPanel({
   // Ficha del lead extraída por IA (se regenera sola tras cada mensaje).
   const [aiProfile, setAiProfile] = useState<LeadProfileDto | null>(null);
   const [savingNotes, setSavingNotes] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState<"delete" | "reset" | null>(null);
   const [busy, setBusy] = useState(false);
   const [stages, setStages] = useState<StageDto[]>([]);
@@ -126,7 +127,7 @@ export function ContactPanel({
 
   useEffect(() => {
     setNotesLoaded(false);
-    setMode("view");
+    setEditing(false);
     void refetch();
   }, [refetch]);
 
@@ -186,26 +187,6 @@ export function ContactPanel({
     toast("Notas guardadas");
   }
 
-  async function saveEdit() {
-    if (!draftName.trim()) return;
-    const email = draftEmail.trim();
-    setSaving(true);
-    await fetch(`/api/contacts/${contactId}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        name: draftName.trim(),
-        email: email || null,
-        notes,
-      }),
-    }).catch(() => null);
-    setSaving(false);
-    setContactEmail(email || null);
-    setMode("view");
-    toast("Cambios guardados");
-    void refreshLive();
-  }
-
   const currentStage = stages.find((s) => s.id === currentStageId) ?? null;
 
   return (
@@ -235,350 +216,287 @@ export function ContactPanel({
       </header>
 
       <div className="flex-1 overflow-y-auto p-[22px]">
-        {mode === "edit" ? (
-          <div className="flex flex-col gap-4">
-            <div>
-              <label
-                htmlFor="panel-edit-name"
-                className="mb-1.5 block text-[12.5px] font-bold"
-              >
-                Nombre
-              </label>
-              <input
-                id="panel-edit-name"
-                value={draftName}
-                onChange={(e) => setDraftName(e.target.value)}
-                className="w-full rounded-[10px] border bg-surface-2 px-[13px] py-[11px] text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-soft"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="panel-edit-email"
-                className="mb-1.5 block text-[12.5px] font-bold"
-              >
-                Correo
-              </label>
-              <input
-                id="panel-edit-email"
-                type="email"
-                value={draftEmail}
-                onChange={(e) => setDraftEmail(e.target.value)}
-                placeholder="cliente@correo.com"
-                className="w-full rounded-[10px] border bg-surface-2 px-[13px] py-[11px] text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-soft"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="panel-edit-notes"
-                className="mb-1.5 block text-[12.5px] font-bold"
-              >
-                Notas
-              </label>
-              <Textarea
-                id="panel-edit-notes"
-                rows={5}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            </div>
-          </div>
-        ) : (
-          <>
-            {currentStage && (
-              <div className="mb-5 flex flex-wrap gap-2">
-                <StageTag
-                  name={currentStage.name}
-                  color={stageColor(currentStage)}
-                />
-                {closureReason && (
-                  <span className="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-bold text-mute">
-                    {closureReasonLabel(closureReason)}
-                  </span>
-                )}
-                {followUpDueAt && (
-                  <span className="rounded-full bg-[rgba(154,123,184,.12)] px-2.5 py-1 text-xs font-bold text-[#80619E]">
-                    Seguimiento programado
-                  </span>
-                )}
-              </div>
-            )}
-
-            <div className="flex flex-col">
-              <div className="flex items-center justify-between gap-4 border-b py-3">
-                <span className="shrink-0 text-[13px] font-semibold text-mute">
-                  Teléfono
-                </span>
-                <span className="text-right text-sm font-bold">
-                  {formatPhone(conversation.contact.phone)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-4 border-b py-3">
-                <span className="shrink-0 text-[13px] font-semibold text-mute">
-                  Correo
-                </span>
-                <span className="min-w-0 truncate text-right text-sm font-bold">
-                  {contactEmail ?? (
-                    <span className="font-semibold text-faint">
-                      Sin correo aún
-                    </span>
-                  )}
-                </span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setScheduling(true)}
-              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border py-3 text-sm font-bold transition-colors hover:border-brand hover:text-brand"
-            >
-              <CalendarPlus className="h-4 w-4" strokeWidth={2.2} />
-              Agendar reunión
-            </button>
-
-            {conversation.handoffAt && (
-              <div className="mt-4 rounded-xl border border-[color:var(--warning-border)] bg-[color:var(--warning-bg)] p-3">
-                <p className="flex items-center gap-1.5 text-[13px] font-medium text-[color:var(--warning-fg)]">
-                  <UserRound className="h-4 w-4" strokeWidth={1.7} /> Atención
-                  humana
-                </p>
-                <p className="mt-1 text-xs text-[color:var(--warning-fg)]">
-                  {HANDOFF_LABELS[conversation.handoffReason ?? ""] ??
-                    "La IA está en pausa en esta conversación."}
-                </p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="mt-2 w-full"
-                  disabled={!agentReady}
-                  onClick={() => void onPatchConversation({ reactivate: true })}
-                >
-                  Reactivar IA
-                </Button>
-              </div>
-            )}
-
-            <div className="mt-4 rounded-xl border bg-surface-2/60 px-3.5 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[13px] font-bold">
-                    IA en esta conversación
-                  </p>
-                  <p className="text-[11px] text-text-3">
-                    {!agentReady
-                      ? "Agente sin activar"
-                      : conversation.handoffAt
-                        ? "En pausa · atención humana"
-                        : conversation.aiEnabled
-                          ? "Respondiendo"
-                          : "En pausa"}
-                  </p>
-                </div>
-                <Switch
-                  size="sm"
-                  checked={aiActive}
-                  disabled={!agentReady}
-                  aria-label="IA en esta conversación"
-                  onCheckedChange={() => {
-                    if (!agentReady) return;
-                    void onPatchConversation({
-                      aiEnabled: !conversation.aiEnabled,
-                    });
-                  }}
-                />
-              </div>
-
-              {!agentReady && (
-                <div className="mt-2.5 flex items-start gap-2 rounded-md border border-[color:var(--warning-border)] bg-[color:var(--warning-bg)] p-2.5">
-                  <Sparkles
-                    className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[color:var(--warning-fg)]"
-                    strokeWidth={1.7}
-                  />
-                  <p className="text-[11px] leading-relaxed text-[color:var(--warning-fg)]">
-                    {aiConfigured
-                      ? "La IA todavía no responde por su cuenta. Configura lo básico del agente y enciéndelo."
-                      : "Falta la clave de IA de la instancia (OPENROUTER_API_TOKEN) para que el agente pueda responder."}
-                    {aiConfigured && (
-                      <Link
-                        href="/agent"
-                        className="ml-1 whitespace-nowrap font-medium text-brand-text underline underline-offset-2 hover:text-brand"
-                      >
-                        Configurar agente →
-                      </Link>
-                    )}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Stepper de etapa del mock: dot 22px del color de la etapa */}
-            {stages.length > 0 && leadId && (
-              <>
-                <p className="mb-3 mt-6 text-[11px] font-extrabold uppercase tracking-[.6px] text-faint">
-                  Etapa del pipeline
-                </p>
-                <div className="flex flex-col gap-0.5">
-                  {stages.map((s) => {
-                    const active = s.id === currentStageId;
-                    const color = stageColor(s);
-                    return (
-                      <button
-                        key={s.id}
-                        onClick={() => moveToStage(s)}
-                        className="flex w-full items-center gap-3 rounded-[10px] px-3 py-2.5 text-left transition-colors hover:bg-subtle"
-                        style={
-                          active ? { background: stageTint(color) } : undefined
-                        }
-                      >
-                        <span
-                          className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 text-white"
-                          style={{
-                            borderColor: active
-                              ? color
-                              : "var(--border-strong)",
-                            background: active ? color : "transparent",
-                          }}
-                        >
-                          {active && (
-                            <Check className="h-3 w-3" strokeWidth={3.2} />
-                          )}
-                        </span>
-                        <span
-                          className={cn(
-                            "text-sm",
-                            active
-                              ? "font-extrabold text-foreground"
-                              : "font-semibold text-mute"
-                          )}
-                        >
-                          {s.name}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-
-            {/* Ficha del lead (IA): se regenera tras cada mensaje del cliente */}
-            {aiProfile && (
-              <>
-                <p className="mb-2.5 mt-6 flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-[.6px] text-faint">
-                  <Sparkles className="h-3 w-3" strokeWidth={2.2} />
-                  Ficha del lead (IA)
-                </p>
-                <div className="space-y-2 rounded-xl border border-border bg-surface-2 p-3.5 text-[13px]">
-                  {aiProfile.summary && (
-                    <p className="leading-snug text-text-2">{aiProfile.summary}</p>
-                  )}
-                  {aiProfile.contactName && (
-                    <ProfileRow label="Se llama" value={aiProfile.contactName} />
-                  )}
-                  {aiProfile.businessName && (
-                    <ProfileRow label="Negocio" value={aiProfile.businessName} />
-                  )}
-                  {aiProfile.businessType && (
-                    <ProfileRow label="A qué se dedica" value={aiProfile.businessType} />
-                  )}
-                  {aiProfile.needs.length > 0 && (
-                    <div>
-                      <p className="text-[11px] font-bold text-faint">Necesita</p>
-                      <ul className="mt-0.5 list-disc space-y-0.5 pl-4 text-text-2">
-                        {aiProfile.needs.map((n, i) => (
-                          <li key={i} className="leading-snug">
-                            {n}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {aiProfile.budget && (
-                    <ProfileRow label="Presupuesto" value={aiProfile.budget} />
-                  )}
-                  {aiProfile.timeline && (
-                    <ProfileRow label="Plazo" value={aiProfile.timeline} />
-                  )}
-                </div>
-              </>
-            )}
-
-            {/* Notas */}
-            <p className="mb-2.5 mt-6 text-[11px] font-extrabold uppercase tracking-[.6px] text-faint">
-              Notas
-            </p>
-            <Textarea
-              rows={4}
-              placeholder="Notas internas sobre este contacto…"
-              value={notes}
-              disabled={!notesLoaded}
-              onChange={(e) => setNotes(e.target.value)}
+        {currentStage && (
+          <div className="mb-5 flex flex-wrap gap-2">
+            <StageTag
+              name={currentStage.name}
+              color={stageColor(currentStage)}
             />
+            {closureReason && (
+              <span className="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-bold text-mute">
+                {closureReasonLabel(closureReason)}
+              </span>
+            )}
+            {followUpDueAt && (
+              <span className="rounded-full bg-[rgba(154,123,184,.12)] px-2.5 py-1 text-xs font-bold text-[#80619E]">
+                Seguimiento programado
+              </span>
+            )}
+          </div>
+        )}
+
+        <div className="flex flex-col">
+          <div className="flex items-center justify-between gap-4 border-b py-3">
+            <span className="shrink-0 text-[13px] font-semibold text-mute">
+              Teléfono
+            </span>
+            <span className="text-right text-sm font-bold">
+              {formatPhone(conversation.contact.phone)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-4 border-b py-3">
+            <span className="shrink-0 text-[13px] font-semibold text-mute">
+              Correo
+            </span>
+            <span className="min-w-0 truncate text-right text-sm font-bold">
+              {contactEmail ?? (
+                <span className="font-semibold text-faint">
+                  Sin correo aún
+                </span>
+              )}
+            </span>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setScheduling(true)}
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border py-3 text-sm font-bold transition-colors hover:border-brand hover:text-brand"
+        >
+          <CalendarPlus className="h-4 w-4" strokeWidth={2.2} />
+          Agendar reunión
+        </button>
+
+        {conversation.handoffAt && (
+          <div className="mt-4 rounded-xl border border-[color:var(--warning-border)] bg-[color:var(--warning-bg)] p-3">
+            <p className="flex items-center gap-1.5 text-[13px] font-medium text-[color:var(--warning-fg)]">
+              <UserRound className="h-4 w-4" strokeWidth={1.7} /> Atención
+              humana
+            </p>
+            <p className="mt-1 text-xs text-[color:var(--warning-fg)]">
+              {HANDOFF_LABELS[conversation.handoffReason ?? ""] ??
+                "La IA está en pausa en esta conversación."}
+            </p>
             <Button
               size="sm"
-              variant="secondary"
-              className="mt-2"
-              disabled={savingNotes || !notesLoaded}
-              onClick={() => void saveNotes()}
+              variant="outline"
+              className="mt-2 w-full"
+              disabled={!agentReady}
+              onClick={() => void onPatchConversation({ reactivate: true })}
             >
-              {savingNotes ? "Guardando…" : "Guardar notas"}
+              Reactivar IA
             </Button>
+          </div>
+        )}
+
+        <div className="mt-4 rounded-xl border bg-surface-2/60 px-3.5 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[13px] font-bold">IA en esta conversación</p>
+              <p className="text-[11px] text-text-3">
+                {!agentReady
+                  ? "Agente sin activar"
+                  : conversation.handoffAt
+                    ? "En pausa · atención humana"
+                    : conversation.aiEnabled
+                      ? "Respondiendo"
+                      : "En pausa"}
+              </p>
+            </div>
+            <Switch
+              size="sm"
+              checked={aiActive}
+              disabled={!agentReady}
+              aria-label="IA en esta conversación"
+              onCheckedChange={() => {
+                if (!agentReady) return;
+                void onPatchConversation({
+                  aiEnabled: !conversation.aiEnabled,
+                });
+              }}
+            />
+          </div>
+
+          {!agentReady && (
+            <div className="mt-2.5 flex items-start gap-2 rounded-md border border-[color:var(--warning-border)] bg-[color:var(--warning-bg)] p-2.5">
+              <Sparkles
+                className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[color:var(--warning-fg)]"
+                strokeWidth={1.7}
+              />
+              <p className="text-[11px] leading-relaxed text-[color:var(--warning-fg)]">
+                {aiConfigured
+                  ? "La IA todavía no responde por su cuenta. Configura lo básico del agente y enciéndelo."
+                  : "Falta la clave de IA de la instancia (OPENROUTER_API_TOKEN) para que el agente pueda responder."}
+                {aiConfigured && (
+                  <Link
+                    href="/agent"
+                    className="ml-1 whitespace-nowrap font-medium text-brand-text underline underline-offset-2 hover:text-brand"
+                  >
+                    Configurar agente →
+                  </Link>
+                )}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Stepper de etapa del mock: dot 22px del color de la etapa */}
+        {stages.length > 0 && leadId && (
+          <>
+            <p className="mb-3 mt-6 text-[11px] font-extrabold uppercase tracking-[.6px] text-faint">
+              Etapa del pipeline
+            </p>
+            <div className="flex flex-col gap-0.5">
+              {stages.map((s) => {
+                const active = s.id === currentStageId;
+                const color = stageColor(s);
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => moveToStage(s)}
+                    className="flex w-full items-center gap-3 rounded-[10px] px-3 py-2.5 text-left transition-colors hover:bg-subtle"
+                    style={
+                      active ? { background: stageTint(color) } : undefined
+                    }
+                  >
+                    <span
+                      className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 text-white"
+                      style={{
+                        borderColor: active
+                          ? color
+                          : "var(--border-strong)",
+                        background: active ? color : "transparent",
+                      }}
+                    >
+                      {active && (
+                        <Check className="h-3 w-3" strokeWidth={3.2} />
+                      )}
+                    </span>
+                    <span
+                      className={cn(
+                        "text-sm",
+                        active
+                          ? "font-extrabold text-foreground"
+                          : "font-semibold text-mute"
+                      )}
+                    >
+                      {s.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </>
         )}
+
+        {/* Ficha del lead (IA): se regenera tras cada mensaje del cliente */}
+        {aiProfile && (
+          <>
+            <p className="mb-2.5 mt-6 flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-[.6px] text-faint">
+              <Sparkles className="h-3 w-3" strokeWidth={2.2} />
+              Ficha del lead (IA)
+            </p>
+            <div className="space-y-2 rounded-xl border border-border bg-surface-2 p-3.5 text-[13px]">
+              {aiProfile.summary && (
+                <p className="leading-snug text-text-2">
+                  {aiProfile.summary}
+                </p>
+              )}
+              {aiProfile.contactName && (
+                <ProfileRow label="Se llama" value={aiProfile.contactName} />
+              )}
+              {aiProfile.businessName && (
+                <ProfileRow label="Negocio" value={aiProfile.businessName} />
+              )}
+              {aiProfile.businessType && (
+                <ProfileRow
+                  label="A qué se dedica"
+                  value={aiProfile.businessType}
+                />
+              )}
+              {aiProfile.needs.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-bold text-faint">Necesita</p>
+                  <ul className="mt-0.5 list-disc space-y-0.5 pl-4 text-text-2">
+                    {aiProfile.needs.map((n, i) => (
+                      <li key={i} className="leading-snug">
+                        {n}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {aiProfile.budget && (
+                <ProfileRow label="Presupuesto" value={aiProfile.budget} />
+              )}
+              {aiProfile.timeline && (
+                <ProfileRow label="Plazo" value={aiProfile.timeline} />
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Notas */}
+        <p className="mb-2.5 mt-6 text-[11px] font-extrabold uppercase tracking-[.6px] text-faint">
+          Notas
+        </p>
+        <Textarea
+          rows={4}
+          placeholder="Notas internas sobre este contacto…"
+          value={notes}
+          disabled={!notesLoaded}
+          onChange={(e) => setNotes(e.target.value)}
+        />
+        <Button
+          size="sm"
+          variant="secondary"
+          className="mt-2"
+          disabled={savingNotes || !notesLoaded}
+          onClick={() => void saveNotes()}
+        >
+          {savingNotes ? "Guardando…" : "Guardar notas"}
+        </Button>
       </div>
 
       {/* Footer de acciones del mock */}
       <div className="border-t px-[22px] py-4">
-        {mode === "edit" ? (
-          <div className="flex gap-2.5">
-            <button
-              onClick={() => void saveEdit()}
-              disabled={saving || !draftName.trim()}
-              className="flex-1 rounded-xl bg-brand py-3 text-sm font-bold text-white shadow-accent transition-colors hover:bg-brand-hover disabled:opacity-50"
-            >
-              {saving ? "Guardando…" : "Guardar cambios"}
-            </button>
-            <button
-              onClick={() => {
-                setMode("view");
-                void refetch();
-              }}
-              className="rounded-xl border px-5 py-3 text-sm font-bold text-mute transition-colors hover:bg-surface-2"
-            >
-              Cancelar
-            </button>
-          </div>
-        ) : (
-          <div className="flex gap-2.5">
-            <button
-              onClick={() => {
-                setDraftName(conversation.contact.name);
-                setDraftEmail(contactEmail ?? "");
-                setMode("edit");
-              }}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand py-3 text-sm font-bold text-white shadow-accent transition-colors hover:bg-brand-hover"
-            >
-              <Pencil className="h-4 w-4" strokeWidth={2.2} />
-              Editar
-            </button>
-            <button
-              title="Reiniciar conversación"
-              aria-label="Reiniciar conversación"
-              disabled={busy}
-              onClick={() => setConfirming("reset")}
-              className="flex w-12 shrink-0 items-center justify-center rounded-xl border text-mute transition-colors hover:bg-surface-2 hover:text-foreground disabled:opacity-50"
-            >
-              <RotateCcw className="h-[17px] w-[17px]" strokeWidth={2} />
-            </button>
-            <button
-              title="Eliminar contacto"
-              aria-label="Eliminar contacto"
-              disabled={busy}
-              onClick={() => setConfirming("delete")}
-              className="flex w-12 shrink-0 items-center justify-center rounded-xl border border-brand/40 text-brand transition-colors hover:bg-brand-tint disabled:opacity-50"
-            >
-              <Trash2 className="h-[17px] w-[17px]" strokeWidth={2} />
-            </button>
-          </div>
-        )}
+        <div className="flex gap-2.5">
+          <button
+            onClick={() => setEditing(true)}
+            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand py-3 text-sm font-bold text-white shadow-accent transition-colors hover:bg-brand-hover"
+          >
+            <Pencil className="h-4 w-4" strokeWidth={2.2} />
+            Editar
+          </button>
+          <button
+            title="Reiniciar conversación"
+            aria-label="Reiniciar conversación"
+            disabled={busy}
+            onClick={() => setConfirming("reset")}
+            className="flex w-12 shrink-0 items-center justify-center rounded-xl border text-mute transition-colors hover:bg-surface-2 hover:text-foreground disabled:opacity-50"
+          >
+            <RotateCcw className="h-[17px] w-[17px]" strokeWidth={2} />
+          </button>
+          <button
+            title="Eliminar contacto"
+            aria-label="Eliminar contacto"
+            disabled={busy}
+            onClick={() => setConfirming("delete")}
+            className="flex w-12 shrink-0 items-center justify-center rounded-xl border border-brand/40 text-brand transition-colors hover:bg-brand-tint disabled:opacity-50"
+          >
+            <Trash2 className="h-[17px] w-[17px]" strokeWidth={2} />
+          </button>
+        </div>
       </div>
+
+      {editing && (
+        <ProspectEditorDialog
+          contactId={contactId}
+          onClose={() => setEditing(false)}
+          onSaved={async () => {
+            await Promise.all([refetch(), onContactUpdated()]);
+          }}
+        />
+      )}
 
       {confirming === "delete" && (
         <ConfirmDialog

@@ -351,6 +351,7 @@ export function InboxClient() {
             onPatchConversation={patchConversation}
             onResetConversation={resetConversation}
             onDeleteContact={deleteContact}
+            onContactUpdated={refetchConversations}
             onClose={() => setDetailOpen(false)}
           />
         </SlideOver>

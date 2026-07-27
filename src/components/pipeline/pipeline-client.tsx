@@ -19,6 +19,7 @@ import {
   Columns3,
   LayoutList,
   MessageCircle,
+  Pencil,
   Plus,
   Search,
   SlidersHorizontal,
@@ -32,6 +33,7 @@ import type { StageDto } from "@/lib/types";
 import { cn, formatPhone } from "@/lib/utils";
 import { stageColor } from "@/lib/stage-colors";
 import { ContactAvatar } from "@/components/avatar";
+import { ProspectEditorDialog } from "@/components/contacts/prospect-editor-dialog";
 import { useViewPreference } from "@/components/use-view-preference";
 import { useToast } from "@/components/ui/toast";
 import {
@@ -67,6 +69,7 @@ export function PipelineClient() {
   const [stages, setStages] = useState<StageDto[]>([]);
   const [leads, setLeads] = useState<BoardLead[]>([]);
   const [activeLead, setActiveLead] = useState<BoardLead | null>(null);
+  const [editing, setEditing] = useState<BoardLead | null>(null);
   const [managing, setManaging] = useState(false);
   const [query, setQuery] = useState("");
   const [pendingMove, setPendingMove] = useState<{
@@ -245,6 +248,7 @@ export function PipelineClient() {
                   key={stage.id}
                   stage={stage}
                   leads={visibleLeads.filter((lead) => lead.stageId === stage.id)}
+                  onEdit={setEditing}
                 />
               ))}
               <AddStageColumn onCreated={() => void refetch()} />
@@ -261,6 +265,7 @@ export function PipelineClient() {
             stages={stages}
             moving={moving}
             onMove={requestMove}
+            onEdit={setEditing}
           />
         </div>
       )}
@@ -288,6 +293,15 @@ export function PipelineClient() {
           }
         />
       )}
+      {editing && (
+        <ProspectEditorDialog
+          contactId={editing.contact.id}
+          onClose={() => setEditing(null)}
+          onSaved={async () => {
+            await refetch();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -297,11 +311,13 @@ function PipelineList({
   stages,
   moving,
   onMove,
+  onEdit,
 }: {
   leads: BoardLead[];
   stages: StageDto[];
   moving: boolean;
   onMove: (lead: BoardLead, stage: StageDto) => void;
+  onEdit: (lead: BoardLead) => void;
 }) {
   if (leads.length === 0) {
     return (
@@ -316,7 +332,7 @@ function PipelineList({
 
   return (
     <div className="mx-auto w-full max-w-[1180px]">
-      <div className="mb-2 hidden grid-cols-[minmax(210px,1.6fr)_minmax(130px,.8fr)_minmax(170px,1fr)_minmax(130px,.8fr)_minmax(150px,.9fr)_42px] gap-4 px-4 text-[11px] font-extrabold uppercase tracking-[.06em] text-faint lg:grid">
+      <div className="mb-2 hidden grid-cols-[minmax(210px,1.6fr)_minmax(130px,.8fr)_minmax(170px,1fr)_minmax(130px,.8fr)_minmax(150px,.9fr)_86px] gap-4 px-4 text-[11px] font-extrabold uppercase tracking-[.06em] text-faint lg:grid">
         <span>Prospecto</span>
         <span>Teléfono</span>
         <span>Etapa</span>
@@ -331,7 +347,7 @@ function PipelineList({
             <article
               key={lead.id}
               data-testid="lead-list-row"
-              className="grid gap-3 rounded-[14px] border bg-surface p-4 transition-colors hover:border-brand/50 lg:grid-cols-[minmax(210px,1.6fr)_minmax(130px,.8fr)_minmax(170px,1fr)_minmax(130px,.8fr)_minmax(150px,.9fr)_42px] lg:items-center lg:gap-4"
+              className="grid gap-3 rounded-[14px] border bg-surface p-4 transition-colors hover:border-brand/50 lg:grid-cols-[minmax(210px,1.6fr)_minmax(130px,.8fr)_minmax(170px,1fr)_minmax(130px,.8fr)_minmax(150px,.9fr)_86px] lg:items-center lg:gap-4"
             >
               <div className="flex min-w-0 items-center gap-3">
                 <ContactAvatar
@@ -398,7 +414,16 @@ function PipelineList({
                 <p className="text-[12px] text-faint">Sin seguimiento</p>
               )}
 
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => onEdit(lead)}
+                  aria-label={`Editar ${lead.contact.name}`}
+                  title="Editar prospecto"
+                  className="flex h-[38px] w-[38px] items-center justify-center rounded-[9px] border bg-surface-2 text-mute transition-colors hover:border-brand hover:text-brand"
+                >
+                  <Pencil className="h-[16px] w-[16px]" strokeWidth={2.2} />
+                </button>
                 {lead.conversationId ? (
                   <Link
                     href={`/inbox?contact=${lead.contact.id}`}
@@ -420,7 +445,15 @@ function PipelineList({
   );
 }
 
-function StageColumn({ stage, leads }: { stage: StageDto; leads: BoardLead[] }) {
+function StageColumn({
+  stage,
+  leads,
+  onEdit,
+}: {
+  stage: StageDto;
+  leads: BoardLead[];
+  onEdit: (lead: BoardLead) => void;
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
   const color = stageColor(stage);
   return (
@@ -446,14 +479,20 @@ function StageColumn({ stage, leads }: { stage: StageDto; leads: BoardLead[] }) 
       </div>
       <div className="flex flex-1 flex-col gap-[11px] overflow-y-auto px-[3px] pb-10 pt-0.5">
         {leads.map((lead) => (
-          <DraggableLead key={lead.id} lead={lead} />
+          <DraggableLead key={lead.id} lead={lead} onEdit={onEdit} />
         ))}
       </div>
     </div>
   );
 }
 
-function DraggableLead({ lead }: { lead: BoardLead }) {
+function DraggableLead({
+  lead,
+  onEdit,
+}: {
+  lead: BoardLead;
+  onEdit: (lead: BoardLead) => void;
+}) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: lead.id,
   });
@@ -464,12 +503,20 @@ function DraggableLead({ lead }: { lead: BoardLead }) {
       {...attributes}
       className={cn("touch-manipulation", isDragging && "opacity-40")}
     >
-      <LeadCard lead={lead} />
+      <LeadCard lead={lead} onEdit={() => onEdit(lead)} />
     </div>
   );
 }
 
-function LeadCard({ lead, overlay = false }: { lead: BoardLead; overlay?: boolean }) {
+function LeadCard({
+  lead,
+  overlay = false,
+  onEdit,
+}: {
+  lead: BoardLead;
+  overlay?: boolean;
+  onEdit?: () => void;
+}) {
   const reason = closureReasonLabel(lead.closureReason);
   return (
     <div
@@ -494,6 +541,21 @@ function LeadCard({ lead, overlay = false }: { lead: BoardLead; overlay?: boolea
         <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-mute">
           {formatPhone(lead.contact.phone)}
         </span>
+        {onEdit && (
+          <button
+            type="button"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              onEdit();
+            }}
+            aria-label={`Editar ${lead.contact.name}`}
+            title="Editar prospecto"
+            className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg border bg-surface-2 text-mute transition-colors hover:border-brand hover:text-brand"
+          >
+            <Pencil className="h-3.5 w-3.5" strokeWidth={2.2} />
+          </button>
+        )}
         {lead.conversationId && (
           <Link
             href={`/inbox?contact=${lead.contact.id}`}
