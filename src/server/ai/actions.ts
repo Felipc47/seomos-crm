@@ -16,6 +16,8 @@ export const AgentAction = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("move_stage"),
     stage: z.string().min(1),
+    /** Código obligatorio al cerrar en No calificado/No convertido. */
+    reason: z.string().optional(),
     reply: z.string().optional(),
   }),
   z.object({
@@ -55,10 +57,10 @@ export type AgentActionType = z.infer<typeof AgentAction>;
  * Resuelve el nombre de etapa devuelto por el modelo contra las etapas reales
  * de la organización (exacto → lower-case). Sin match: degradar a reply/none.
  */
-export function resolveStage(
+export function resolveStage<T extends { id: string; name: string }>(
   requested: string,
-  stages: { id: string; name: string }[]
-): { id: string; name: string } | null {
+  stages: T[]
+): T | null {
   const exact = stages.find((s) => s.name === requested.trim());
   if (exact) return exact;
   const lower = requested.trim().toLowerCase();

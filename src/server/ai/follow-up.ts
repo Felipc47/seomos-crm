@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, lte } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@/lib/db";
 import { chatJson, type ChatMessage } from "@/lib/ai";
@@ -20,17 +20,13 @@ import {
 } from "@/server/org-settings";
 
 /**
- * Rutina de seguimiento automático (008), visible en el pipeline:
+ * Rutina de seguimiento automático (008), desacoplada del pipeline en 009:
+ * el lead permanece en «En calificación» y el estado operativo vive en
+ * follow_up_due_at/follow_up_attempts.
  *
- * - «Contactar luego» (kind follow_up): el cliente pidió que le escribieran
- *   después — lo arma la acción follow_up_later del agente o el operador al
- *   arrastrar el lead a esa etapa.
- * - «No contestó» (kind no_reply): el primer mensaje del negocio quedó sin
- *   respuesta ≥12h — lo detecta el barrido.
- *
- * En ambos casos: intento 1 (a las 12h o cuando pidió el cliente, dentro de
- * la ventana de atención) → intento 2 (+1 día hábil) → sin respuesta 1 día
- * hábil después → «No interesado» (kind no_interest).
+ * Intento 1 (a las 12h o cuando pidió el cliente, dentro de la ventana de
+ * atención) → intento 2 (+1 día hábil) → sin respuesta 1 día hábil después
+ * → «No convertido» con motivo `no_response`.
  *
  * Qué se envía: con la ventana de 24h de WhatsApp abierta, un mensaje
  * contextual del LLM (con texto neutro de respaldo); cerrada, la plantilla
@@ -84,10 +80,10 @@ function nextBusinessAttempt(from: Date, s: AttentionSettings): Date {
   return nextAttentionSlot(addBusinessDays(from, 1, s.timezone), s);
 }
 
-/** Etapa del sistema por kind (como la de «Agendado»): null si la borraron. */
+/** Etapa del sistema por kind: null si falta por una instalación antigua. */
 async function stageByKind(
   organizationId: string,
-  kind: "follow_up" | "no_reply" | "no_interest" | "open"
+  kind: "open" | "lost"
 ): Promise<{ id: string; name: string } | null> {
   const db = getDb();
   const rows = await db
@@ -104,12 +100,23 @@ async function stageByKind(
   return rows[0] ?? null;
 }
 
-async function moveLead(contactId: string, stageId: string): Promise<void> {
+async function qualifyingStage(
+  organizationId: string
+): Promise<{ id: string; name: string } | null> {
   const db = getDb();
-  await db
-    .update(schema.lead)
-    .set({ stageId, updatedAt: new Date(), lastActivityAt: new Date() })
-    .where(eq(schema.lead.contactId, contactId));
+  const rows = await db
+    .select({ id: schema.pipelineStage.id, name: schema.pipelineStage.name })
+    .from(schema.pipelineStage)
+    .where(
+      and(
+        eq(schema.pipelineStage.organizationId, organizationId),
+        eq(schema.pipelineStage.kind, "open")
+      )
+    )
+    .orderBy(asc(schema.pipelineStage.position));
+  return (
+    rows.find((stage) => stage.name.toLowerCase() === "en calificación") ?? null
+  );
 }
 
 /** Nota [IA] en la ficha del contacto: la rutina deja rastro auditable. */
@@ -141,10 +148,9 @@ function publishBoardChange(organizationId: string, conversationId?: string) {
 }
 
 /**
- * Arma la rutina para un contacto: lead → etapa «Contactar luego» y primer
- * intento programado (lo pedido por el cliente, o ahora + 12h) dentro de la
- * ventana de atención. Devuelve el momento del intento (null si no hay lead
- * o la etapa fue eliminada — la conversación sigue, el tablero es secundario).
+ * Arma la rutina para un contacto: lead → «En calificación» y primer intento
+ * programado (lo pedido por el cliente, o ahora + 12h) dentro de la ventana
+ * de atención. Devuelve el momento del intento (null si no hay lead).
  */
 export async function armFollowUp(input: {
   organizationId: string;
@@ -160,8 +166,7 @@ export async function armFollowUp(input: {
     .where(eq(schema.lead.contactId, input.contactId))
     .limit(1);
   if (!lead[0]) return null;
-  const stage = await stageByKind(input.organizationId, "follow_up");
-  if (!stage) return null;
+  const stage = await qualifyingStage(input.organizationId);
 
   const settings = await getCalendarSettings(input.organizationId);
   const base =
@@ -173,9 +178,11 @@ export async function armFollowUp(input: {
   await db
     .update(schema.lead)
     .set({
-      stageId: stage.id,
+      ...(stage ? { stageId: stage.id } : {}),
       followUpDueAt: due,
       followUpAttempts: 0,
+      closureReason: null,
+      closedAt: null,
       updatedAt: new Date(),
       lastActivityAt: new Date(),
     })
@@ -193,13 +200,11 @@ export async function disarmFollowUp(contactId: string): Promise<void> {
 }
 
 /**
- * El cliente respondió: cancela la rutina en el punto en que esté y, si el
- * lead estaba en una etapa de seguimiento, lo regresa a «En conversación»
- * (por nombre; si el operador la renombró, se queda donde está y el agente
- * decide con move_stage).
+ * El cliente respondió: cancela la rutina en el punto en que esté. La etapa
+ * comercial no cambia porque el seguimiento ya no es una columna.
  */
 export async function cancelFollowUpOnInbound(
-  organizationId: string,
+  _organizationId: string,
   contactId: string
 ): Promise<void> {
   const db = getDb();
@@ -208,43 +213,20 @@ export async function cancelFollowUpOnInbound(
       leadId: schema.lead.id,
       dueAt: schema.lead.followUpDueAt,
       attempts: schema.lead.followUpAttempts,
-      stageKind: schema.pipelineStage.kind,
     })
     .from(schema.lead)
-    .innerJoin(
-      schema.pipelineStage,
-      eq(schema.lead.stageId, schema.pipelineStage.id)
-    )
     .where(eq(schema.lead.contactId, contactId))
     .limit(1);
   const lead = rows[0];
   if (!lead) return;
-  const inRoutineStage =
-    lead.stageKind === "follow_up" || lead.stageKind === "no_reply";
-  if (!inRoutineStage && !lead.dueAt && lead.attempts === 0) return;
-
-  const patch: Partial<typeof schema.lead.$inferInsert> = {
-    followUpDueAt: null,
-    followUpAttempts: 0,
-    updatedAt: new Date(),
-  };
-  if (inRoutineStage) {
-    const target = await db
-      .select({ id: schema.pipelineStage.id })
-      .from(schema.pipelineStage)
-      .where(
-        and(
-          eq(schema.pipelineStage.organizationId, organizationId),
-          eq(schema.pipelineStage.kind, "open"),
-          sql`lower(${schema.pipelineStage.name}) = 'en conversación'`
-        )
-      )
-      .limit(1);
-    if (target[0]) patch.stageId = target[0].id;
-  }
+  if (!lead.dueAt && lead.attempts === 0) return;
   await db
     .update(schema.lead)
-    .set(patch)
+    .set({
+      followUpDueAt: null,
+      followUpAttempts: 0,
+      updatedAt: new Date(),
+    })
     .where(eq(schema.lead.id, lead.leadId));
 }
 
@@ -330,7 +312,7 @@ type DueLead = {
   organizationId: string;
   dueAt: Date | null;
   attempts: number;
-  stageKind: string;
+  stageName: string;
   optedOutAt: Date | null;
   contactName: string;
 };
@@ -389,11 +371,10 @@ async function sendAttempt(input: {
 /**
  * Barrido del seguimiento (invocado por el cron junto al de recuperación).
  *
- * (a) Detecta «no contestó»: conversaciones reales SIN ningún entrante cuyo
- *     último (y por tanto primer) mensaje saliente tiene ≥12h, con el lead
- *     aún en la primera etapa abierta → etapa «No contestó» + rutina armada.
+ * (a) Detecta conversaciones SIN entrantes cuyo primer mensaje saliente tiene
+ *     ≥12h, con el lead aún en «Nuevo» → «En calificación» + rutina armada.
  * (b) Procesa intentos vencidos con claim atómico (dos barridos concurrentes
- *     no duplican el mensaje) y cierra en «No interesado» al agotarse.
+ *     no duplican el mensaje) y cierra en «No convertido» al agotarse.
  */
 export async function sweepFollowUps(
   now: Date = new Date()
@@ -453,16 +434,17 @@ export async function sweepFollowUps(
     // un cliente ganado que recibe una campaña no debe entrar a la rutina.
     const firstOpen = await stageByKind(c.organizationId, "open");
     if (!firstOpen || firstOpen.id !== c.stageId) continue;
-    const noReply = await stageByKind(c.organizationId, "no_reply");
-    if (!noReply) continue;
+    const qualifying = await qualifyingStage(c.organizationId);
 
     const due = nextAttentionSlot(now, attention);
     await db
       .update(schema.lead)
       .set({
-        stageId: noReply.id,
+        ...(qualifying ? { stageId: qualifying.id } : {}),
         followUpDueAt: due,
         followUpAttempts: 0,
+        closureReason: null,
+        closedAt: null,
         updatedAt: new Date(),
       })
       .where(
@@ -486,7 +468,7 @@ export async function sweepFollowUps(
       organizationId: schema.lead.organizationId,
       dueAt: schema.lead.followUpDueAt,
       attempts: schema.lead.followUpAttempts,
-      stageKind: schema.pipelineStage.kind,
+      stageName: schema.pipelineStage.name,
       optedOutAt: schema.contact.optedOutAt,
       contactName: schema.contact.name,
     })
@@ -517,8 +499,8 @@ export async function sweepFollowUps(
       .returning({ id: schema.lead.id });
     if (!claimed[0]) continue;
 
-    // El operador lo movió a otra etapa con la rutina armada → desarmar.
-    if (l.stageKind !== "follow_up" && l.stageKind !== "no_reply") {
+    // El operador lo movió fuera de «En calificación» → desarmar.
+    if (l.stageName.toLowerCase() !== "en calificación") {
       await disarmFollowUp(l.contactId);
       continue;
     }
@@ -538,16 +520,23 @@ export async function sweepFollowUps(
     // (due=NULL) y el claim atómico habría fallado — no hace falta más chequeo.
 
     if (l.attempts >= 2) {
-      // Rutina agotada → «No interesado» (silencioso si borraron la etapa).
-      const target = await stageByKind(l.organizationId, "no_interest");
-      if (target) await moveLead(l.contactId, target.id);
+      // Rutina agotada → «No convertido» con un motivo reportable.
+      const target = await stageByKind(l.organizationId, "lost");
       await db
         .update(schema.lead)
-        .set({ followUpAttempts: 0, updatedAt: new Date() })
+        .set({
+          ...(target ? { stageId: target.id } : {}),
+          followUpDueAt: null,
+          followUpAttempts: 0,
+          closureReason: "no_response",
+          closedAt: now,
+          updatedAt: new Date(),
+          lastActivityAt: new Date(),
+        })
         .where(eq(schema.lead.id, l.leadId));
       await appendNote(
         l.contactId,
-        "Sin respuesta tras dos seguimientos: pasa a No interesado."
+        "Sin respuesta tras dos seguimientos: pasa a No convertido."
       );
       publishBoardChange(l.organizationId, conversation.id);
       closed++;

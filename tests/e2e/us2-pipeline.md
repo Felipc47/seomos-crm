@@ -14,10 +14,10 @@
 
 ## Kanban (FR-011/FR-012)
 
-3. Arrastrar la tarjeta "Cliente E2E" de "Nuevo" a "En conversación".
+3. Arrastrar la tarjeta "Cliente E2E" de "Nuevo" a "En calificación".
    ✅ La tarjeta cambia de columna.
 4. Recargar la página.
-   ✅ La tarjeta sigue en "En conversación" (persistencia).
+   ✅ La tarjeta sigue en "En calificación" (persistencia).
 5. La tarjeta muestra contacto + última actividad + enlace que abre su
    conversación en la bandeja (`/inbox?contact=...`).
 

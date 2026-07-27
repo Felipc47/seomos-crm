@@ -3,8 +3,8 @@ import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
+import { isNegativeStage, isReasonForStage } from "@/lib/lead-closure";
 import { publish } from "@/server/events/bus";
-import { armFollowUp, disarmFollowUp } from "@/server/ai/follow-up";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +13,7 @@ type Params = { params: Promise<{ id: string }> };
 const patchSchema = z.object({
   stageId: z.string().min(1),
   position: z.number().int().min(0),
+  closureReason: z.string().max(60).nullable().optional(),
 });
 
 export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
@@ -36,13 +37,37 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
     )
     .limit(1);
   if (!stage[0]) return apiError(422, "invalid_stage", "Etapa inexistente");
+  if (
+    isNegativeStage(stage[0].kind) &&
+    !isReasonForStage(stage[0].kind, body.data.closureReason)
+  ) {
+    return apiError(
+      422,
+      "closure_reason_required",
+      `Selecciona un motivo válido para ${stage[0].kind === "lost" ? "No convertido" : "No calificado"}`
+    );
+  }
+
+  const now = new Date();
+  const terminal =
+    stage[0].kind === "won" ||
+    stage[0].kind === "lost" ||
+    stage[0].kind === "unqualified";
 
   const updated = await db
     .update(schema.lead)
     .set({
       stageId: body.data.stageId,
       position: body.data.position,
-      updatedAt: new Date(),
+      closureReason: isNegativeStage(stage[0].kind)
+        ? body.data.closureReason
+        : null,
+      closedAt: terminal ? now : null,
+      // Cualquier movimiento manual expresa una decisión del operador y
+      // cancela una rutina pendiente.
+      followUpDueAt: null,
+      followUpAttempts: 0,
+      updatedAt: now,
     })
     .where(
       scoped(
@@ -53,18 +78,6 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
     )
     .returning();
   if (!updated[0]) return apiError(404, "not_found", "Lead no encontrado");
-
-  // 008: soltar el lead en «Contactar luego» arma la rutina de seguimiento
-  // (intento en 12h dentro de la ventana de atención); sacarlo de las etapas
-  // de seguimiento la desarma.
-  if (stage[0].kind === "follow_up") {
-    await armFollowUp({
-      organizationId: session.organizationId,
-      contactId: updated[0].contactId,
-    });
-  } else if (stage[0].kind !== "no_reply" && updated[0].followUpDueAt) {
-    await disarmFollowUp(updated[0].contactId);
-  }
 
   // Notifica a la bandeja para que la etapa se refleje en vivo (panel de
   // detalles y punto de etapa de la lista) sin recargar.

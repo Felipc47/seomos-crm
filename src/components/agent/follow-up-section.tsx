@@ -14,7 +14,7 @@ import { useToast } from "@/components/ui/toast";
 
 /**
  * Rutina de seguimiento automático (008): un intento a las 12h (o cuando el
- * cliente pidió) y otro un día hábil después; sin respuesta → «No interesado».
+ * cliente pidió) y otro un día hábil después; sin respuesta → «No convertido».
  * La plantilla cubre los intentos con la ventana de 24h de WhatsApp cerrada.
  */
 
@@ -82,9 +82,10 @@ export function FollowUpSection() {
             </CardTitle>
             <CardDescription>
               Si un cliente pide que lo contacten luego, o no responde al primer
-              mensaje, el sistema lo mueve a «Contactar luego» / «No contestó» y
-              hace dos intentos (a las 12 horas y un día hábil después, dentro
-              del horario de atención). Sin respuesta, pasa a «No interesado».
+              mensaje, queda en «En calificación» con seguimiento programado y
+              el sistema hace dos intentos (a las 12 horas y un día hábil
+              después, dentro del horario de atención). Sin respuesta, pasa a
+              «No convertido».
             </CardDescription>
           </div>
           <Switch
@@ -114,7 +115,7 @@ export function FollowUpSection() {
         {enabled && !templateId && (
           <p className="mt-2 text-xs text-warning">
             Sin plantilla, los seguimientos fuera de la ventana de 24h de
-            WhatsApp (incluido todo el flujo de «No contestó») se omiten:
+            WhatsApp (incluidos los contactos que no respondieron) se omiten:
             WhatsApp solo permite plantillas aprobadas en ese caso. Elige una
             (con {"{{1}}"} = primer nombre, opcional) para que la rutina pueda
             escribirle al cliente.

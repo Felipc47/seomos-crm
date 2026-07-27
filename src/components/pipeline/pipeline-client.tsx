@@ -14,7 +14,18 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { MessageCircle, Plus, Search, SlidersHorizontal } from "lucide-react";
+import {
+  AlarmClock,
+  MessageCircle,
+  Plus,
+  Search,
+  SlidersHorizontal,
+} from "lucide-react";
+import {
+  closureReasonLabel,
+  isNegativeStage,
+  type LeadClosureReason,
+} from "@/lib/lead-closure";
 import type { StageDto } from "@/lib/types";
 import { cn, formatPhone } from "@/lib/utils";
 import { stageColor } from "@/lib/stage-colors";
@@ -22,12 +33,17 @@ import { ContactAvatar } from "@/components/avatar";
 import { useToast } from "@/components/ui/toast";
 import { formatTime } from "@/components/inbox/helpers";
 import { StageManager } from "./stage-manager";
+import { LeadClosureDialog } from "./lead-closure-dialog";
 
 export type BoardLead = {
   id: string;
   stageId: string;
   position: number;
   lastActivityAt: string | null;
+  followUpDueAt: string | null;
+  followUpAttempts: number;
+  closureReason: string | null;
+  closedAt: string | null;
   contact: { id: string; name: string; phone: string };
   conversationId: string | null;
 };
@@ -38,6 +54,13 @@ export function PipelineClient() {
   const [activeLead, setActiveLead] = useState<BoardLead | null>(null);
   const [managing, setManaging] = useState(false);
   const [query, setQuery] = useState("");
+  const [pendingMove, setPendingMove] = useState<{
+    lead: BoardLead;
+    stage: StageDto;
+    position: number;
+  } | null>(null);
+  const [moving, setMoving] = useState(false);
+  const toast = useToast();
 
   // Mouse y touch por separado: en táctil el drag se activa con long-press
   // (delay) para no pelear con el scroll horizontal del tablero.
@@ -65,25 +88,70 @@ export function PipelineClient() {
     setActiveLead(lead ?? null);
   }
 
-  async function onDragEnd(event: DragEndEvent) {
+  async function persistMove(
+    lead: BoardLead,
+    stage: StageDto,
+    position: number,
+    closureReason?: LeadClosureReason
+  ) {
+    setMoving(true);
+    const previous = leads;
+    setLeads((current) =>
+      current.map((item) =>
+        item.id === lead.id
+          ? {
+              ...item,
+              stageId: stage.id,
+              position,
+              closureReason: closureReason ?? null,
+              closedAt:
+                stage.kind === "won" || isNegativeStage(stage.kind)
+                  ? new Date().toISOString()
+                  : null,
+              followUpDueAt: null,
+              followUpAttempts: 0,
+            }
+          : item
+      )
+    );
+    const res = await fetch(`/api/pipeline/leads/${lead.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        stageId: stage.id,
+        position,
+        closureReason: closureReason ?? null,
+      }),
+    }).catch(() => null);
+    setMoving(false);
+    setPendingMove(null);
+    if (!res?.ok) {
+      setLeads(previous);
+      const data = (await res?.json().catch(() => null)) as {
+        error?: { message?: string };
+      } | null;
+      toast(data?.error?.message ?? "No se pudo actualizar la etapa");
+      return;
+    }
+    void refetch();
+  }
+
+  function onDragEnd(event: DragEndEvent) {
     setActiveLead(null);
     const leadId = String(event.active.id);
     const overStage = event.over ? String(event.over.id) : null;
     if (!overStage) return;
     const lead = leads.find((l) => l.id === leadId);
     if (!lead || lead.stageId === overStage) return;
+    const stage = stages.find((item) => item.id === overStage);
+    if (!stage) return;
 
     const position = leads.filter((l) => l.stageId === overStage).length;
-    // Optimista + persistencia
-    setLeads((prev) =>
-      prev.map((l) => (l.id === leadId ? { ...l, stageId: overStage, position } : l))
-    );
-    await fetch(`/api/pipeline/leads/${leadId}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ stageId: overStage, position }),
-    }).catch(() => null);
-    void refetch();
+    if (isNegativeStage(stage.kind)) {
+      setPendingMove({ lead, stage, position });
+      return;
+    }
+    void persistMove(lead, stage, position);
   }
 
   const q = query.trim().toLowerCase();
@@ -123,7 +191,7 @@ export function PipelineClient() {
         <DndContext
           sensors={sensors}
           onDragStart={onDragStart}
-          onDragEnd={(e) => void onDragEnd(e)}
+          onDragEnd={onDragEnd}
         >
           <div className="flex h-full min-w-min items-stretch gap-[18px]">
             {stages.map((stage) => (
@@ -149,6 +217,22 @@ export function PipelineClient() {
           stages={stages}
           onClose={() => setManaging(false)}
           onChanged={() => void refetch()}
+        />
+      )}
+      {pendingMove && (
+        <LeadClosureDialog
+          key={`${pendingMove.lead.id}-${pendingMove.stage.id}`}
+          stage={pendingMove.stage}
+          busy={moving}
+          onCancel={() => setPendingMove(null)}
+          onConfirm={(reason) =>
+            void persistMove(
+              pendingMove.lead,
+              pendingMove.stage,
+              pendingMove.position,
+              reason
+            )
+          }
         />
       )}
     </div>
@@ -205,6 +289,7 @@ function DraggableLead({ lead }: { lead: BoardLead }) {
 }
 
 function LeadCard({ lead, overlay = false }: { lead: BoardLead; overlay?: boolean }) {
+  const reason = closureReasonLabel(lead.closureReason);
   return (
     <div
       className={cn(
@@ -239,6 +324,17 @@ function LeadCard({ lead, overlay = false }: { lead: BoardLead; overlay?: boolea
           </Link>
         )}
       </div>
+      {lead.followUpDueAt && (
+        <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-[rgba(154,123,184,.12)] px-2 py-1.5 text-[11px] font-bold text-[#80619E]">
+          <AlarmClock className="h-3.5 w-3.5" />
+          Seguimiento {formatTime(lead.followUpDueAt)}
+        </div>
+      )}
+      {reason && (
+        <p className="mt-2 truncate rounded-lg bg-surface-2 px-2 py-1.5 text-[11px] font-bold text-mute">
+          Motivo: {reason}
+        </p>
+      )}
     </div>
   );
 }

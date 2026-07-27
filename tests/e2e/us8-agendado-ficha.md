@@ -1,20 +1,20 @@
-# Guion E2E — US8: etapa «Agendado» + ficha del lead con IA
+# Guion E2E — US8: etapa «Cita agendada» + ficha del lead con IA
 
 > **Automatizado**: `bash tests/e2e/us8-agendado-ficha.sh` contra `pnpm dev`
 > con mocks (wa-mock + ai-mock + google-mock). Resetea la BD y **los mocks**
 > antes de correr: su estado vive en memoria del proceso, y un evento de la
 > corrida anterior hacía fallar el agendamiento por `slot_taken`.
 
-## Etapa «Agendado»
+## Etapa «Cita agendada»
 
-1. Organización nueva → el pipeline incluye `Agendado` con `kind=scheduled`,
+1. Organización nueva → el pipeline incluye `Cita agendada` con `kind=scheduled`,
    ubicada después de las etapas abiertas y ANTES de `Cliente`.
    ✅ Es un ancla del sistema: no se renombra ni se borra a mano (como
    ganado/perdido), porque la alimenta el agendamiento.
 2. La migración `0005` la siembra en organizaciones ya existentes y es
    re-ejecutable (constitución IV): aplicarla dos veces NO duplica la etapa.
 3. El cliente confirma una reunión y el agente la agenda.
-   ✅ El lead salta a `Agendado` en el tablero.
+   ✅ El lead salta a `Cita agendada` en el tablero.
    ✅ Si el operador borró/renombró la etapa, la reunión se crea igual — el
    movimiento del tablero es secundario y jamás tumba el agendamiento.
 

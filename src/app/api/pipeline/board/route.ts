@@ -45,6 +45,10 @@ export const GET = withAuth(async (session) => {
       stageId: r.lead.stageId,
       position: r.lead.position,
       lastActivityAt: r.lead.lastActivityAt?.toISOString() ?? null,
+      followUpDueAt: r.lead.followUpDueAt?.toISOString() ?? null,
+      followUpAttempts: r.lead.followUpAttempts,
+      closureReason: r.lead.closureReason,
+      closedAt: r.lead.closedAt?.toISOString() ?? null,
       contact: {
         id: r.contact.id,
         name: r.contact.name,

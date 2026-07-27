@@ -1,5 +1,10 @@
 # 008 — Seguimiento automático de leads (visible en el pipeline)
 
+> Actualización 009: los estados operativos de esta especificación dejaron de
+> ser columnas visibles. La rutina conserva `follow_up_due_at` e intentos,
+> permanece en `En calificación` y termina en `No convertido`. Ver
+> `specs/009-etapas-prospectos/spec.md`.
+
 ## Objetivo
 
 Que ningún lead se enfríe en silencio: cuando un cliente pide que lo contacten

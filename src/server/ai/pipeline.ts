@@ -1,5 +1,7 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { isNegativeStage, isReasonForStage } from "@/lib/lead-closure";
+import type { StageKind } from "@/lib/types";
 import { newId } from "@/lib/db/ids";
 import { getEnv, isAiConfigured } from "@/lib/env";
 import { chatJson, type ChatMessage } from "@/lib/ai";
@@ -377,7 +379,11 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
     .where(eq(schema.kbEntry.organizationId, organizationId))
     .orderBy(asc(schema.kbEntry.createdAt));
   const stages = await db
-    .select({ id: schema.pipelineStage.id, name: schema.pipelineStage.name })
+    .select({
+      id: schema.pipelineStage.id,
+      name: schema.pipelineStage.name,
+      kind: schema.pipelineStage.kind,
+    })
     .from(schema.pipelineStage)
     .where(eq(schema.pipelineStage.organizationId, organizationId))
     .orderBy(asc(schema.pipelineStage.position));
@@ -454,8 +460,19 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
     const stage = resolveStage(action.stage, stages);
     if (!stage) {
       action = degradeAction(action);
+    } else if (
+      isNegativeStage(stage.kind) &&
+      !isReasonForStage(stage.kind, action.reason)
+    ) {
+      // Un modelo no puede cerrar una oportunidad sin trazabilidad.
+      action = degradeAction(action);
     } else {
-      await moveLeadToStage(organizationId, conversation.contactId, stage.id);
+      await moveLeadToStage(
+        organizationId,
+        conversation.contactId,
+        stage,
+        action.reason
+      );
       publish(organizationId, {
         type: "conversation.updated",
         data: { conversation: { id: conversationId } },
@@ -731,7 +748,7 @@ async function executeScheduleMeeting(
       startIso: start.toISOString(),
       title: action.title,
     });
-    // El lead pasa a "Agendado": el tablero refleja que ya hay reunión.
+    // El lead pasa a "Cita agendada": el tablero refleja que ya hay reunión.
     const moved = await moveLeadToScheduledStage(
       conversation.organizationId,
       conversation.contactId
@@ -788,7 +805,7 @@ type Conversation = typeof schema.conversation.$inferSelect;
 
 /**
  * 008: el cliente pidió ser contactado más tarde. Se despide y arma la rutina
- * de seguimiento (lead → «Contactar luego», intento en 12h o cuando pidió el
+ * de seguimiento (lead → «En calificación», intento en 12h o cuando pidió el
  * cliente). En el sandbox del Laboratorio solo se despide: una evaluación no
  * arma rutinas reales.
  */
@@ -917,19 +934,32 @@ export async function applyHandoff(
 }
 
 async function moveLeadToStage(
-  organizationId: string,
+  _organizationId: string,
   contactId: string,
-  stageId: string
+  stage: { id: string; kind: StageKind },
+  closureReason?: string
 ): Promise<void> {
   const db = getDb();
+  const terminal =
+    stage.kind === "won" ||
+    stage.kind === "lost" ||
+    stage.kind === "unqualified";
   await db
     .update(schema.lead)
-    .set({ stageId, updatedAt: new Date(), lastActivityAt: new Date() })
+    .set({
+      stageId: stage.id,
+      closureReason: isNegativeStage(stage.kind) ? closureReason : null,
+      closedAt: terminal ? new Date() : null,
+      followUpDueAt: null,
+      followUpAttempts: 0,
+      updatedAt: new Date(),
+      lastActivityAt: new Date(),
+    })
     .where(eq(schema.lead.contactId, contactId));
 }
 
 /**
- * Mueve el lead a la etapa `scheduled` ("Agendado") al confirmarse la reunión.
+ * Mueve el lead a `scheduled` ("Cita agendada") al confirmarse la reunión.
  * Silencioso a propósito: si el operador borró o renombró la etapa, el
  * agendamiento NO se cae — la reunión ya está creada, el tablero es secundario.
  */
@@ -939,7 +969,7 @@ async function moveLeadToScheduledStage(
 ): Promise<boolean> {
   const db = getDb();
   const rows = await db
-    .select({ id: schema.pipelineStage.id })
+    .select({ id: schema.pipelineStage.id, kind: schema.pipelineStage.kind })
     .from(schema.pipelineStage)
     .where(
       and(
@@ -951,7 +981,7 @@ async function moveLeadToScheduledStage(
     .limit(1);
   const stage = rows[0];
   if (!stage) return false;
-  await moveLeadToStage(organizationId, contactId, stage.id);
+  await moveLeadToStage(organizationId, contactId, stage);
   return true;
 }
 

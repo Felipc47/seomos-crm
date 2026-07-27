@@ -16,7 +16,7 @@
 3. **Agrupación (FR-024)**: enviar 2 mensajes seguidos (<2s entre ellos).
    ✅ El agente responde UNA sola vez al conjunto.
 4. **move_stage (FR-021)**: inbound "me interesa, lo compro".
-   ✅ Respuesta del agente + el lead aparece en "Interesado" en el kanban.
+   ✅ Respuesta del agente + el lead aparece en "Calificado" en el kanban.
 5. **Handoff por frase (FR-022/SC-006)**: inbound "quiero hablar con un humano".
    ✅ Badge de atención humana visible en la conversación; la IA queda
    silenciada (mensajes posteriores NO reciben respuesta).

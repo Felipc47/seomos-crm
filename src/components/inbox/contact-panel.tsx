@@ -4,6 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { CalendarPlus, Check, Pencil, RotateCcw, Sparkles, Trash2, UserRound, X } from "lucide-react";
 import type { ConversationDto, LeadProfileDto, StageDto } from "@/lib/types";
+import {
+  closureReasonLabel,
+  isNegativeStage,
+  type LeadClosureReason,
+} from "@/lib/lead-closure";
 import { cn, formatPhone } from "@/lib/utils";
 import { stageColor, stageTint } from "@/lib/stage-colors";
 import { ContactAvatar } from "@/components/avatar";
@@ -14,6 +19,7 @@ import { StageTag } from "@/components/ui/stage-tag";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
+import { LeadClosureDialog } from "@/components/pipeline/lead-closure-dialog";
 
 const HANDOFF_LABELS: Record<string, string> = {
   cliente: "El cliente pidió un humano",
@@ -60,6 +66,10 @@ export function ContactPanel({
   const [stages, setStages] = useState<StageDto[]>([]);
   const [currentStageId, setCurrentStageId] = useState<string | null>(null);
   const [leadId, setLeadId] = useState<string | null>(null);
+  const [closureReason, setClosureReason] = useState<string | null>(null);
+  const [followUpDueAt, setFollowUpDueAt] = useState<string | null>(null);
+  const [pendingStage, setPendingStage] = useState<StageDto | null>(null);
+  const [movingStage, setMovingStage] = useState(false);
   // Estado global del agente: sin esto, el toggle "Respondiendo" mentiría
   // cuando el agente aún no se ha configurado/encendido.
   const [agentEnabled, setAgentEnabled] = useState(false);
@@ -84,6 +94,8 @@ export function ContactPanel({
       setAiProfile(detail.contact?.aiProfile ?? null);
       setCurrentStageId(detail.stage?.id ?? null);
       setLeadId(detail.lead?.id ?? null);
+      setClosureReason(detail.lead?.closureReason ?? null);
+      setFollowUpDueAt(detail.lead?.followUpDueAt ?? null);
     }
     if (stagesRes) setStages(stagesRes.stages);
     setAgentEnabled(Boolean(agentRes?.profile?.enabled));
@@ -103,6 +115,8 @@ export function ContactPanel({
       setAiProfile(detail.contact?.aiProfile ?? null);
       setCurrentStageId(detail.stage?.id ?? null);
       setLeadId(detail.lead?.id ?? null);
+      setClosureReason(detail.lead?.closureReason ?? null);
+      setFollowUpDueAt(detail.lead?.followUpDueAt ?? null);
     }
     if (agentRes) {
       setAgentEnabled(Boolean(agentRes.profile?.enabled));
@@ -121,16 +135,44 @@ export function ContactPanel({
     void refreshLive();
   }, [refreshKey, notesLoaded, refreshLive]);
 
-  async function moveToStage(stageId: string) {
-    if (!leadId || stageId === currentStageId) return;
-    setCurrentStageId(stageId); // optimista
-    await fetch(`/api/pipeline/leads/${leadId}`, {
+  async function persistStage(
+    stage: StageDto,
+    reason?: LeadClosureReason
+  ) {
+    if (!leadId) return;
+    setMovingStage(true);
+    const res = await fetch(`/api/pipeline/leads/${leadId}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ stageId, position: 0 }),
+      body: JSON.stringify({
+        stageId: stage.id,
+        position: 0,
+        closureReason: reason ?? null,
+      }),
     }).catch(() => null);
-    toast("Etapa actualizada");
+    setMovingStage(false);
+    setPendingStage(null);
+    if (!res?.ok) {
+      const data = (await res?.json().catch(() => null)) as {
+        error?: { message?: string };
+      } | null;
+      toast(data?.error?.message ?? "No se pudo actualizar la etapa");
+      return;
+    }
+    setCurrentStageId(stage.id);
+    setClosureReason(reason ?? null);
+    setFollowUpDueAt(null);
+    toast(`Etapa actualizada: ${stage.name}`);
     void refreshLive();
+  }
+
+  function moveToStage(stage: StageDto) {
+    if (!leadId || stage.id === currentStageId) return;
+    if (isNegativeStage(stage.kind)) {
+      setPendingStage(stage);
+      return;
+    }
+    void persistStage(stage);
   }
 
   async function saveNotes() {
@@ -248,6 +290,16 @@ export function ContactPanel({
                   name={currentStage.name}
                   color={stageColor(currentStage)}
                 />
+                {closureReason && (
+                  <span className="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-bold text-mute">
+                    {closureReasonLabel(closureReason)}
+                  </span>
+                )}
+                {followUpDueAt && (
+                  <span className="rounded-full bg-[rgba(154,123,184,.12)] px-2.5 py-1 text-xs font-bold text-[#80619E]">
+                    Seguimiento programado
+                  </span>
+                )}
               </div>
             )}
 
@@ -370,7 +422,7 @@ export function ContactPanel({
                     return (
                       <button
                         key={s.id}
-                        onClick={() => void moveToStage(s.id)}
+                        onClick={() => moveToStage(s)}
                         className="flex w-full items-center gap-3 rounded-[10px] px-3 py-2.5 text-left transition-colors hover:bg-subtle"
                         style={
                           active ? { background: stageTint(color) } : undefined
@@ -576,6 +628,15 @@ export function ContactPanel({
             setConfirming(null);
             toast("Conversación reiniciada");
           }}
+        />
+      )}
+      {pendingStage && (
+        <LeadClosureDialog
+          key={pendingStage.id}
+          stage={pendingStage}
+          busy={movingStage}
+          onCancel={() => setPendingStage(null)}
+          onConfirm={(reason) => void persistStage(pendingStage, reason)}
         />
       )}
     </div>

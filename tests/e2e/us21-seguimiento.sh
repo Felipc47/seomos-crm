@@ -1,9 +1,9 @@
 #!/bin/bash
 # Self-test de COMPORTAMIENTO — Seguimiento automático (008).
-# Flujo A: el cliente pide que lo contacten luego → «Contactar luego» →
-#   2 intentos (12h / +1 día hábil, ventana de atención) → «No interesado».
-# Flujo B: nadie responde al primer mensaje (campaña) → «No contestó» →
-#   misma rutina con plantilla (ventana de 24h cerrada).
+# Flujo A: el cliente pide que lo contacten luego → «En calificación» con
+#   seguimiento → 2 intentos → «No convertido» (motivo: no_response).
+# Flujo B: nadie responde al primer mensaje (campaña) → misma etapa y rutina
+#   con plantilla (ventana de 24h cerrada), sin columnas operativas extra.
 # Camino infeliz: sin plantilla configurada los intentos fuera de ventana se
 #   omiten con nota, y la rutina avanza sin colgarse.
 #
@@ -43,6 +43,7 @@ attempts_of() { PSQL "select l.follow_up_attempts from lead l join contact c on 
 kind_of() { PSQL "select s.kind from lead l join contact c on c.id=l.contact_id join pipeline_stage s on s.id=l.stage_id where c.phone='$1'"; }
 stage_of() { PSQL "select s.name from lead l join contact c on c.id=l.contact_id join pipeline_stage s on s.id=l.stage_id where c.phone='$1'"; }
 notes_of() { PSQL "select coalesce(notes,'') from contact where phone='$1'"; }
+reason_of() { PSQL "select coalesce(l.closure_reason,'') from lead l join contact c on c.id=l.contact_id where c.phone='$1'"; }
 outbox_to() { curl -s "$BASE/api/dev/wa-mock/outbox" | tr '{' '\n' | grep -c "\"to\":\"$1\""; }
 plus() { python3 -c "from datetime import datetime,timedelta;print((datetime.fromisoformat('$1'.replace('Z','+00:00'))+timedelta(seconds=$2)).strftime('%Y-%m-%dT%H:%M:%SZ'))"; }
 
@@ -55,22 +56,26 @@ curl -s -b "$JAR" -X PUT "$BASE/api/agent/profile" -H 'content-type: application
   -d '{"enabled":true,"name":"Ana"}' > /dev/null
 
 BOARD=$(curl -s -b "$JAR" "$BASE/api/pipeline/board")
-check "el tablero muestra «Contactar luego»" "$(has "$BOARD" 'Contactar luego')" "$BOARD"
-check "el tablero muestra «No contestó»" "$(has "$BOARD" 'No contestó')" "$BOARD"
-check "el tablero muestra «No interesado»" "$(has "$BOARD" 'No interesado')" "$BOARD"
+check "el tablero muestra «En calificación»" "$(has "$BOARD" 'En calificación')" "$BOARD"
+check "el tablero muestra «No convertido»" "$(has "$BOARD" 'No convertido')" "$BOARD"
+check "no crea la columna «Contactar luego»" "$([ "$(has "$BOARD" 'Contactar luego')" = "false" ] && echo true || echo false)" "$BOARD"
+check "no crea la columna «No contestó»" "$([ "$(has "$BOARD" 'No contestó')" = "false" ] && echo true || echo false)" "$BOARD"
 
 echo "── 1. Flujo A: el cliente pide que lo contacten luego (SIN plantilla configurada)"
 say "$C1" "Cliente Luego" '"Hola, me interesa una página web para mi negocio"'
 sleep 4
 say "$C1" "Cliente Luego" '"Ahora no puedo seguir, escríbeme más tarde por favor"'
 sleep 5
-check "lead en etapa «Contactar luego»" "$([ "$(kind_of $C1)" = "follow_up" ] && echo true || echo false)" "stage=$(stage_of $C1) kind=$(kind_of $C1)"
+check "lead en «En calificación»" "$([ "$(stage_of $C1)" = "En calificación" ] && echo true || echo false)" "stage=$(stage_of $C1)"
 DUE1=$(due_of "$C1")
 check "primer intento programado (~12h, ventana de atención)" "$([ -n "$DUE1" ] && echo true || echo false)" "due=$DUE1"
 CONV_MSGS=$(PSQL "select string_agg(text,' | ') from message m join conversation v on v.id=m.conversation_id join contact c on c.id=v.contact_id where c.phone='$C1' and m.direction='out'")
 check "el agente se despidió confirmando el seguimiento" "$(has "$CONV_MSGS" 'Te escribo más adelante')" "$CONV_MSGS"
 
 echo "── 2. Intento 1 vencido: sin plantilla y fuera de ventana → se omite con nota"
+# Hace determinista el camino infeliz: independientemente de la hora a la que
+# corra el test, el barrido ve el último entrante 25h antes de su `now`.
+PSQL "update conversation v set last_inbound_at='$DUE1'::timestamptz - interval '25 hours' from contact c where v.contact_id=c.id and c.phone='$C1'" > /dev/null
 OUT_C1_BEFORE=$(outbox_to "$C1")
 R=$(sweep "$(plus "$DUE1" 60)")
 check "el barrido respondió ok" "$(has "$R" '"ok":true')" "$R"
@@ -80,19 +85,20 @@ check "reprogramado +1 día hábil" "$([ -n "$DUE2" ] && [ "$DUE2" \> "$DUE1" ] 
 check "NO se envió nada (ventana cerrada, sin plantilla)" "$([ "$(outbox_to $C1)" = "$OUT_C1_BEFORE" ] && echo true || echo false)" "outbox=$(outbox_to $C1)"
 check "quedó nota de la omisión" "$(has "$(notes_of $C1)" 'plantilla de seguimiento')" "$(notes_of $C1)"
 
-echo "── 3. Intento 2 y cierre → «No interesado»"
+echo "── 3. Intento 2 y cierre → «No convertido»"
 R=$(sweep "$(plus "$DUE2" 60)")
 DUE3=$(due_of "$C1")
 check "attempts=2 tras el segundo intento" "$([ "$(attempts_of $C1)" = "2" ] && echo true || echo false)" "attempts=$(attempts_of $C1)"
 R=$(sweep "$(plus "$DUE3" 60)")
-check "cerró en «No interesado»" "$([ "$(kind_of $C1)" = "no_interest" ] && echo true || echo false)" "stage=$(stage_of $C1)"
+check "cerró en «No convertido»" "$([ "$(kind_of $C1)" = "lost" ] && echo true || echo false)" "stage=$(stage_of $C1)"
+check "cierre con motivo no_response" "$([ "$(reason_of $C1)" = "no_response" ] && echo true || echo false)" "reason=$(reason_of $C1)"
 check "rutina desarmada (due nulo)" "$([ -z "$(due_of $C1)" ] && echo true || echo false)" "due=$(due_of $C1)"
-check "nota del cierre en la ficha" "$(has "$(notes_of $C1)" 'No interesado')" "$(notes_of $C1)"
+check "nota del cierre en la ficha" "$(has "$(notes_of $C1)" 'No convertido')" "$(notes_of $C1)"
 
 echo "── 4. Flujo A con hora dicha por el cliente («en dos horas») → mensaje del LLM si hay ventana"
 say "$C2" "Cliente Dos Horas" '"¿Me escribes en dos horas? ahora no puedo"'
 sleep 5
-check "lead C2 en «Contactar luego»" "$([ "$(kind_of $C2)" = "follow_up" ] && echo true || echo false)" "stage=$(stage_of $C2)"
+check "lead C2 en «En calificación»" "$([ "$(stage_of $C2)" = "En calificación" ] && echo true || echo false)" "stage=$(stage_of $C2)"
 DUE_C2=$(due_of "$C2")
 IN_WINDOW=$(python3 -c "
 from datetime import datetime,timezone,timedelta
@@ -110,11 +116,11 @@ fi
 echo "── 5. La respuesta del cliente CANCELA la rutina"
 say "$C3" "Cliente Vuelve" '"Ahora no puedo, hablamos más tarde"'
 sleep 5
-check "lead C3 armado en «Contactar luego»" "$([ "$(kind_of $C3)" = "follow_up" ] && echo true || echo false)" "stage=$(stage_of $C3)"
+check "lead C3 armado en «En calificación»" "$([ "$(stage_of $C3)" = "En calificación" ] && echo true || echo false)" "stage=$(stage_of $C3)"
 say "$C3" "Cliente Vuelve" '"Listo, ya volví. ¿Seguimos?"'
 sleep 5
 check "rutina cancelada al responder (due nulo)" "$([ -z "$(due_of $C3)" ] && echo true || echo false)" "due=$(due_of $C3)"
-check "el lead volvió a «En conversación»" "$([ "$(stage_of $C3)" = "En conversación" ] && echo true || echo false)" "stage=$(stage_of $C3)"
+check "el lead permanece en «En calificación»" "$([ "$(stage_of $C3)" = "En calificación" ] && echo true || echo false)" "stage=$(stage_of $C3)"
 
 echo "── 6. Plantilla de seguimiento aprobada + configuración"
 curl -s -b "$JAR" -X POST "$BASE/api/templates" -H 'content-type: application/json' \
@@ -127,7 +133,7 @@ CFG=$(curl -s -b "$JAR" -X PUT "$BASE/api/settings/follow-up" -H 'content-type: 
   -d "{\"enabled\":true,\"templateId\":\"$TPL_ID\"}")
 check "plantilla de seguimiento configurada" "$(has "$CFG" '"ok":true')" "$CFG"
 
-echo "── 7. Flujo B: primer mensaje (campaña) sin respuesta → «No contestó» + plantilla"
+echo "── 7. Flujo B: primer mensaje sin respuesta → seguimiento + plantilla"
 curl -s -b "$JAR" -X POST "$BASE/api/contacts" -H 'content-type: application/json' \
   -d "{\"name\":\"Frio Cuatro\",\"phone\":\"$C4\"}" > /dev/null
 C4_ID=$(PSQL "select id from contact where phone='$C4'")
@@ -154,7 +160,7 @@ print((local+timedelta(hours=5)).strftime('%Y-%m-%dT%H:%M:%SZ'))")
 OUT_C4_BEFORE=$(outbox_to "$C4")
 R=$(sweep "$NOW_B")
 check "el barrido detectó el silencio (entered≥1)" "$(has "$R" '"entered":1')" "$R"
-check "C4 pasó a «No contestó»" "$([ "$(kind_of $C4)" = "no_reply" ] && echo true || echo false)" "stage=$(stage_of $C4)"
+check "C4 pasó a «En calificación»" "$([ "$(stage_of $C4)" = "En calificación" ] && echo true || echo false)" "stage=$(stage_of $C4)"
 check "intento 1 enviado con la PLANTILLA (ventana cerrada)" "$([ "$(outbox_to $C4)" -gt "$OUT_C4_BEFORE" ] && echo true || echo false)" "outbox=$(outbox_to $C4)"
 check "attempts C4 = 1" "$([ "$(attempts_of $C4)" = "1" ] && echo true || echo false)" "$(attempts_of $C4)"
 
@@ -167,7 +173,7 @@ check "attempts C4 = 2" "$([ "$(attempts_of $C4)" = "2" ] && echo true || echo f
 say "$C4" "Frio Cuatro" '"Hola, sí me interesa, cuéntame más"'
 sleep 5
 check "al responder, la rutina de C4 muere (due nulo)" "$([ -z "$(due_of $C4)" ] && echo true || echo false)" "due=$(due_of $C4)"
-check "C4 volvió a «En conversación»" "$([ "$(stage_of $C4)" = "En conversación" ] && echo true || echo false)" "stage=$(stage_of $C4)"
+check "C4 permanece en «En calificación»" "$([ "$(stage_of $C4)" = "En calificación" ] && echo true || echo false)" "stage=$(stage_of $C4)"
 
 echo ""
 echo "══════════════════════════════════"

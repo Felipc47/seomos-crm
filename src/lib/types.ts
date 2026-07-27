@@ -42,16 +42,13 @@ export type TemplateDto = {
   rejectionReason: string | null;
 };
 
-/** Kinds de etapa: `scheduled` la mueve el sistema al agendar; `follow_up`,
- * `no_reply` y `no_interest` los mueve la rutina de seguimiento (008). */
+/** Kinds de etapa: las cuatro distintas de `open` son anclas del sistema. */
 export type StageKind =
   | "open"
   | "scheduled"
   | "won"
-  | "lost"
-  | "follow_up"
-  | "no_reply"
-  | "no_interest";
+  | "unqualified"
+  | "lost";
 
 export type StageDto = {
   id: string;

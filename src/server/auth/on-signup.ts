@@ -2,29 +2,19 @@ import { and, count, eq, isNull, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 
-/** Etapas sembradas del pipeline (US2; seguimiento automático en 008). */
+/** Embudo canónico: pocos estados comerciales, sin estados operativos. */
 const SEED_STAGES: {
   name: string;
-  kind:
-    | "open"
-    | "scheduled"
-    | "won"
-    | "lost"
-    | "follow_up"
-    | "no_reply"
-    | "no_interest";
+  kind: "open" | "scheduled" | "won" | "unqualified" | "lost";
 }[] = [
   { name: "Nuevo", kind: "open" },
-  { name: "En conversación", kind: "open" },
-  { name: "Interesado", kind: "open" },
+  { name: "En calificación", kind: "open" },
+  { name: "Calificado", kind: "open" },
   // La alimenta el sistema al confirmarse una reunión (no se mueve a mano).
-  { name: "Agendado", kind: "scheduled" },
-  // 008: rutina de seguimiento (12h → +1 día hábil → No interesado).
-  { name: "Contactar luego", kind: "follow_up" },
-  { name: "No contestó", kind: "no_reply" },
+  { name: "Cita agendada", kind: "scheduled" },
   { name: "Cliente", kind: "won" },
-  { name: "Perdido", kind: "lost" },
-  { name: "No interesado", kind: "no_interest" },
+  { name: "No calificado", kind: "unqualified" },
+  { name: "No convertido", kind: "lost" },
 ];
 
 /**

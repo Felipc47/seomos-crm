@@ -1,5 +1,9 @@
 # 008 — Plan de implementación
 
+> Superado parcialmente por 009: la implementación actual desacopla la rutina
+> de las etapas `follow_up`/`no_reply`/`no_interest`. Ver
+> `specs/009-etapas-prospectos/spec.md`.
+
 ## Piezas
 
 1. **Schema/migración** (`0014`): kinds `follow_up`/`no_reply`/`no_interest`

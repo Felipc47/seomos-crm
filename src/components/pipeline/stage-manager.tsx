@@ -119,9 +119,9 @@ export function StageManager({
                   {s.kind === "won"
                     ? "ganado"
                     : s.kind === "lost"
-                      ? "perdido"
-                      : s.kind === "follow_up" || s.kind === "no_reply"
-                        ? "seguimiento"
+                      ? "no convertido"
+                      : s.kind === "unqualified"
+                        ? "no calificado"
                         : "automática"}
                 </Badge>
               ) : (

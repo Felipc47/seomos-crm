@@ -41,7 +41,7 @@ export type SchedulingContext = {
 export function buildAgentSystemPrompt(input: {
   profile: AgentProfile;
   kb: KbEntry[];
-  stages: { name: string }[];
+  stages: { name: string; kind?: string }[];
   /** 004: true si Google Calendar está conectado — habilita schedule_meeting. */
   calendarAvailable?: boolean;
   /** 004: presente solo cuando calendarAvailable. */
@@ -67,7 +67,7 @@ export function buildAgentSystemPrompt(input: {
       '- {"action":"none"} — no responder nada.',
       '- {"action":"reply","text":"..."} — responder al cliente.',
       '- {"action":"update_lead","note":"...","reply":"..."} — guardar una nota del lead (reply opcional).',
-      '- {"action":"move_stage","stage":"<nombre exacto de etapa>","reply":"..."} — mover el lead (reply opcional).',
+      '- {"action":"move_stage","stage":"<nombre exacto de etapa>","reason":"<código si aplica>","reply":"..."} — mover el lead (reply opcional).',
       '- {"action":"handoff","reason":"...","farewell":"..."} — escalar a un humano (farewell opcional para despedirte).',
       '- {"action":"follow_up_later","datetime":"<ISO 8601 con offset, SOLO si el cliente dijo cuándo>","reply":"..."} — el cliente pidió que lo contacten más tarde: el sistema programa el seguimiento y tú te despides con reply.',
       ...(input.calendarAvailable
@@ -78,7 +78,9 @@ export function buildAgentSystemPrompt(input: {
       "Reglas duras:",
       "- Si el cliente pide hablar con una persona/humano/asesor → handoff.",
       "- Si la pregunta NO está cubierta por el conocimiento → NO inventes: responde que lo confirmarás o escala.",
-      "- Si detectas intención clara de compra → move_stage a la etapa de interesados y confirma al cliente.",
+      "- Si el prospecto comparte una necesidad real y encaja con la oferta → move_stage a «Calificado» y confirma al cliente.",
+      "- Solo usa «No calificado» para spam, contacto equivocado, duplicado, fuera de cobertura o sin encaje. reason es OBLIGATORIO y debe ser uno de: spam_or_irrelevant | wrong_contact | no_fit | outside_scope | duplicate | other.",
+      "- Solo usa «No convertido» para una oportunidad real que no compró. reason es OBLIGATORIO y debe ser uno de: no_response | no_budget | price | competitor | timing | cancelled | other.",
       '- Si el cliente pide que lo contactes MÁS TARDE u otro día ("ahora no puedo", "escríbeme la otra semana", "hablemos mañana") → follow_up_later: incluye datetime SOLO si dijo cuándo (interprétalo con la fecha actual) y despídete en reply confirmando que le escribirás. NO uses follow_up_later si el cliente sigue conversando o solo tarda en responder.',
       "- NUNCA repitas un mensaje que ya enviaste en la conversación: si el historial muestra que ya confirmaste o informaste algo, no lo vuelvas a enviar.",
       '- Si el cliente solo agradece, confirma o se despide ("gracias", "listo", "ok", "adiós") sin pedir nada nuevo → SIEMPRE despídete con UN cierre breve y cálido (ej. "¡Con mucho gusto! Cualquier cosa me escribes."); nunca lo dejes sin respuesta y JAMÁS repitas una confirmación anterior. Usa {"action":"none"} SOLO si ya te despediste y el cliente vuelve a agradecer.',

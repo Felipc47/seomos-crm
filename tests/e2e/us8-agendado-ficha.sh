@@ -1,5 +1,5 @@
 #!/bin/bash
-# Self-test de COMPORTAMIENTO — etapa "Agendado" + ficha del lead con IA.
+# Self-test de COMPORTAMIENTO — etapa "Cita agendada" + ficha del lead con IA.
 # Requiere `pnpm dev` con mocks (wa-mock + ai-mock + google-mock).
 set -uo pipefail
 
@@ -36,19 +36,19 @@ curl -s -b "$JAR" -X PUT "$BASE/api/agent/profile" -H 'content-type: application
 AG=$(curl -s -b "$JAR" "$BASE/api/agent/profile")
 check "agente encendido" "$(has "$AG" '"enabled":true')" "$AG"
 
-echo "── 1. La etapa «Agendado» existe y es un ancla del sistema"
+echo "── 1. La etapa «Cita agendada» existe y es un ancla del sistema"
 ST=$(curl -s -b "$JAR" "$BASE/api/pipeline/stages")
-check "aparece «Agendado»" "$(has "$ST" 'Agendado')" "$ST"
+check "aparece «Cita agendada»" "$(has "$ST" 'Cita agendada')" "$ST"
 check "con kind=scheduled (no se borra a mano)" "$(has "$ST" '"kind":"scheduled"')" "$ST"
-POS_AG=$(echo "$ST" | sed -n 's/.*"name":"Agendado","position":\([0-9]*\).*/\1/p')
+POS_AG=$(echo "$ST" | sed -n 's/.*"name":"Cita agendada","position":\([0-9]*\).*/\1/p')
 POS_CL=$(echo "$ST" | sed -n 's/.*"name":"Cliente","position":\([0-9]*\).*/\1/p')
 check "va antes de «Cliente» en el tablero" \
   "$([ -n "$POS_AG" ] && [ -n "$POS_CL" ] && [ "$POS_AG" -lt "$POS_CL" ] && echo true || echo false)" \
-  "Agendado=$POS_AG Cliente=$POS_CL"
+  "Cita agendada=$POS_AG Cliente=$POS_CL"
 
-echo "── 2. La migración de «Agendado» es re-ejecutable (constitución IV)"
+echo "── 2. La migración de «Cita agendada» es re-ejecutable (constitución IV)"
 SQL="INSERT INTO pipeline_stage (id, organization_id, name, position, kind)
- SELECT 'stg_' || substr(md5(random()::text || o.id),1,21), o.id, 'Agendado',
+ SELECT 'stg_' || substr(md5(random()::text || o.id),1,21), o.id, 'Cita agendada',
    COALESCE((SELECT MAX(s.position)+1 FROM pipeline_stage s WHERE s.organization_id=o.id AND s.kind='open'),0),
    'scheduled'
  FROM organization o
@@ -91,9 +91,9 @@ if [ "$(has "$GC" 'connected')" = "true" ]; then
   CONFIRM=$(curl -s -b "$JAR" "$BASE/api/conversations" | head -c 400)
   for i in $(seq 1 25); do
     DET=$(curl -s -b "$JAR" "$BASE/api/contacts/$CID")
-    [ "$(echo "$DET" | grep -c 'Agendado')" -gt 0 ] && break; sleep 1
+    [ "$(echo "$DET" | grep -c 'Cita agendada')" -gt 0 ] && break; sleep 1
   done
-  check "el lead pasó a la etapa «Agendado»" "$(has "$DET" 'Agendado')" "$DET"
+  check "el lead pasó a la etapa «Cita agendada»" "$(has "$DET" 'Cita agendada')" "$DET"
 fi
 
 echo

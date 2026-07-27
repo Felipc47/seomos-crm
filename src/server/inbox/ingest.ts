@@ -231,7 +231,7 @@ export async function ingestInboundMessage(input: {
   await onLeadActivity(organizationId, contact.id, waTimestamp);
 
   // 008: el cliente respondió → la rutina de seguimiento muere y, si estaba
-  // en «Contactar luego»/«No contestó», el lead vuelve a la conversación.
+  // con seguimiento programado, la rutina se cancela al retomar la conversación.
   await cancelFollowUpOnInbound(organizationId, contact.id);
 
   // Política de Meta (006): si el contacto pide la baja, se respeta al vuelo.

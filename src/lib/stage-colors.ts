@@ -7,8 +7,8 @@ import type { StageKind } from "@/lib/types";
 
 const OPEN_PALETTE = [
   "#5B6B8C", // azul acero (Nuevo)
-  "#E8A13D", // ámbar (En conversación)
-  "#E84B1D", // naranja acento (Interesado)
+  "#E8A13D", // ámbar (En calificación)
+  "#E84B1D", // naranja acento (Calificado)
   "#4A7C6A",
   "#8B6B8C",
   "#C08A3E",
@@ -21,12 +21,9 @@ export function stageColor(stage: {
 }): string {
   if (stage.kind === "won") return "#3EA672";
   if (stage.kind === "lost") return "#B0564C";
-  // Agendado: azul calendario, distinto de las abiertas y de las anclas.
+  if (stage.kind === "unqualified") return "#8A8F98";
+  // Cita agendada: azul calendario, distinto de las abiertas y las salidas.
   if (stage.kind === "scheduled") return "#4A78B8";
-  // 008: etapas de seguimiento — colores fijos, reconocibles en el tablero.
-  if (stage.kind === "follow_up") return "#9A7BB8"; // malva (Contactar luego)
-  if (stage.kind === "no_reply") return "#B8935A"; // ocre (No contestó)
-  if (stage.kind === "no_interest") return "#8A8F98"; // gris (No interesado)
   return OPEN_PALETTE[stage.position % OPEN_PALETTE.length] ?? OPEN_PALETTE[0];
 }
 

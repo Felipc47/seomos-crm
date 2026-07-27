@@ -186,19 +186,11 @@ export const pipelineStage = pgTable(
     name: text("name").notNull(),
     position: integer("position").notNull(),
     /** open = etapa normal · el resto son anclas no borrables del sistema:
-     * `scheduled` la alimenta el agendamiento; `follow_up` («Contactar
-     * luego»), `no_reply` («No contestó») y `no_interest` («No interesado»)
-     * las alimenta la rutina de seguimiento automático (008). */
+     * `scheduled` la alimenta el agendamiento; `won`, `unqualified` y `lost`
+     * distinguen los resultados comerciales. El seguimiento automático vive
+     * en el lead y no ocupa columnas propias (009). */
     kind: text("kind", {
-      enum: [
-        "open",
-        "scheduled",
-        "won",
-        "lost",
-        "follow_up",
-        "no_reply",
-        "no_interest",
-      ],
+      enum: ["open", "scheduled", "won", "unqualified", "lost"],
     })
       .notNull()
       .default("open"),
@@ -226,6 +218,10 @@ export const lead = pgTable(
     followUpDueAt: timestamp("follow_up_due_at"),
     /** Intentos de seguimiento ya enviados (0, 1 o 2). */
     followUpAttempts: integer("follow_up_attempts").notNull().default(0),
+    /** Motivo normalizado cuando termina en No calificado/No convertido. */
+    closureReason: text("closure_reason"),
+    /** Momento del resultado terminal (Cliente o salida negativa). */
+    closedAt: timestamp("closed_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

@@ -28,7 +28,15 @@ export const GET = withAuth(async (session, _req: Request, ctx: Params) => {
           kind: stageRow.stage.kind,
         }
       : null,
-    lead: stageRow ? { id: stageRow.lead.id } : null,
+    lead: stageRow
+      ? {
+          id: stageRow.lead.id,
+          followUpDueAt: stageRow.lead.followUpDueAt?.toISOString() ?? null,
+          followUpAttempts: stageRow.lead.followUpAttempts,
+          closureReason: stageRow.lead.closureReason,
+          closedAt: stageRow.lead.closedAt?.toISOString() ?? null,
+        }
+      : null,
   });
 });
 
