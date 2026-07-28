@@ -4,6 +4,8 @@
  */
 
 type AiMockState = {
+  /** Turnos de chat que deben fallar antes de volver a funcionar. */
+  failNextChat: number;
   /** Transcripciones que deben fallar antes de volver a funcionar. */
   failNextTranscriptions: number;
   /** Turnos de chat CON IMAGEN que el "modelo" debe rechazar. */
@@ -17,6 +19,7 @@ const globalForAiMock = globalThis as unknown as {
 export function getAiMockState(): AiMockState {
   if (!globalForAiMock.__aiMockState) {
     globalForAiMock.__aiMockState = {
+      failNextChat: 0,
       failNextTranscriptions: 0,
       failNextVision: 0,
     };

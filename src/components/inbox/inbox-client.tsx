@@ -13,6 +13,10 @@ import { ConversationList } from "./conversation-list";
 import { MessageThread } from "./message-thread";
 import { Composer } from "./composer";
 import { ContactPanel } from "./contact-panel";
+import {
+  AiConversationHeaderControl,
+  type AgentAvailability,
+} from "./ai-conversation-control";
 
 export function InboxClient() {
   const [conversations, setConversations] = useState<ConversationDto[] | null>(
@@ -25,6 +29,11 @@ export function InboxClient() {
   // Se incrementa con cada evento SSE que puede cambiar la etapa/lead o el
   // estado del agente: el panel de detalles lo observa y refetch en vivo.
   const [detailRev, setDetailRev] = useState(0);
+  // El encabezado necesita solo la disponibilidad global, no el prompt ni la
+  // configuración privada del agente.
+  const [agentAvailability, setAgentAvailability] =
+    useState<AgentAvailability | null>(null);
+  const [aiUpdatingId, setAiUpdatingId] = useState<string | null>(null);
 
   const toast = useToast();
   const selectedIdRef = useRef<string | null>(null);
@@ -48,9 +57,17 @@ export function InboxClient() {
     if (selectedIdRef.current === conversationId) setMessages(data.messages);
   }, []);
 
+  const refetchAgentAvailability = useCallback(async () => {
+    const res = await fetch("/api/agent/status").catch(() => null);
+    if (!res?.ok) return;
+    const data = (await res.json()) as AgentAvailability;
+    setAgentAvailability(data);
+  }, []);
+
   useEffect(() => {
     void refetchConversations();
-  }, [refetchConversations]);
+    void refetchAgentAvailability();
+  }, [refetchAgentAvailability, refetchConversations]);
 
   const select = useCallback(
     (id: string) => {
@@ -124,6 +141,7 @@ export function InboxClient() {
     onReconnect: () => {
       // Catch-up tras reconexión (contrato sse.md): refetch completo.
       void refetchConversations();
+      void refetchAgentAvailability();
       if (selectedIdRef.current) void refetchMessages(selectedIdRef.current);
       setDetailRev((v) => v + 1);
     },
@@ -183,16 +201,71 @@ export function InboxClient() {
   );
 
   const patchConversation = useCallback(
-    async (patch: { aiEnabled?: boolean; reactivate?: boolean }) => {
-      if (!selectedIdRef.current) return;
-      await fetch(`/api/conversations/${selectedIdRef.current}`, {
+    async (patch: {
+      aiEnabled?: boolean;
+      reactivate?: boolean;
+    }): Promise<boolean> => {
+      const id = selectedIdRef.current;
+      if (!id) return false;
+      setAiUpdatingId(id);
+      const res = await fetch(`/api/conversations/${id}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(patch),
       }).catch(() => null);
+
+      if (!res) {
+        toast("Sin conexión con el servidor");
+        setAiUpdatingId((current) => (current === id ? null : current));
+        return false;
+      }
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: { message?: string };
+        } | null;
+        toast(data?.error?.message ?? "No se pudo cambiar el estado de la IA");
+        setAiUpdatingId((current) => (current === id ? null : current));
+        return false;
+      }
+
+      const data = (await res.json()) as {
+        conversation: ConversationDto | null;
+        agentTurn: {
+          queued: boolean;
+          reason:
+            | "queued"
+            | "ai_unavailable"
+            | "agent_disabled"
+            | "conversation_inactive"
+            | "window_closed"
+            | "no_pending_message";
+        } | null;
+      };
+      if (data.conversation) {
+        setConversations((current) =>
+          current?.map((conversation) =>
+            conversation.id === id ? data.conversation! : conversation
+          ) ?? current
+        );
+      }
+
+      const activating = patch.reactivate || patch.aiEnabled === true;
+      if (activating && data.agentTurn?.queued) {
+        toast("IA activada · respondiendo el mensaje pendiente");
+      } else if (
+        activating &&
+        data.agentTurn?.reason === "window_closed"
+      ) {
+        toast("IA activada · la ventana de 24 horas está cerrada");
+      } else {
+        toast(activating ? "IA activada" : "IA pausada");
+      }
+
+      setAiUpdatingId((current) => (current === id ? null : current));
       void refetchConversations();
+      return true;
     },
-    [refetchConversations]
+    [refetchConversations, toast]
   );
 
   // Ancla/desancla o archiva/desarchiva cualquier chat desde la lista. El
@@ -313,11 +386,31 @@ export function InboxClient() {
                     : `+${selected.contact.phone}`}
                 </p>
               </div>
+              <AiConversationHeaderControl
+                active={
+                  Boolean(
+                    agentAvailability?.enabled &&
+                      agentAvailability.aiConfigured
+                  ) &&
+                  selected.aiEnabled &&
+                  !selected.handoffAt
+                }
+                availability={agentAvailability}
+                busy={aiUpdatingId === selected.id}
+                onCheckedChange={(checked) => {
+                  void patchConversation(
+                    checked
+                      ? { reactivate: true }
+                      : { aiEnabled: false }
+                  );
+                }}
+              />
               <button
                 onClick={() => setDetailOpen(true)}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] border bg-surface px-[15px] py-[9px] text-[13px] font-bold transition-colors hover:bg-surface-2"
+                aria-label="Ver detalles del contacto"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] border bg-surface p-[9px] text-[13px] font-bold transition-colors hover:bg-surface-2 lg:px-[15px]"
               >
-                Ver detalles
+                <span className="hidden lg:inline">Ver detalles</span>
                 <ChevronRight className="h-[15px] w-[15px]" strokeWidth={2.2} />
               </button>
             </header>
@@ -348,6 +441,8 @@ export function InboxClient() {
           <ContactPanel
             conversation={selected}
             refreshKey={detailRev}
+            agentAvailability={agentAvailability}
+            aiUpdating={aiUpdatingId === selected.id}
             onPatchConversation={patchConversation}
             onResetConversation={resetConversation}
             onDeleteContact={deleteContact}

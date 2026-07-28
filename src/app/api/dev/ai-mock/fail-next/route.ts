@@ -5,17 +5,21 @@ export const dynamic = "force-dynamic";
 
 /**
  * Control del harness (007): fuerza fallos del proveedor de IA.
- * Body: `{ transcriptions?: number, vision?: number }`.
+ * Body: `{ chat?: number, transcriptions?: number, vision?: number }`.
  */
 export async function POST(req: Request) {
   const guard = mockGuard();
   if (guard) return guard;
 
   const body = (await req.json().catch(() => ({}))) as {
+    chat?: number;
     transcriptions?: number;
     vision?: number;
   };
   const state = getAiMockState();
+  if (typeof body.chat === "number") {
+    state.failNextChat = Math.max(0, Math.trunc(body.chat));
+  }
   if (typeof body.transcriptions === "number") {
     state.failNextTranscriptions = Math.max(0, Math.trunc(body.transcriptions));
   }

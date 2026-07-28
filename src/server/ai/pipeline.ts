@@ -225,7 +225,10 @@ function coalesceMap(): Map<string, CoalesceEntry> {
 }
 
 /** Punto de entrada con debounce (mensajes entrantes reales). */
-export function scheduleAgentTurn(conversationId: string): void {
+export function scheduleAgentTurn(
+  conversationId: string,
+  options: { immediate?: boolean } = {}
+): void {
   const map = coalesceMap();
   const entry = map.get(conversationId) ?? {
     timer: null,
@@ -239,7 +242,9 @@ export function scheduleAgentTurn(conversationId: string): void {
     return;
   }
   if (entry.timer) clearTimeout(entry.timer);
-  const delay = getEnv().AGENT_COALESCE_MS;
+  // Al reactivar manualmente no hay mensajes nuevos por agrupar: el historial
+  // pendiente ya está completo y el operador espera que el turno arranque ya.
+  const delay = options.immediate ? 0 : getEnv().AGENT_COALESCE_MS;
   entry.timer = setTimeout(() => {
     entry.timer = null;
     void executeTurn(conversationId);

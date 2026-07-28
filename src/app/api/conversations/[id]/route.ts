@@ -2,6 +2,10 @@ import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { publish } from "@/server/events/bus";
 import { serializeConversation, getConversation, updateConversation } from "@/server/inbox/queries";
+import {
+  queuePendingAgentTurn,
+  type PendingAgentTurnResult,
+} from "@/server/ai/pending-turn";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +32,13 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
     return apiError(404, "not_found", "Conversación no encontrada");
   }
 
+  // Encender o reactivar también recupera el último entrante pendiente. La
+  // llamada solo agenda: el LLM y el envío ocurren fuera de esta respuesta.
+  let agentTurn: PendingAgentTurnResult | null = null;
+  if (body.data.reactivate || body.data.aiEnabled === true) {
+    agentTurn = await queuePendingAgentTurn(session.organizationId, id);
+  }
+
   const row = await getConversation(session.organizationId, id);
   if (row) {
     const dto = serializeConversation(row.conversation, row.contact);
@@ -35,7 +46,7 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
       type: "conversation.updated",
       data: { conversation: dto },
     });
-    return Response.json({ conversation: dto });
+    return Response.json({ conversation: dto, agentTurn });
   }
-  return Response.json({ conversation: null });
+  return Response.json({ conversation: null, agentTurn });
 });

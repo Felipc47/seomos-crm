@@ -12,9 +12,8 @@ import { WINDOW_MS } from "@/server/inbox/window";
  * y nada los recupera. Este barrido —invocado por un cron— cierra ese hueco.
  *
  * Solo encola conversaciones genuinamente pendientes (el último mensaje es
- * entrante); runAgentTurn NO comprueba si ya respondió, así que encolar una
- * conversación ya atendida duplicaría la respuesta. El resto de condiciones
- * (perfil activo, handoff, ventana) las revalida el propio pipeline.
+ * entrante) para no gastar turnos inútiles. El pipeline vuelve a comprobar el
+ * historial antes de responder, además de perfil activo, handoff y ventana.
  */
 
 const MAX_PER_SWEEP = 200;
