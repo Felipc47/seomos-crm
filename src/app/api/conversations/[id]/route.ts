@@ -41,7 +41,22 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
 
   const row = await getConversation(session.organizationId, id);
   if (row) {
-    const dto = serializeConversation(row.conversation, row.contact);
+    const dto = serializeConversation(
+      row.conversation,
+      row.contact,
+      null,
+      row.stageName,
+      {
+        service:
+          row.serviceId && row.serviceName
+            ? { id: row.serviceId, name: row.serviceName }
+            : null,
+        assignee:
+          row.assigneeMemberId && row.assigneeName
+            ? { memberId: row.assigneeMemberId, name: row.assigneeName }
+            : null,
+      }
+    );
     publish(session.organizationId, {
       type: "conversation.updated",
       data: { conversation: dto },

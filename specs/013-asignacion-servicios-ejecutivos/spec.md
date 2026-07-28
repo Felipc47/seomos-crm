@@ -1,0 +1,195 @@
+# Feature Specification: Asignación de servicios a ejecutivos comerciales
+
+**Feature Branch**: `codex/013-asignacion-servicios-ejecutivos`
+
+**Created**: 2026-07-28
+
+**Status**: Draft
+
+**Input**: El administrador necesita asociar cada servicio del negocio a un
+ejecutivo comercial para que los prospectos que llegan por ese servicio queden
+asignados al asesor responsable.
+
+## User Scenarios & Testing
+
+### User Story 1 - Configurar responsables por servicio (Priority: P1)
+
+Como administrador de la empresa, quiero seleccionar un ejecutivo comercial
+responsable para cada servicio, de modo que la distribución del equipo quede
+definida en un solo lugar y sea fácil de mantener.
+
+**Why this priority**: Sin una relación explícita entre servicio y ejecutivo no
+existe una regla confiable para distribuir prospectos.
+
+**Independent Test**: Un administrador crea dos servicios, asigna cada uno a un
+ejecutivo distinto y vuelve a cargar la pantalla; ambas asignaciones permanecen
+y cada ejecutivo muestra los servicios que tiene a cargo.
+
+**Acceptance Scenarios**:
+
+1. **Given** una empresa con servicios y ejecutivos comerciales, **When** el
+   administrador selecciona un ejecutivo en un servicio, **Then** la asignación
+   se guarda y se confirma visualmente.
+2. **Given** un ejecutivo responsable de varios servicios, **When** el
+   administrador consulta la sección de equipo, **Then** puede reconocer los
+   servicios asociados a ese ejecutivo.
+3. **Given** un servicio sin responsable, **When** el administrador abre la
+   configuración, **Then** lo ve identificado como “Sin asignar” y puede
+   corregirlo.
+4. **Given** un usuario que no es administrador, **When** intenta cambiar la
+   asignación, **Then** el sistema rechaza el cambio sin alterar datos.
+
+---
+
+### User Story 2 - Enrutar automáticamente nuevos prospectos (Priority: P1)
+
+Como ejecutivo comercial, quiero que un prospecto entrante por uno de mis
+servicios quede asignado a mí y me genere una notificación, para atenderlo sin
+depender de una distribución manual.
+
+**Why this priority**: Es el resultado operativo que da valor a la
+configuración; la asignación no puede ser solamente decorativa.
+
+**Independent Test**: Se vincula un formulario a un servicio con responsable y
+se simula un nuevo prospecto de ese formulario; el prospecto conserva servicio
+y ejecutivo, aparece así en las superficies comerciales y el ejecutivo recibe
+una sola notificación navegable.
+
+**Acceptance Scenarios**:
+
+1. **Given** un formulario vinculado a un servicio con responsable, **When**
+   llega un prospecto nuevo desde ese formulario, **Then** el prospecto queda
+   asociado al servicio y al ejecutivo configurado.
+2. **Given** el mismo ingreso, **When** finaliza el procesamiento, **Then** el
+   ejecutivo recibe una notificación que identifica prospecto y servicio y
+   permite abrir su conversación.
+3. **Given** un reintento del mismo evento externo, **When** se procesa de
+   nuevo, **Then** no se crea otra asignación, notificación ni efecto visible.
+4. **Given** un servicio sin responsable, **When** llega un prospecto por uno
+   de sus formularios, **Then** conserva el servicio, queda “Sin asignar” y el
+   ingreso continúa normalmente sin notificación personal.
+5. **Given** un contacto existente que completa un nuevo formulario, **When**
+   el evento es nuevo, **Then** su prospecto activo refleja el servicio y
+   responsable vigentes para esa nueva oportunidad.
+
+---
+
+### User Story 3 - Reconocer responsable en la operación diaria (Priority: P2)
+
+Como miembro del equipo, quiero ver el servicio y ejecutivo asignados al
+prospecto en Bandeja, Etapas del prospecto y Contactos, para saber quién debe
+atenderlo sin abrir configuraciones.
+
+**Why this priority**: La asignación solo es útil si resulta visible en las
+pantallas donde el equipo trabaja.
+
+**Independent Test**: Con un prospecto asignado, las tres superficies muestran
+el mismo servicio y ejecutivo; con uno sin responsable muestran “Sin asignar”
+sin errores ni datos de otra empresa.
+
+**Acceptance Scenarios**:
+
+1. **Given** un prospecto asignado, **When** un miembro de la empresa consulta
+   Bandeja, Etapas del prospecto o Contactos, **Then** reconoce el mismo
+   servicio y ejecutivo en todas ellas.
+2. **Given** un prospecto cuyo servicio no tiene ejecutivo, **When** se muestra
+   en esas superficies, **Then** aparece como “Sin asignar”.
+3. **Given** organizaciones distintas, **When** sus usuarios consultan o
+   modifican datos, **Then** nunca ven ni pueden seleccionar servicios,
+   ejecutivos o prospectos de otra organización.
+
+### Edge Cases
+
+- Si un ejecutivo cambia a un rol no comercial, deja de ser seleccionable y
+  sus servicios actuales pasan a “Sin asignar”; los prospectos ya recibidos
+  conservan el responsable histórico.
+- Cambiar el responsable de un servicio afecta únicamente ingresos futuros;
+  no reasigna silenciosamente prospectos ya distribuidos.
+- Eliminar un servicio no elimina prospectos ni contactos; estos conservan el
+  responsable histórico y el servicio deja de estar disponible para ingresos
+  futuros.
+- Eliminar un miembro deja sin responsable los servicios configurados y
+  conserva los prospectos y conversaciones.
+- Un identificador de ejecutivo inexistente, de otra empresa o con rol no
+  comercial se rechaza.
+- Si la notificación falla, el prospecto y su asignación permanecen guardados y
+  el flujo de ingreso no se bloquea.
+
+## Requirements
+
+### Functional Requirements
+
+- **FR-001**: El sistema MUST permitir que un administrador asigne cero o un
+  ejecutivo comercial responsable a cada servicio.
+- **FR-002**: Un ejecutivo comercial MUST poder ser responsable de varios
+  servicios.
+- **FR-003**: La pantalla de Servicios MUST mostrar el responsable actual de
+  cada servicio y un estado inequívoco para los que no tienen responsable.
+- **FR-004**: La pantalla de Equipo MUST mostrar, al menos como resumen, los
+  servicios asociados a cada ejecutivo comercial.
+- **FR-005**: Solo administradores MUST poder crear o cambiar asignaciones de
+  responsables.
+- **FR-006**: El sistema MUST validar que servicio y ejecutivo pertenezcan a la
+  organización activa y que el miembro tenga rol comercial.
+- **FR-007**: Cuando llegue un evento nuevo de formulario vinculado, el sistema
+  MUST copiar el servicio y su responsable vigente al prospecto.
+- **FR-008**: El sistema MUST conservar el servicio aun cuando este no tenga
+  responsable y marcar el prospecto como no asignado.
+- **FR-009**: El ejecutivo asignado MUST recibir una notificación con nombre del
+  prospecto, servicio y acceso a la conversación.
+- **FR-010**: Un reintento del mismo evento externo MUST producir como máximo
+  una asignación y una notificación.
+- **FR-011**: Bandeja, Etapas del prospecto y Contactos MUST mostrar una
+  representación consistente del servicio y responsable del prospecto.
+- **FR-012**: Cambiar la configuración de un servicio MUST afectar ingresos
+  futuros sin reasignar prospectos existentes.
+- **FR-013**: Cambiar un ejecutivo a un rol no comercial MUST liberar sus
+  servicios para evitar nuevos enrutamientos incorrectos.
+- **FR-014**: Una falla al notificar MUST degradar sin revertir, duplicar ni
+  bloquear el ingreso del prospecto.
+- **FR-015**: La funcionalidad MUST reutilizar las dependencias existentes y no
+  agregar servicios externos de runtime.
+
+### Key Entities
+
+- **Servicio**: Oferta del negocio vinculada a cero o más formularios y a cero
+  o un ejecutivo comercial responsable.
+- **Ejecutivo comercial**: Miembro de la organización elegible para recibir uno
+  o varios servicios y sus nuevos prospectos.
+- **Prospecto**: Oportunidad asociada a un contacto que conserva el servicio y
+  responsable vigentes al momento de su ingreso.
+- **Notificación de asignación**: Aviso único y navegable dirigido al ejecutivo
+  cuando recibe un prospecto por uno de sus servicios.
+
+## Success Criteria
+
+### Measurable Outcomes
+
+- **SC-001**: Un administrador puede asignar responsables a diez servicios en
+  menos de tres minutos sin salir de la sección de Servicios.
+- **SC-002**: El 100% de los prospectos de formularios vinculados queda
+  asociado al responsable configurado o explícitamente marcado “Sin asignar”.
+- **SC-003**: El ejecutivo ve la notificación y la asignación en la interfaz en
+  menos de cinco segundos después de completar el ingreso.
+- **SC-004**: Reprocesar diez veces el mismo evento produce exactamente una
+  notificación y un único estado de asignación.
+- **SC-005**: Los casos feliz, sin responsable, permiso insuficiente,
+  organización ajena y fallo de notificación terminan sin bloquear la
+  operación ni cruzar datos.
+- **SC-006**: La configuración y los indicadores son utilizables sin
+  desplazamiento horizontal en anchos de 375, 768 y 1440 píxeles.
+
+## Assumptions
+
+- Se amplía la sección “Servicios” que ya existe en el panel izquierdo en lugar
+  de crear una segunda opción duplicada.
+- En esta versión, la fuente que permite conocer el servicio es el formulario
+  de Meta ya vinculado al servicio; conversaciones directas sin servicio
+  identificable permanecen sin servicio y sin responsable.
+- “Le llega al asesor” significa asignación persistente, visibilidad uniforme
+  y notificación personal; no restringe la visibilidad del prospecto al resto
+  del equipo.
+- Cada servicio tiene como máximo un responsable a la vez; un ejecutivo puede
+  administrar muchos servicios.
+- Los prospectos conservan una copia de la asignación recibida para mantener
+  trazabilidad aunque la configuración cambie.

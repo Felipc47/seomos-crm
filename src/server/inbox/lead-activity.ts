@@ -11,21 +11,31 @@ export async function onLeadActivity(
   organizationId: string,
   contactId: string,
   at: Date
-): Promise<void> {
+): Promise<string | null> {
   const db = getDb();
 
   const existing = await db
     .select({ id: schema.lead.id })
     .from(schema.lead)
-    .where(eq(schema.lead.contactId, contactId))
+    .where(
+      and(
+        eq(schema.lead.organizationId, organizationId),
+        eq(schema.lead.contactId, contactId)
+      )
+    )
     .limit(1);
 
   if (existing[0]) {
     await db
       .update(schema.lead)
       .set({ lastActivityAt: at, updatedAt: new Date() })
-      .where(eq(schema.lead.id, existing[0].id));
-    return;
+      .where(
+        and(
+          eq(schema.lead.organizationId, organizationId),
+          eq(schema.lead.id, existing[0].id)
+        )
+      );
+    return existing[0].id;
   }
 
   const firstStage = await db
@@ -39,7 +49,7 @@ export async function onLeadActivity(
     )
     .orderBy(asc(schema.pipelineStage.position))
     .limit(1);
-  if (!firstStage[0]) return; // pipeline sin etapas abiertas: no hay dónde crear
+  if (!firstStage[0]) return null; // pipeline sin etapas abiertas: no hay dónde crear
 
   const maxPos = await db
     .select({ max: sql<number>`coalesce(max(${schema.lead.position}), -1)` })
@@ -51,7 +61,7 @@ export async function onLeadActivity(
       )
     );
 
-  await db
+  const inserted = await db
     .insert(schema.lead)
     .values({
       id: newId("lead"),
@@ -61,5 +71,20 @@ export async function onLeadActivity(
       position: (maxPos[0]?.max ?? -1) + 1,
       lastActivityAt: at,
     })
-    .onConflictDoNothing({ target: [schema.lead.contactId] });
+    .onConflictDoNothing({ target: [schema.lead.contactId] })
+    .returning({ id: schema.lead.id });
+  if (inserted[0]) return inserted[0].id;
+
+  // Otra ingesta pudo crear el lead entre la lectura y el INSERT.
+  const concurrent = await db
+    .select({ id: schema.lead.id })
+    .from(schema.lead)
+    .where(
+      and(
+        eq(schema.lead.organizationId, organizationId),
+        eq(schema.lead.contactId, contactId)
+      )
+    )
+    .limit(1);
+  return concurrent[0]?.id ?? null;
 }

@@ -14,6 +14,7 @@ type Member = {
   name: string;
   email: string;
   createdAt: string;
+  services: { id: string; name: string }[];
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -196,6 +197,24 @@ export function TeamClient() {
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{m.name}</p>
               <p className="text-xs text-muted-foreground">{m.email}</p>
+              {(m.role === "commercial" || m.role === "member") && (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {m.services.length > 0 ? (
+                    m.services.map((service) => (
+                      <span
+                        key={service.id}
+                        className="rounded-full bg-brand-tint px-2 py-0.5 text-[11px] font-bold text-brand"
+                      >
+                        {service.name}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground">
+                      Sin servicios asignados
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
             <select
               aria-label={`Rol de ${m.name}`}

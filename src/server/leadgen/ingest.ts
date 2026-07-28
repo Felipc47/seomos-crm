@@ -9,12 +9,14 @@ import {
   getOrCreateConversation,
 } from "@/server/inbox/ingest";
 import { onLeadActivity } from "@/server/inbox/lead-activity";
+import { notifyUser } from "@/server/notifications";
 import {
   extractLeadEmail,
   extractLeadName,
   extractLeadPhone,
 } from "@/server/leadgen/fields";
 import { getLeadgenSettings } from "@/server/org-settings";
+import { isEligibleServiceAssignee } from "@/server/services/assignment";
 import { sendTemplate } from "@/server/whatsapp/templates";
 import type { WebhookValue } from "@/server/inbox/webhook";
 
@@ -106,22 +108,39 @@ export async function processLeadgenValue(value: WebhookValue): Promise<void> {
   // Vinculación de forms (Ajustes → Servicios): el form del lead define el
   // servicio y su plantilla de saludo; sin vínculo, saludo global.
   const formId = detail.form_id ?? value.form_id ?? null;
-  let linkedService: { name: string; greetingTemplateId: string | null } | null =
-    null;
+  let linkedService: {
+    id: string;
+    name: string;
+    greetingTemplateId: string | null;
+    assignedMemberId: string | null;
+    assignedMemberOrganizationId: string | null;
+    assignedMemberRole: string | null;
+    assignedUserId: string | null;
+  } | null = null;
   if (formId) {
     const rows = await db
       .select({
+        id: schema.service.id,
         name: schema.service.name,
         greetingTemplateId: schema.service.greetingTemplateId,
+        assignedMemberId: schema.service.assignedMemberId,
+        assignedMemberOrganizationId: schema.member.organizationId,
+        assignedMemberRole: schema.member.role,
+        assignedUserId: schema.member.userId,
       })
       .from(schema.serviceForm)
       .innerJoin(
         schema.service,
         eq(schema.service.id, schema.serviceForm.serviceId)
       )
+      .leftJoin(
+        schema.member,
+        eq(schema.member.id, schema.service.assignedMemberId)
+      )
       .where(
         and(
           eq(schema.serviceForm.organizationId, organizationId),
+          eq(schema.service.organizationId, organizationId),
           eq(schema.serviceForm.formId, formId)
         )
       )
@@ -160,12 +179,60 @@ export async function processLeadgenValue(value: WebhookValue): Promise<void> {
     organizationId,
     contact.id
   );
-  await onLeadActivity(organizationId, contact.id, new Date());
+  const leadId = await onLeadActivity(organizationId, contact.id, new Date());
+
+  const assignedMemberId =
+    linkedService?.assignedMemberId &&
+    isEligibleServiceAssignee(
+      {
+        organizationId: linkedService.assignedMemberOrganizationId ?? "",
+        role: linkedService.assignedMemberRole ?? "",
+      },
+      organizationId
+    )
+      ? linkedService.assignedMemberId
+      : null;
+
+  if (leadId && linkedService) {
+    await db
+      .update(schema.lead)
+      .set({
+        serviceId: linkedService.id,
+        assignedMemberId,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(schema.lead.organizationId, organizationId),
+          eq(schema.lead.id, leadId)
+        )
+      );
+  }
 
   await db
     .update(schema.leadgenEvent)
     .set({ contactId: contact.id })
     .where(eq(schema.leadgenEvent.id, eventRow[0].id));
+
+  if (assignedMemberId && linkedService?.assignedUserId) {
+    try {
+      await notifyUser({
+        userId: linkedService.assignedUserId,
+        organizationId,
+        type: "lead_assigned",
+        title: "Nuevo prospecto asignado",
+        body: `${contact.name} · ${linkedService.name}`,
+        href: `/inbox?contact=${contact.id}`,
+      });
+    } catch (err) {
+      // La alerta es secundaria: nunca se pierde o revierte un lead porque la
+      // campana in-app haya fallado.
+      console.error(
+        `[leadgen] no se pudo notificar la asignación del contacto ${contact.id}:`,
+        err
+      );
+    }
+  }
 
   // Saludo automático SOLO para contactos nuevos (spec B: existente no se
   // vuelve a saludar). Sin plantilla configurada, el lead entra igual.

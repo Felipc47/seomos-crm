@@ -24,6 +24,14 @@ export const GET = withAuth(async (session) => {
     .innerJoin(schema.user, eq(schema.member.userId, schema.user.id))
     .where(scoped(schema.member.organizationId, session.organizationId));
   const unlimited = await hasUnlimitedTeam(session.organizationId);
+  const assignedServices = await db
+    .select({
+      id: schema.service.id,
+      name: schema.service.name,
+      memberId: schema.service.assignedMemberId,
+    })
+    .from(schema.service)
+    .where(scoped(schema.service.organizationId, session.organizationId));
   return Response.json({
     limit: unlimited ? null : TEAM_LIMIT,
     members: members.map((m) => ({
@@ -32,6 +40,9 @@ export const GET = withAuth(async (session) => {
       name: m.name,
       email: m.email,
       createdAt: m.createdAt.toISOString(),
+      services: assignedServices
+        .filter((service) => service.memberId === m.id)
+        .map(({ id, name }) => ({ id, name })),
     })),
   });
 });

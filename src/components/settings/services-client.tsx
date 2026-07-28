@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Link2, Plus, Trash2, X } from "lucide-react";
+import Link from "next/link";
+import { Link2, Plus, Trash2, UserRound, X } from "lucide-react";
 import type { TemplateDto } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +21,18 @@ type ServiceDto = {
   name: string;
   greetingTemplateId: string | null;
   templateName: string | null;
+  assignedMemberId: string | null;
+  assignedExecutive: {
+    memberId: string;
+    name: string;
+  } | null;
   forms: string[];
+};
+
+type ExecutiveDto = {
+  memberId: string;
+  name: string;
+  email: string;
 };
 
 type DetectedForm = {
@@ -38,27 +50,34 @@ type DetectedForm = {
  */
 export function ServicesClient({
   canLinkForms = true,
+  canManageAssignments = true,
 }: {
   /** Vincular/desvincular formularios de Meta es del admin. */
   canLinkForms?: boolean;
+  /** La distribución de leads también es exclusiva del admin. */
+  canManageAssignments?: boolean;
 }) {
   const toast = useToast();
   const [services, setServices] = useState<ServiceDto[]>([]);
   const [detected, setDetected] = useState<DetectedForm[]>([]);
+  const [executives, setExecutives] = useState<ExecutiveDto[]>([]);
   const [templates, setTemplates] = useState<TemplateDto[]>([]);
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<ServiceDto | null>(null);
   const [busy, setBusy] = useState(false);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
 
   const refetch = useCallback(async () => {
     const res = await fetch("/api/services").catch(() => null);
     if (!res?.ok) return;
     const data = (await res.json()) as {
       services: ServiceDto[];
+      executives: ExecutiveDto[];
       detectedForms: DetectedForm[];
     };
     setServices(data.services);
+    setExecutives(data.executives);
     setDetected(data.detectedForms);
   }, []);
 
@@ -91,14 +110,43 @@ export function ServicesClient({
     void refetch();
   }
 
-  async function patchService(id: string, patch: Record<string, unknown>) {
+  async function patchService(
+    id: string,
+    patch: Record<string, unknown>
+  ): Promise<boolean> {
     const res = await fetch(`/api/services/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(patch),
     }).catch(() => null);
-    if (!res?.ok) toast("No se pudo guardar el cambio");
-    void refetch();
+    if (!res?.ok) {
+      const data = (await res?.json().catch(() => null)) as {
+        error?: { message?: string };
+      } | null;
+      toast(data?.error?.message ?? "No se pudo guardar el cambio");
+      return false;
+    }
+    await refetch();
+    return true;
+  }
+
+  async function assignExecutive(
+    service: ServiceDto,
+    assignedMemberId: string | null
+  ) {
+    setAssigningId(service.id);
+    const saved = await patchService(service.id, { assignedMemberId });
+    setAssigningId(null);
+    if (saved) {
+      const executive = executives.find(
+        (candidate) => candidate.memberId === assignedMemberId
+      );
+      toast(
+        executive
+          ? `${service.name} asignado a ${executive.name}`
+          : `${service.name} quedó sin responsable`
+      );
+    }
   }
 
   async function removeService(svc: ServiceDto) {
@@ -145,9 +193,9 @@ export function ServicesClient({
         <CardHeader>
           <CardTitle>Servicios</CardTitle>
           <CardDescription>
-            Vincula cada formulario de Meta a un servicio y elige la plantilla
-            de saludo que recibirán sus leads. Un formulario sin vincular usa
-            el saludo global de la sección Plantillas.
+            Define quién atiende cada servicio, vincula sus formularios de Meta
+            y elige la plantilla de saludo. Cada nuevo prospecto quedará
+            asignado automáticamente al ejecutivo responsable.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -210,6 +258,58 @@ export function ServicesClient({
                   >
                     <Trash2 className="h-4 w-4" strokeWidth={2} />
                   </button>
+                </div>
+
+                <div className="mt-3 rounded-[12px] border bg-surface-2 p-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <span className="inline-flex min-w-0 flex-1 items-center gap-2 text-sm font-bold">
+                      <UserRound
+                        className="h-4 w-4 shrink-0 text-brand"
+                        strokeWidth={2.2}
+                      />
+                      Ejecutivo responsable
+                    </span>
+                    {canManageAssignments ? (
+                      <select
+                        aria-label={`Ejecutivo responsable de ${svc.name}`}
+                        value={svc.assignedMemberId ?? ""}
+                        disabled={assigningId === svc.id}
+                        onChange={(event) =>
+                          void assignExecutive(
+                            svc,
+                            event.target.value || null
+                          )
+                        }
+                        className="min-w-0 rounded-[9px] border bg-surface px-3 py-2 text-[13px] font-semibold outline-none focus:border-brand sm:min-w-[240px]"
+                      >
+                        <option value="">Sin asignar</option>
+                        {executives.map((executive) => (
+                          <option
+                            key={executive.memberId}
+                            value={executive.memberId}
+                          >
+                            {executive.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span className="rounded-full border bg-surface px-3 py-1.5 text-xs font-bold text-mute">
+                        {svc.assignedExecutive?.name ?? "Sin asignar"}
+                      </span>
+                    )}
+                  </div>
+                  {canManageAssignments && executives.length === 0 && (
+                    <p className="mt-2 text-xs text-mute">
+                      Aún no hay ejecutivos comerciales.{" "}
+                      <Link
+                        href="/settings/team"
+                        className="font-bold text-brand hover:underline"
+                      >
+                        Crear o cambiar un miembro del equipo
+                      </Link>
+                      .
+                    </p>
+                  )}
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center gap-2">

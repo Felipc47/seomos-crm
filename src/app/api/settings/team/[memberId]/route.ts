@@ -2,7 +2,9 @@ import { and, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { isOrgAdmin } from "@/lib/permissions";
+import { isCommercialMemberRole } from "@/server/services/assignment";
 
 export const dynamic = "force-dynamic";
 
@@ -57,9 +59,29 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
     }
   }
 
-  await db
-    .update(schema.member)
-    .set({ role: body.data.role })
-    .where(eq(schema.member.id, memberId));
+  await db.transaction(async (tx) => {
+    await tx
+      .update(schema.member)
+      .set({ role: body.data.role })
+      .where(
+        scoped(
+          schema.member.organizationId,
+          session.organizationId,
+          eq(schema.member.id, memberId)
+        )
+      );
+    if (!isCommercialMemberRole(body.data.role)) {
+      await tx
+        .update(schema.service)
+        .set({ assignedMemberId: null, updatedAt: new Date() })
+        .where(
+          scoped(
+            schema.service.organizationId,
+            session.organizationId,
+            eq(schema.service.assignedMemberId, memberId)
+          )
+        );
+    }
+  });
   return Response.json({ ok: true });
 });

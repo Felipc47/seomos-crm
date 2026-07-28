@@ -22,6 +22,7 @@ import type { ContactDto } from "@/lib/types";
 import { formatPhone } from "@/lib/utils";
 import { stageColor } from "@/lib/stage-colors";
 import { ContactAvatar } from "@/components/avatar";
+import { LeadAssignmentBadges } from "@/components/lead-assignment-badges";
 import { ProspectEditorDialog } from "@/components/contacts/prospect-editor-dialog";
 import { useViewPreference } from "@/components/use-view-preference";
 import { useStages } from "@/components/use-stage-colors";
@@ -498,6 +499,11 @@ function ContactIdentity({
           ? ` · ${contact.notes.slice(0, 80)}`
           : ""}
       </p>
+      <LeadAssignmentBadges
+        service={contact.service ?? null}
+        assignee={contact.assignee ?? null}
+        className="mt-1.5"
+      />
     </div>
   );
 }
@@ -782,6 +788,30 @@ function ContactDetailPanel({
               )}
             </dd>
           </div>
+          {contact.service && (
+            <>
+              <div className="flex items-baseline justify-between gap-4 border-b pb-3">
+                <dt className="text-[13px] font-semibold text-mute">
+                  Servicio
+                </dt>
+                <dd className="min-w-0 truncate text-right text-sm font-bold">
+                  {contact.service.name}
+                </dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-4 border-b pb-3">
+                <dt className="text-[13px] font-semibold text-mute">
+                  Ejecutivo
+                </dt>
+                <dd className="min-w-0 truncate text-right text-sm font-bold">
+                  {contact.assignee?.name ?? (
+                    <span className="font-semibold text-faint">
+                      Sin asignar
+                    </span>
+                  )}
+                </dd>
+              </div>
+            </>
+          )}
           {/* Cumplimiento de la política de Meta (006): baja y consentimiento. */}
           <div className="border-b pb-3">
             <dt className="mb-2 text-[12px] font-bold uppercase tracking-wide text-mute">

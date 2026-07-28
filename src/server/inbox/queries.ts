@@ -1,24 +1,10 @@
 import { and, desc, eq, gt, isNotNull, ne, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
+import type { ConversationDto, LeadAssignmentDto } from "@/lib/types";
 import { isWindowOpen, windowRemainingMs } from "@/server/inbox/window";
 
-export type ConversationDto = {
-  id: string;
-  contact: { id: string; name: string; phone: string };
-  stageName: string | null;
-  aiEnabled: boolean;
-  handoffAt: string | null;
-  handoffReason: string | null;
-  lastInboundAt: string | null;
-  lastMessageAt: string | null;
-  unreadCount: number;
-  windowOpen: boolean;
-  windowRemainingMs: number;
-  preview: string | null;
-  pinnedAt: string | null;
-  archivedAt: string | null;
-};
+export type { ConversationDto } from "@/lib/types";
 
 /** Máximo de conversaciones ancladas simultáneas por organización. */
 export const MAX_PINNED = 3;
@@ -35,25 +21,42 @@ export async function listConversations(
     order by m.created_at desc
     limit 1
   )`;
-  const stageSql = sql<string | null>`(
-    select s.name from lead l
-    join pipeline_stage s on s.id = l.stage_id
-    where l.contact_id = ${schema.contact.id}
-    limit 1
-  )`;
-
   const rows = await db
     .select({
       conversation: schema.conversation,
       contact: schema.contact,
       preview: previewSql,
-      stageName: stageSql,
+      stageName: schema.pipelineStage.name,
+      serviceId: schema.service.id,
+      serviceName: schema.service.name,
+      assigneeMemberId: schema.member.id,
+      assigneeName: schema.user.name,
     })
     .from(schema.conversation)
     .innerJoin(
       schema.contact,
       eq(schema.conversation.contactId, schema.contact.id)
     )
+    .leftJoin(schema.lead, eq(schema.lead.contactId, schema.contact.id))
+    .leftJoin(
+      schema.pipelineStage,
+      eq(schema.pipelineStage.id, schema.lead.stageId)
+    )
+    .leftJoin(
+      schema.service,
+      and(
+        eq(schema.service.id, schema.lead.serviceId),
+        eq(schema.service.organizationId, organizationId)
+      )
+    )
+    .leftJoin(
+      schema.member,
+      and(
+        eq(schema.member.id, schema.lead.assignedMemberId),
+        eq(schema.member.organizationId, organizationId)
+      )
+    )
+    .leftJoin(schema.user, eq(schema.user.id, schema.member.userId))
     .where(
       scoped(
         schema.conversation.organizationId,
@@ -65,7 +68,13 @@ export async function listConversations(
     .orderBy(desc(sql`coalesce(${schema.conversation.lastMessageAt}, ${schema.conversation.createdAt})`));
 
   return rows.map((r) =>
-    serializeConversation(r.conversation, r.contact, r.preview, r.stageName)
+    serializeConversation(
+      r.conversation,
+      r.contact,
+      r.preview,
+      r.stageName,
+      serializeAssignment(r)
+    )
   );
 }
 
@@ -75,12 +84,40 @@ export async function getConversation(
 ) {
   const db = getDb();
   const rows = await db
-    .select({ conversation: schema.conversation, contact: schema.contact })
+    .select({
+      conversation: schema.conversation,
+      contact: schema.contact,
+      stageName: schema.pipelineStage.name,
+      serviceId: schema.service.id,
+      serviceName: schema.service.name,
+      assigneeMemberId: schema.member.id,
+      assigneeName: schema.user.name,
+    })
     .from(schema.conversation)
     .innerJoin(
       schema.contact,
       eq(schema.conversation.contactId, schema.contact.id)
     )
+    .leftJoin(schema.lead, eq(schema.lead.contactId, schema.contact.id))
+    .leftJoin(
+      schema.pipelineStage,
+      eq(schema.pipelineStage.id, schema.lead.stageId)
+    )
+    .leftJoin(
+      schema.service,
+      and(
+        eq(schema.service.id, schema.lead.serviceId),
+        eq(schema.service.organizationId, organizationId)
+      )
+    )
+    .leftJoin(
+      schema.member,
+      and(
+        eq(schema.member.id, schema.lead.assignedMemberId),
+        eq(schema.member.organizationId, organizationId)
+      )
+    )
+    .leftJoin(schema.user, eq(schema.user.id, schema.member.userId))
     .where(
       scoped(
         schema.conversation.organizationId,
@@ -137,7 +174,8 @@ export function serializeConversation(
   c: typeof schema.conversation.$inferSelect,
   contact: typeof schema.contact.$inferSelect,
   preview: string | null = null,
-  stageName: string | null = null
+  stageName: string | null = null,
+  assignment: LeadAssignmentDto = { service: null, assignee: null }
 ): ConversationDto {
   return {
     id: c.id,
@@ -154,6 +192,26 @@ export function serializeConversation(
     preview,
     pinnedAt: c.pinnedAt?.toISOString() ?? null,
     archivedAt: c.archivedAt?.toISOString() ?? null,
+    service: assignment.service,
+    assignee: assignment.assignee,
+  };
+}
+
+function serializeAssignment(row: {
+  serviceId: string | null;
+  serviceName: string | null;
+  assigneeMemberId: string | null;
+  assigneeName: string | null;
+}): LeadAssignmentDto {
+  return {
+    service:
+      row.serviceId && row.serviceName
+        ? { id: row.serviceId, name: row.serviceName }
+        : null,
+    assignee:
+      row.assigneeMemberId && row.assigneeName
+        ? { memberId: row.assigneeMemberId, name: row.assigneeName }
+        : null,
   };
 }
 

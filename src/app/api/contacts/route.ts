@@ -1,4 +1,4 @@
-import { desc, eq, ilike, or } from "drizzle-orm";
+import { and, desc, eq, ilike, or } from "drizzle-orm";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
@@ -25,6 +25,14 @@ export const GET = withAuth(async (session, req: Request) => {
         kind: schema.pipelineStage.kind,
         position: schema.pipelineStage.position,
       },
+      service: {
+        id: schema.service.id,
+        name: schema.service.name,
+      },
+      assignee: {
+        memberId: schema.member.id,
+        name: schema.user.name,
+      },
     })
     .from(schema.contact)
     .leftJoin(schema.lead, eq(schema.lead.contactId, schema.contact.id))
@@ -32,6 +40,21 @@ export const GET = withAuth(async (session, req: Request) => {
       schema.pipelineStage,
       eq(schema.pipelineStage.id, schema.lead.stageId)
     )
+    .leftJoin(
+      schema.service,
+      and(
+        eq(schema.service.id, schema.lead.serviceId),
+        eq(schema.service.organizationId, session.organizationId)
+      )
+    )
+    .leftJoin(
+      schema.member,
+      and(
+        eq(schema.member.id, schema.lead.assignedMemberId),
+        eq(schema.member.organizationId, session.organizationId)
+      )
+    )
+    .leftJoin(schema.user, eq(schema.user.id, schema.member.userId))
     .where(
       scoped(
         schema.contact.organizationId,
@@ -49,7 +72,21 @@ export const GET = withAuth(async (session, req: Request) => {
 
   const contacts = rows
     .filter((r) => includeArchived || !r.contact.archivedAt)
-    .map((r) => ({ ...serializeContact(r.contact), stage: r.stage ?? null }));
+    .map((r) => ({
+      ...serializeContact(r.contact),
+      stage: r.stage ?? null,
+      service:
+        r.service?.id && r.service.name
+          ? { id: r.service.id, name: r.service.name }
+          : null,
+      assignee:
+        r.assignee?.memberId && r.assignee.name
+          ? {
+              memberId: r.assignee.memberId,
+              name: r.assignee.name,
+            }
+          : null,
+    }));
   return Response.json({ contacts });
 });
 

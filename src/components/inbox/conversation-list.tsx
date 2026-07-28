@@ -14,6 +14,7 @@ import {
 import type { ConversationDto } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
+import { LeadAssignmentBadges } from "@/components/lead-assignment-badges";
 import { Button } from "@/components/ui/button";
 import { StageTag } from "@/components/ui/stage-tag";
 import { stageColor } from "@/lib/stage-colors";
@@ -336,6 +337,10 @@ export function ConversationList({
                             color={colorFor(c.stageName)}
                           />
                         )}
+                        <LeadAssignmentBadges
+                          service={c.service}
+                          assignee={c.assignee}
+                        />
                         {c.handoffAt && (
                           <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-[3px] text-[11px] font-bold text-mute">
                             <UserRound className="h-3 w-3" strokeWidth={2.2} />

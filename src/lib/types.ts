@@ -1,5 +1,10 @@
 /** DTOs que viajan por la API interna (lado cliente). */
 
+export type LeadAssignmentDto = {
+  service: { id: string; name: string } | null;
+  assignee: { memberId: string; name: string } | null;
+};
+
 export type ConversationDto = {
   id: string;
   contact: { id: string; name: string; phone: string };
@@ -15,6 +20,8 @@ export type ConversationDto = {
   preview: string | null;
   pinnedAt: string | null;
   archivedAt: string | null;
+  service: LeadAssignmentDto["service"];
+  assignee: LeadAssignmentDto["assignee"];
 };
 
 export type MessageDto = {
@@ -78,6 +85,8 @@ export type ContactDto = {
     kind: StageKind;
     position: number;
   } | null;
+  service?: LeadAssignmentDto["service"];
+  assignee?: LeadAssignmentDto["assignee"];
 };
 
 export type LeadProfileDto = {

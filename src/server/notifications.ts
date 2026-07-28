@@ -53,10 +53,15 @@ export async function notifyUser(input: {
   const membership = await db
     .select({ orgId: schema.member.organizationId })
     .from(schema.member)
-    .where(eq(schema.member.userId, input.userId))
+    .where(
+      and(
+        eq(schema.member.userId, input.userId),
+        eq(schema.member.organizationId, input.organizationId)
+      )
+    )
     .limit(1);
   if (membership[0]) {
-    publish(membership[0].orgId, {
+    publish(input.organizationId, {
       type: "notification.new",
       data: { notification: serialize(row) },
     });

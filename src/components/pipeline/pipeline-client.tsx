@@ -33,6 +33,7 @@ import type { StageDto } from "@/lib/types";
 import { cn, formatPhone } from "@/lib/utils";
 import { stageColor } from "@/lib/stage-colors";
 import { ContactAvatar } from "@/components/avatar";
+import { LeadAssignmentBadges } from "@/components/lead-assignment-badges";
 import { ProspectEditorDialog } from "@/components/contacts/prospect-editor-dialog";
 import { useViewPreference } from "@/components/use-view-preference";
 import { useToast } from "@/components/ui/toast";
@@ -55,6 +56,8 @@ export type BoardLead = {
   closedAt: string | null;
   contact: { id: string; name: string; phone: string };
   conversationId: string | null;
+  service: { id: string; name: string } | null;
+  assignee: { memberId: string; name: string } | null;
 };
 
 const PIPELINE_VIEWS = ["board", "list"] as const;
@@ -364,6 +367,11 @@ function PipelineList({
                       Motivo: {reason}
                     </p>
                   )}
+                  <LeadAssignmentBadges
+                    service={lead.service}
+                    assignee={lead.assignee}
+                    className="mt-1.5"
+                  />
                 </div>
               </div>
 
@@ -537,6 +545,11 @@ function LeadCard({
           </p>
         </div>
       </div>
+      <LeadAssignmentBadges
+        service={lead.service}
+        assignee={lead.assignee}
+        className="mt-2.5"
+      />
       <div className="mt-[11px] flex items-center gap-2">
         <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-mute">
           {formatPhone(lead.contact.phone)}

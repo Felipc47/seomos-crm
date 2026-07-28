@@ -37,6 +37,8 @@ export const GET = withAuth(async (session, _req: Request, ctx: Params) => {
           followUpAttempts: stageRow.lead.followUpAttempts,
           closureReason: stageRow.lead.closureReason,
           closedAt: stageRow.lead.closedAt?.toISOString() ?? null,
+          service: stageRow.service,
+          assignee: stageRow.assignee,
         }
       : null,
   });
@@ -296,6 +298,8 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
           followUpAttempts: updatedLead.followUpAttempts,
           closureReason: updatedLead.closureReason,
           closedAt: updatedLead.closedAt?.toISOString() ?? null,
+          service: stageRow?.service ?? null,
+          assignee: stageRow?.assignee ?? null,
         }
       : null,
   });

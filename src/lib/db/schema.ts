@@ -212,6 +212,14 @@ export const lead = pgTable(
     stageId: text("stage_id")
       .notNull()
       .references(() => pipelineStage.id),
+    /** Servicio y ejecutivo copiados al recibir la oportunidad. No dependen
+     * de cambios posteriores en la regla mutable del servicio. */
+    serviceId: text("service_id").references(() => service.id, {
+      onDelete: "set null",
+    }),
+    assignedMemberId: text("assigned_member_id").references(() => member.id, {
+      onDelete: "set null",
+    }),
     position: integer("position").notNull().default(0),
     lastActivityAt: timestamp("last_activity_at"),
     /** Próximo intento de la rutina de seguimiento (008); NULL = sin rutina. */
@@ -228,6 +236,10 @@ export const lead = pgTable(
   (t) => [
     uniqueIndex("lead_contact_uq").on(t.contactId),
     index("lead_org_stage_idx").on(t.organizationId, t.stageId, t.position),
+    index("lead_org_assignee_idx").on(
+      t.organizationId,
+      t.assignedMemberId
+    ),
     index("lead_follow_up_due_idx").on(t.followUpDueAt),
   ]
 );
@@ -461,21 +473,34 @@ export const template = pgTable(
 );
 
 /** Servicio del negocio (SEO, desarrollo web…): agrupa formularios de Meta
- * Lead Ads y define la plantilla de saludo que recibe cada lead. */
-export const service = pgTable("service", {
-  id: text("id").primaryKey(),
-  organizationId: text("organization_id")
-    .notNull()
-    .references(() => organization.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  /** Plantilla de saludo del servicio; null = usar el saludo global. */
-  greetingTemplateId: text("greeting_template_id").references(
-    () => template.id,
-    { onDelete: "set null" }
-  ),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+ * Lead Ads, define su saludo y la regla vigente de distribución comercial. */
+export const service = pgTable(
+  "service",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** Plantilla de saludo del servicio; null = usar el saludo global. */
+    greetingTemplateId: text("greeting_template_id").references(
+      () => template.id,
+      { onDelete: "set null" }
+    ),
+    /** Ejecutivo que recibirá nuevos leads; null = sin asignar. */
+    assignedMemberId: text("assigned_member_id").references(() => member.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("service_org_assignee_idx").on(
+      t.organizationId,
+      t.assignedMemberId
+    ),
+  ]
+);
 
 /** Vinculación formulario de Meta → servicio (un form pertenece a UN servicio). */
 export const serviceForm = pgTable(

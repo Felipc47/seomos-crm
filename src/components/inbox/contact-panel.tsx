@@ -12,6 +12,7 @@ import {
 import { cn, formatPhone } from "@/lib/utils";
 import { stageColor, stageTint } from "@/lib/stage-colors";
 import { ContactAvatar } from "@/components/avatar";
+import { LeadAssignmentBadges } from "@/components/lead-assignment-badges";
 import { ProspectEditorDialog } from "@/components/contacts/prospect-editor-dialog";
 import { ScheduleDialog } from "@/components/schedule-dialog";
 import { Button } from "@/components/ui/button";
@@ -212,11 +213,17 @@ export function ContactPanel({
       </header>
 
       <div className="flex-1 overflow-y-auto p-[22px]">
-        {currentStage && (
+        {(currentStage || conversation.service) && (
           <div className="mb-5 flex flex-wrap gap-2">
-            <StageTag
-              name={currentStage.name}
-              color={stageColor(currentStage)}
+            {currentStage && (
+              <StageTag
+                name={currentStage.name}
+                color={stageColor(currentStage)}
+              />
+            )}
+            <LeadAssignmentBadges
+              service={conversation.service}
+              assignee={conversation.assignee}
             />
             {closureReason && (
               <span className="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-bold text-mute">

@@ -1,4 +1,4 @@
-import { asc, desc, eq, isNotNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
@@ -22,14 +22,44 @@ export const GET = withAuth(async (session) => {
       name: schema.service.name,
       greetingTemplateId: schema.service.greetingTemplateId,
       templateName: schema.template.name,
+      assignedMemberId: schema.service.assignedMemberId,
+      assignedExecutiveName: schema.user.name,
     })
     .from(schema.service)
     .leftJoin(
       schema.template,
       eq(schema.template.id, schema.service.greetingTemplateId)
     )
+    .leftJoin(
+      schema.member,
+      and(
+        eq(schema.member.id, schema.service.assignedMemberId),
+        eq(schema.member.organizationId, session.organizationId)
+      )
+    )
+    .leftJoin(schema.user, eq(schema.user.id, schema.member.userId))
     .where(scoped(schema.service.organizationId, session.organizationId))
     .orderBy(asc(schema.service.createdAt));
+
+  const executives = await db
+    .select({
+      memberId: schema.member.id,
+      name: schema.user.name,
+      email: schema.user.email,
+    })
+    .from(schema.member)
+    .innerJoin(schema.user, eq(schema.user.id, schema.member.userId))
+    .where(
+      scoped(
+        schema.member.organizationId,
+        session.organizationId,
+        or(
+          eq(schema.member.role, "commercial"),
+          eq(schema.member.role, "member")
+        )
+      )
+    )
+    .orderBy(asc(schema.user.name));
 
   const links = await db
     .select({
@@ -60,9 +90,20 @@ export const GET = withAuth(async (session) => {
   const linkedForms = new Set(links.map((l) => l.formId));
   return Response.json({
     services: services.map((s) => ({
-      ...s,
+      id: s.id,
+      name: s.name,
+      greetingTemplateId: s.greetingTemplateId,
+      templateName: s.templateName,
+      assignedMemberId: s.assignedMemberId,
+      assignedExecutive: s.assignedMemberId
+        ? {
+            memberId: s.assignedMemberId,
+            name: s.assignedExecutiveName ?? "Ejecutivo",
+          }
+        : null,
       forms: links.filter((l) => l.serviceId === s.id).map((l) => l.formId),
     })),
+    executives,
     detectedForms: detected
       .filter((d) => d.formId)
       .map((d) => ({

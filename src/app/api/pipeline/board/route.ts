@@ -20,6 +20,10 @@ export const GET = withAuth(async (session) => {
       lead: schema.lead,
       contact: schema.contact,
       conversationId: schema.conversation.id,
+      serviceId: schema.service.id,
+      serviceName: schema.service.name,
+      assigneeMemberId: schema.member.id,
+      assigneeName: schema.user.name,
     })
     .from(schema.lead)
     .innerJoin(schema.contact, eq(schema.lead.contactId, schema.contact.id))
@@ -30,6 +34,21 @@ export const GET = withAuth(async (session) => {
         eq(schema.conversation.isTest, false)
       )
     )
+    .leftJoin(
+      schema.service,
+      and(
+        eq(schema.service.id, schema.lead.serviceId),
+        eq(schema.service.organizationId, session.organizationId)
+      )
+    )
+    .leftJoin(
+      schema.member,
+      and(
+        eq(schema.member.id, schema.lead.assignedMemberId),
+        eq(schema.member.organizationId, session.organizationId)
+      )
+    )
+    .leftJoin(schema.user, eq(schema.user.id, schema.member.userId))
     .where(scoped(schema.lead.organizationId, session.organizationId))
     .orderBy(asc(schema.lead.position));
 
@@ -55,6 +74,14 @@ export const GET = withAuth(async (session) => {
         phone: r.contact.phone,
       },
       conversationId: r.conversationId,
+      service:
+        r.serviceId && r.serviceName
+          ? { id: r.serviceId, name: r.serviceName }
+          : null,
+      assignee:
+        r.assigneeMemberId && r.assigneeName
+          ? { memberId: r.assigneeMemberId, name: r.assigneeName }
+          : null,
     })),
   });
 });
