@@ -2,10 +2,19 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChevronLeft, ChevronRight, ShieldBan } from "lucide-react";
+import {
+  ArrowRightLeft,
+  ChevronLeft,
+  ChevronRight,
+  ShieldBan,
+} from "lucide-react";
 import { ContactAvatar } from "@/components/avatar";
 import { cn } from "@/lib/utils";
-import type { ConversationDto, MessageDto } from "@/lib/types";
+import type {
+  ConversationDto,
+  InboxAssigneeOptionDto,
+  MessageDto,
+} from "@/lib/types";
 import { useEvents } from "@/components/use-events";
 import { SlideOver } from "@/components/ui/slide-over";
 import { useToast } from "@/components/ui/toast";
@@ -25,6 +34,7 @@ import {
   type PendingInboxAction,
 } from "./conversation-actions-dialogs";
 import type { ContactReportReason } from "@/lib/types";
+import { ConversationTransferDialog } from "./conversation-transfer-dialog";
 
 export function InboxClient() {
   const [conversations, setConversations] = useState<ConversationDto[] | null>(
@@ -47,6 +57,14 @@ export function InboxClient() {
   const [pendingAction, setPendingAction] =
     useState<PendingInboxAction | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
+  const [assignmentOptions, setAssignmentOptions] = useState<{
+    currentMemberId: string;
+    members: InboxAssigneeOptionDto[];
+  } | null>(null);
+  const [transferConversationId, setTransferConversationId] = useState<
+    string | null
+  >(null);
+  const [transferBusy, setTransferBusy] = useState(false);
 
   const toast = useToast();
   const selectedIdRef = useRef<string | null>(null);
@@ -77,10 +95,28 @@ export function InboxClient() {
     setAgentAvailability(data);
   }, []);
 
+  const refetchAssignmentOptions = useCallback(async () => {
+    const response = await fetch(
+      "/api/conversations/assignment-options"
+    ).catch(() => null);
+    if (!response?.ok) return;
+    setAssignmentOptions(
+      (await response.json()) as {
+        currentMemberId: string;
+        members: InboxAssigneeOptionDto[];
+      }
+    );
+  }, []);
+
   useEffect(() => {
     void refetchConversations();
     void refetchAgentAvailability();
-  }, [refetchAgentAvailability, refetchConversations]);
+    void refetchAssignmentOptions();
+  }, [
+    refetchAgentAvailability,
+    refetchAssignmentOptions,
+    refetchConversations,
+  ]);
 
   const select = useCallback(
     (id: string) => {
@@ -155,12 +191,15 @@ export function InboxClient() {
       // Catch-up tras reconexión (contrato sse.md): refetch completo.
       void refetchConversations();
       void refetchAgentAvailability();
+      void refetchAssignmentOptions();
       if (selectedIdRef.current) void refetchMessages(selectedIdRef.current);
       setDetailRev((v) => v + 1);
     },
   });
 
   const selected = conversations?.find((c) => c.id === selectedId) ?? null;
+  const transferConversation =
+    conversations?.find((c) => c.id === transferConversationId) ?? null;
 
   const sendText = useCallback(
     async (text: string): Promise<string | null> => {
@@ -356,6 +395,50 @@ export function InboxClient() {
     [conversations]
   );
 
+  const transferAssignee = useCallback(
+    async (memberId: string | null) => {
+      const id = transferConversationId;
+      if (!id || transferBusy) return;
+      setTransferBusy(true);
+      const response = await fetch(`/api/conversations/${id}/assignee`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ memberId }),
+      }).catch(() => null);
+      if (!response) {
+        setTransferBusy(false);
+        toast("Sin conexión con el servidor");
+        return;
+      }
+      const data = (await response.json().catch(() => null)) as
+        | {
+            changed?: boolean;
+            conversation?: ConversationDto;
+            error?: { message?: string };
+          }
+        | null;
+      if (!response.ok || !data?.conversation) {
+        setTransferBusy(false);
+        toast(data?.error?.message ?? "No se pudo transferir el chat");
+        return;
+      }
+
+      setConversations((current) =>
+        current?.map((conversation) =>
+          conversation.id === id ? data.conversation! : conversation
+        ) ?? current
+      );
+      setTransferBusy(false);
+      setTransferConversationId(null);
+      setDetailRev((value) => value + 1);
+      toast(
+        data.conversation.assignee
+          ? `Chat transferido a ${data.conversation.assignee.name}`
+          : "Chat sin asignar"
+      );
+      void refetchConversations();
+    }, [refetchConversations, toast, transferBusy, transferConversationId]);
+
   const executeConversationAction = useCallback(
     async (input: {
       reason?: ContactReportReason;
@@ -461,6 +544,8 @@ export function InboxClient() {
           onSeeded={() => void refetchConversations()}
           onPatch={(id, patch) => void pinOrArchive(id, patch)}
           onAction={requestConversationAction}
+          onTransfer={setTransferConversationId}
+          currentMemberId={assignmentOptions?.currentMemberId ?? null}
           selectedActionIds={selectedActionIds}
           onSelectedActionIdsChange={setSelectedActionIds}
           selectionResetKey={selectionResetKey}
@@ -533,6 +618,15 @@ export function InboxClient() {
                   }}
                 />
               )}
+              <button
+                type="button"
+                onClick={() => setTransferConversationId(selected.id)}
+                aria-label="Transferir chat"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] border bg-surface p-[9px] text-[13px] font-bold transition-colors hover:bg-surface-2 xl:px-[13px]"
+              >
+                <ArrowRightLeft className="h-[16px] w-[16px]" strokeWidth={2.2} />
+                <span className="hidden xl:inline">Transferir</span>
+              </button>
               <button
                 onClick={() => setDetailOpen(true)}
                 aria-label="Ver detalles del contacto"
@@ -626,6 +720,15 @@ export function InboxClient() {
           busy={actionBusy}
           onConfirm={(input) => void executeConversationAction(input)}
           onCancel={() => !actionBusy && setPendingAction(null)}
+        />
+      )}
+      {transferConversation && assignmentOptions && (
+        <ConversationTransferDialog
+          conversation={transferConversation}
+          members={assignmentOptions.members}
+          busy={transferBusy}
+          onConfirm={(memberId) => void transferAssignee(memberId)}
+          onCancel={() => !transferBusy && setTransferConversationId(null)}
         />
       )}
     </div>

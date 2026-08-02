@@ -5,6 +5,13 @@ export type LeadAssignmentDto = {
   assignee: { memberId: string; name: string } | null;
 };
 
+export type InboxAssigneeOptionDto = {
+  memberId: string;
+  name: string;
+  role: string;
+  isCurrent: boolean;
+};
+
 export type ConversationDto = {
   id: string;
   contact: {

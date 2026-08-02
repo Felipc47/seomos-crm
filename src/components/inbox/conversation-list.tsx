@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  ArrowRightLeft,
   Archive,
   ArchiveRestore,
   CheckSquare2,
@@ -75,10 +76,12 @@ function RowActions({
   conversation: c,
   onPatch,
   onAction,
+  onTransfer,
 }: {
   conversation: ConversationDto;
   onPatch: (id: string, patch: { pinned?: boolean; archived?: boolean }) => void;
   onAction: (action: InboxConversationAction, ids: string[]) => void;
+  onTransfer: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -178,6 +181,17 @@ function RowActions({
                 {item.label}
               </button>
             ))}
+            <button
+              onClick={(event) => {
+                event.stopPropagation();
+                setOpen(false);
+                onTransfer(c.id);
+              }}
+              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-[13px] font-semibold transition-colors hover:bg-subtle"
+            >
+              <ArrowRightLeft className="h-4 w-4 text-mute" strokeWidth={2} />
+              Transferir chat
+            </button>
             <div className="my-1 border-t" />
             {moderationItems.map((item) => (
               <button
@@ -216,6 +230,8 @@ export function ConversationList({
   onSeeded,
   onPatch,
   onAction,
+  onTransfer,
+  currentMemberId,
   selectedActionIds,
   onSelectedActionIdsChange,
   selectionResetKey,
@@ -226,6 +242,8 @@ export function ConversationList({
   onSeeded: () => void;
   onPatch: (id: string, patch: { pinned?: boolean; archived?: boolean }) => void;
   onAction: (action: InboxConversationAction, ids: string[]) => void;
+  onTransfer: (id: string) => void;
+  currentMemberId: string | null;
   selectedActionIds: string[];
   onSelectedActionIdsChange: (ids: string[]) => void;
   selectionResetKey: number;
@@ -233,6 +251,9 @@ export function ConversationList({
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "unread" | "archived">("all");
   const [stageFilter, setStageFilter] = useState("");
+  const [assigneeFilter, setAssigneeFilter] = useState<
+    "all" | "mine" | "unassigned"
+  >("all");
   const [selecting, setSelecting] = useState(false);
   const stages = useStages();
   const colorFor = useMemo(() => {
@@ -248,6 +269,11 @@ export function ConversationList({
   const q = query.trim().toLowerCase();
   const matches = (c: ConversationDto) =>
     (!stageFilter || c.stageName === stageFilter) &&
+    (assigneeFilter === "all" ||
+      (assigneeFilter === "mine" &&
+        Boolean(currentMemberId) &&
+        c.assignee?.memberId === currentMemberId) ||
+      (assigneeFilter === "unassigned" && !c.assignee)) &&
     (!q ||
       c.contact.name.toLowerCase().includes(q) ||
       c.contact.phone.includes(q) ||
@@ -350,6 +376,7 @@ export function ConversationList({
           <Search className="h-4 w-4 shrink-0 text-faint" strokeWidth={2} />
           <input
             placeholder="Buscar conversación…"
+            aria-label="Buscar conversación"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="w-full bg-transparent text-[16px] outline-none placeholder:text-faint md:text-[13.5px]"
@@ -390,6 +417,22 @@ export function ConversationList({
               {s.name}
             </option>
           ))}
+        </select>
+        <select
+          value={assigneeFilter}
+          onChange={(event) =>
+            setAssigneeFilter(
+              event.target.value as "all" | "mine" | "unassigned"
+            )
+          }
+          aria-label="Filtrar por responsable"
+          className="mt-2.5 w-full rounded-[11px] border bg-surface-2 px-3 py-[9px] text-[13px] font-bold outline-none transition-colors focus:border-brand focus:ring-[3px] focus:ring-brand-soft"
+        >
+          <option value="all">Todos los responsables</option>
+          <option value="mine" disabled={!currentMemberId}>
+            Asignados a mí
+          </option>
+          <option value="unassigned">Sin asignar</option>
         </select>
         {selecting && (
           <div
@@ -468,7 +511,7 @@ export function ConversationList({
           <p className="p-6 text-center text-xs text-text-3">
             {filter === "archived"
               ? "No tienes chats archivados."
-              : "Sin resultados para este filtro."}
+              : "No hay chats con estos filtros."}
           </p>
         ) : (
           <ul>
@@ -476,7 +519,11 @@ export function ConversationList({
               const unread = c.unreadCount > 0;
               const active = selectedId === c.id;
               return (
-                <li key={c.id} className="group relative mb-0.5">
+                <li
+                  key={c.id}
+                  data-testid={`inbox-conversation-${c.id}`}
+                  className="group relative mb-0.5"
+                >
                   <button
                     onClick={() =>
                       selecting ? toggleSelected(c.id) : onSelect(c.id)
@@ -579,6 +626,7 @@ export function ConversationList({
                         <LeadAssignmentBadges
                           service={c.service}
                           assignee={c.assignee}
+                          showUnassigned
                         />
                         {c.contact.blockedAt && (
                           <span
@@ -615,6 +663,7 @@ export function ConversationList({
                       conversation={c}
                       onPatch={onPatch}
                       onAction={onAction}
+                      onTransfer={onTransfer}
                     />
                   )}
                 </li>

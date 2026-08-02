@@ -6,21 +6,24 @@ export function LeadAssignmentBadges({
   service,
   assignee,
   className,
-}: LeadAssignmentDto & { className?: string }) {
-  if (!service) return null;
+  showUnassigned = false,
+}: LeadAssignmentDto & { className?: string; showUnassigned?: boolean }) {
+  if (!service && !showUnassigned) return null;
 
   return (
     <span
       data-testid="lead-assignment"
       className={cn("flex min-w-0 flex-wrap items-center gap-1.5", className)}
     >
-      <span
-        title={`Servicio: ${service.name}`}
-        className="inline-flex max-w-full items-center gap-1 rounded-full bg-brand-tint px-2 py-[3px] text-[10.5px] font-bold text-brand"
-      >
-        <BriefcaseBusiness className="h-3 w-3 shrink-0" strokeWidth={2.2} />
-        <span className="truncate">{service.name}</span>
-      </span>
+      {service && (
+        <span
+          title={`Servicio: ${service.name}`}
+          className="inline-flex max-w-full items-center gap-1 rounded-full bg-brand-tint px-2 py-[3px] text-[10.5px] font-bold text-brand"
+        >
+          <BriefcaseBusiness className="h-3 w-3 shrink-0" strokeWidth={2.2} />
+          <span className="truncate">{service.name}</span>
+        </span>
+      )}
       <span
         title={
           assignee
