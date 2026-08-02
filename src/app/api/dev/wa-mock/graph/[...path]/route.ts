@@ -61,6 +61,14 @@ export async function GET(req: Request, ctx: Params) {
     });
   }
 
+  // GET {phoneNumberId}/block_users → lista oficial de bloqueados.
+  if (path.length === 2 && path[1] === "block_users") {
+    const users = getWaMockState().blockedUsers.get(path[0]!) ?? new Set();
+    return Response.json({
+      data: [...users].map((user) => ({ wa_id: user })),
+    });
+  }
+
   // GET {leadgenId}?fields=field_data,... → detalle del lead (leadgen-mock, 004)
   if (path.length === 1 && path[0]?.startsWith("lgmock_")) {
     const { getLeadgenMockState } = await import(
@@ -152,6 +160,31 @@ export async function POST(req: Request, ctx: Params) {
   }
 
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+
+  // POST {phoneNumberId}/block_users → bloqueo de uno o varios usuarios.
+  if (path.length === 2 && path[1] === "block_users") {
+    const state = getWaMockState();
+    if (state.failNextBlocks > 0) {
+      state.failNextBlocks -= 1;
+      if (state.failNextMode === "auth") return invalidTokenResponse();
+      return Response.json(
+        {
+          error: {
+            message: "Block users operation failed",
+            type: "WhatsAppBusinessApiError",
+            code: 131000,
+          },
+        },
+        { status: 500 }
+      );
+    }
+    const users = state.blockedUsers.get(path[0]!) ?? new Set<string>();
+    for (const entry of (body.block_users ?? []) as { user?: unknown }[]) {
+      if (entry.user) users.add(String(entry.user));
+    }
+    state.blockedUsers.set(path[0]!, users);
+    return Response.json({ messaging_product: "whatsapp", success: true });
+  }
 
   // POST {phoneNumberId}/messages → registra en el outbox
   if (path.length === 2 && path[1] === "messages") {
@@ -262,6 +295,33 @@ export async function DELETE(req: Request, ctx: Params) {
   const path = normalizePath((await ctx.params).path);
   const token = bearerToken(req);
   if (token.endsWith("-invalid")) return invalidTokenResponse();
+
+  if (path.length === 2 && path[1] === "block_users") {
+    const state = getWaMockState();
+    if (state.failNextBlocks > 0) {
+      state.failNextBlocks -= 1;
+      if (state.failNextMode === "auth") return invalidTokenResponse();
+      return Response.json(
+        {
+          error: {
+            message: "Unblock users operation failed",
+            type: "WhatsAppBusinessApiError",
+            code: 131000,
+          },
+        },
+        { status: 500 }
+      );
+    }
+    const body = (await req.json().catch(() => ({}))) as {
+      block_users?: { user?: unknown }[];
+    };
+    const users = state.blockedUsers.get(path[0]!) ?? new Set<string>();
+    for (const entry of body.block_users ?? []) {
+      if (entry.user) users.delete(String(entry.user));
+    }
+    state.blockedUsers.set(path[0]!, users);
+    return Response.json({ messaging_product: "whatsapp", success: true });
+  }
 
   if (path.length === 2 && path[1] === "message_templates") {
     const url = new URL(req.url);

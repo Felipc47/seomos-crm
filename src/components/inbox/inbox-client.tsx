@@ -2,14 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShieldBan } from "lucide-react";
 import { ContactAvatar } from "@/components/avatar";
 import { cn } from "@/lib/utils";
 import type { ConversationDto, MessageDto } from "@/lib/types";
 import { useEvents } from "@/components/use-events";
 import { SlideOver } from "@/components/ui/slide-over";
 import { useToast } from "@/components/ui/toast";
-import { ConversationList } from "./conversation-list";
+import {
+  ConversationList,
+  type InboxConversationAction,
+} from "./conversation-list";
 import { MessageThread } from "./message-thread";
 import { Composer } from "./composer";
 import { ContactPanel } from "./contact-panel";
@@ -17,6 +20,11 @@ import {
   AiConversationHeaderControl,
   type AgentAvailability,
 } from "./ai-conversation-control";
+import {
+  ConversationActionDialog,
+  type PendingInboxAction,
+} from "./conversation-actions-dialogs";
+import type { ContactReportReason } from "@/lib/types";
 
 export function InboxClient() {
   const [conversations, setConversations] = useState<ConversationDto[] | null>(
@@ -34,6 +42,11 @@ export function InboxClient() {
   const [agentAvailability, setAgentAvailability] =
     useState<AgentAvailability | null>(null);
   const [aiUpdatingId, setAiUpdatingId] = useState<string | null>(null);
+  const [selectedActionIds, setSelectedActionIds] = useState<string[]>([]);
+  const [selectionResetKey, setSelectionResetKey] = useState(0);
+  const [pendingAction, setPendingAction] =
+    useState<PendingInboxAction | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
 
   const toast = useToast();
   const selectedIdRef = useRef<string | null>(null);
@@ -330,6 +343,107 @@ export function InboxClient() {
     [refetchConversations]
   );
 
+  const requestConversationAction = useCallback(
+    (action: InboxConversationAction, ids: string[]) => {
+      if (ids.length === 0 || ids.length > 100) return;
+      const contactName =
+        ids.length === 1
+          ? conversations?.find((conversation) => conversation.id === ids[0])
+              ?.contact.name
+          : undefined;
+      setPendingAction({ action, ids: [...new Set(ids)], contactName });
+    },
+    [conversations]
+  );
+
+  const executeConversationAction = useCallback(
+    async (input: {
+      reason?: ContactReportReason;
+      notes?: string;
+    }) => {
+      if (!pendingAction || actionBusy) return;
+      setActionBusy(true);
+      const singleDelete =
+        pendingAction.action === "delete" && pendingAction.ids.length === 1;
+      const response = await fetch(
+        singleDelete
+          ? `/api/conversations/${pendingAction.ids[0]}`
+          : "/api/conversations/bulk",
+        singleDelete
+          ? { method: "DELETE" }
+          : {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                action: pendingAction.action,
+                conversationIds: pendingAction.ids,
+                ...(pendingAction.action === "report"
+                  ? { reason: input.reason, notes: input.notes }
+                  : {}),
+              }),
+            }
+      ).catch(() => null);
+
+      if (!response) {
+        setActionBusy(false);
+        toast("Sin conexión con el servidor");
+        return;
+      }
+      const data = (await response.json().catch(() => null)) as
+        | {
+            affected?: number;
+            warning?: string;
+            error?: { message?: string };
+          }
+        | null;
+      if (!response.ok) {
+        setActionBusy(false);
+        toast(data?.error?.message ?? "No se pudo completar la acción");
+        return;
+      }
+
+      const { action, ids } = pendingAction;
+      if (action === "delete") {
+        setConversations((current) =>
+          current?.filter((conversation) => !ids.includes(conversation.id)) ??
+          current
+        );
+        if (selectedIdRef.current && ids.includes(selectedIdRef.current)) {
+          setSelectedId(null);
+          setMessages([]);
+          setDetailOpen(false);
+        }
+      }
+
+      setActionBusy(false);
+      setPendingAction(null);
+      setSelectedActionIds([]);
+      setSelectionResetKey((value) => value + 1);
+      await refetchConversations();
+
+      if (data?.warning) {
+        toast(data.warning);
+      } else {
+        const count = data?.affected ?? ids.length;
+        const message = {
+          delete: count === 1 ? "Chat eliminado" : `${count} chats eliminados`,
+          block:
+            count === 1 ? "Contacto bloqueado" : `${count} contactos bloqueados`,
+          unblock:
+            count === 1
+              ? "Contacto desbloqueado"
+              : `${count} contactos desbloqueados`,
+          report:
+            count === 1
+              ? "Reporte interno guardado"
+              : `${count} reportes internos guardados`,
+        }[action];
+        toast(message);
+      }
+    },
+    [actionBusy, pendingAction, refetchConversations, toast]
+  );
+
   return (
     <div className="flex h-full">
       {/* Master-detail en mobile: lista a pantalla completa sin selección;
@@ -346,6 +460,10 @@ export function InboxClient() {
           onSelect={select}
           onSeeded={() => void refetchConversations()}
           onPatch={(id, patch) => void pinOrArchive(id, patch)}
+          onAction={requestConversationAction}
+          selectedActionIds={selectedActionIds}
+          onSelectedActionIdsChange={setSelectedActionIds}
+          selectionResetKey={selectionResetKey}
         />
       </section>
 
@@ -386,25 +504,35 @@ export function InboxClient() {
                     : `+${selected.contact.phone}`}
                 </p>
               </div>
-              <AiConversationHeaderControl
-                active={
-                  Boolean(
-                    agentAvailability?.enabled &&
-                      agentAvailability.aiConfigured
-                  ) &&
-                  selected.aiEnabled &&
-                  !selected.handoffAt
-                }
-                availability={agentAvailability}
-                busy={aiUpdatingId === selected.id}
-                onCheckedChange={(checked) => {
-                  void patchConversation(
-                    checked
-                      ? { reactivate: true }
-                      : { aiEnabled: false }
-                  );
-                }}
-              />
+              {selected.contact.blockedAt ? (
+                <span
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] border border-destructive/20 bg-destructive/5 px-2.5 py-2 text-xs font-bold text-destructive"
+                  title="La IA y todos los envíos están bloqueados"
+                >
+                  <ShieldBan className="h-4 w-4" strokeWidth={2.2} />
+                  <span className="hidden xl:inline">Bloqueado</span>
+                </span>
+              ) : (
+                <AiConversationHeaderControl
+                  active={
+                    Boolean(
+                      agentAvailability?.enabled &&
+                        agentAvailability.aiConfigured
+                    ) &&
+                    selected.aiEnabled &&
+                    !selected.handoffAt
+                  }
+                  availability={agentAvailability}
+                  busy={aiUpdatingId === selected.id}
+                  onCheckedChange={(checked) => {
+                    void patchConversation(
+                      checked
+                        ? { reactivate: true }
+                        : { aiEnabled: false }
+                    );
+                  }}
+                />
+              )}
               <button
                 onClick={() => setDetailOpen(true)}
                 aria-label="Ver detalles del contacto"
@@ -415,16 +543,56 @@ export function InboxClient() {
               </button>
             </header>
             <MessageThread messages={messages} />
-            <Composer
-              conversation={selected}
-              onSend={sendText}
-              onSendFile={sendFile}
-              onSent={() => {
-                if (selectedIdRef.current)
-                  void refetchMessages(selectedIdRef.current);
-                void refetchConversations();
-              }}
-            />
+            {selected.contact.blockedAt ? (
+              <div className="border-t bg-background px-[18px] py-4">
+                <div className="flex flex-col gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4 sm:flex-row sm:items-center">
+                  <ShieldBan
+                    className="h-5 w-5 shrink-0 text-destructive"
+                    strokeWidth={2.2}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold">Contacto bloqueado</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-mute">
+                      La IA, mensajes, plantillas, campañas y seguimientos no
+                      pueden escribirle.
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    {selected.contact.blockSyncStatus === "failed" && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          requestConversationAction("block", [selected.id])
+                        }
+                        className="rounded-xl bg-brand px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-hover"
+                      >
+                        Reintentar con Meta
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        requestConversationAction("unblock", [selected.id])
+                      }
+                      className="rounded-xl border bg-surface px-4 py-2.5 text-sm font-bold transition-colors hover:bg-subtle"
+                    >
+                      Desbloquear
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <Composer
+                conversation={selected}
+                onSend={sendText}
+                onSendFile={sendFile}
+                onSent={() => {
+                  if (selectedIdRef.current)
+                    void refetchMessages(selectedIdRef.current);
+                  void refetchConversations();
+                }}
+              />
+            )}
           </>
         ) : (
           <div className="flex flex-1 items-center justify-center bg-chat text-sm text-text-3">
@@ -450,6 +618,15 @@ export function InboxClient() {
             onClose={() => setDetailOpen(false)}
           />
         </SlideOver>
+      )}
+      {pendingAction && (
+        <ConversationActionDialog
+          key={`${pendingAction.action}:${pendingAction.ids.join(",")}`}
+          pending={pendingAction}
+          busy={actionBusy}
+          onConfirm={(input) => void executeConversationAction(input)}
+          onCancel={() => !actionBusy && setPendingAction(null)}
+        />
       )}
     </div>
   );

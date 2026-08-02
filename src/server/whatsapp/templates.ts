@@ -598,6 +598,12 @@ export async function sendTemplate(input: {
       "Conversación de prueba del Laboratorio: el envío real está prohibido"
     );
   }
+  if (row.contact.blockedAt) {
+    throw new SendError(
+      "blocked",
+      "Este contacto está bloqueado. Desbloquéalo antes de enviar plantillas."
+    );
+  }
 
   const creds = await getCredentialsByOrg(input.organizationId);
   if (!creds) throw new TemplateError("not_connected", "Sin número conectado");

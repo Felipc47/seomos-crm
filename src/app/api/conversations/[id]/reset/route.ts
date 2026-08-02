@@ -32,7 +32,8 @@ export const POST = withAuth(async (session, _req: Request, ctx: Params) => {
           row.assigneeMemberId && row.assigneeName
             ? { memberId: row.assigneeMemberId, name: row.assigneeName }
             : null,
-      }
+      },
+      { reportedAt: row.reportedAt, reportReason: row.reportReason }
     );
     publish(session.organizationId, {
       type: "conversation.updated",

@@ -1,7 +1,11 @@
 import { and, desc, eq, gt, isNotNull, ne, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
-import type { ConversationDto, LeadAssignmentDto } from "@/lib/types";
+import type {
+  ContactReportReason,
+  ConversationDto,
+  LeadAssignmentDto,
+} from "@/lib/types";
 import { isWindowOpen, windowRemainingMs } from "@/server/inbox/window";
 
 export type { ConversationDto } from "@/lib/types";
@@ -21,6 +25,22 @@ export async function listConversations(
     order by m.created_at desc
     limit 1
   )`;
+  const reportedAtSql = sql<Date | null>`(
+    select cr.created_at
+    from contact_report cr
+    where cr.organization_id = ${organizationId}
+      and cr.contact_id = ${schema.contact.id}
+    order by cr.created_at desc
+    limit 1
+  )`;
+  const reportReasonSql = sql<ContactReportReason | null>`(
+    select cr.reason
+    from contact_report cr
+    where cr.organization_id = ${organizationId}
+      and cr.contact_id = ${schema.contact.id}
+    order by cr.created_at desc
+    limit 1
+  )`;
   const rows = await db
     .select({
       conversation: schema.conversation,
@@ -31,6 +51,8 @@ export async function listConversations(
       serviceName: schema.service.name,
       assigneeMemberId: schema.member.id,
       assigneeName: schema.user.name,
+      reportedAt: reportedAtSql,
+      reportReason: reportReasonSql,
     })
     .from(schema.conversation)
     .innerJoin(
@@ -73,7 +95,8 @@ export async function listConversations(
       r.contact,
       r.preview,
       r.stageName,
-      serializeAssignment(r)
+      serializeAssignment(r),
+      { reportedAt: r.reportedAt, reportReason: r.reportReason }
     )
   );
 }
@@ -83,6 +106,22 @@ export async function getConversation(
   conversationId: string
 ) {
   const db = getDb();
+  const reportedAtSql = sql<Date | null>`(
+    select cr.created_at
+    from contact_report cr
+    where cr.organization_id = ${organizationId}
+      and cr.contact_id = ${schema.contact.id}
+    order by cr.created_at desc
+    limit 1
+  )`;
+  const reportReasonSql = sql<ContactReportReason | null>`(
+    select cr.reason
+    from contact_report cr
+    where cr.organization_id = ${organizationId}
+      and cr.contact_id = ${schema.contact.id}
+    order by cr.created_at desc
+    limit 1
+  )`;
   const rows = await db
     .select({
       conversation: schema.conversation,
@@ -92,6 +131,8 @@ export async function getConversation(
       serviceName: schema.service.name,
       assigneeMemberId: schema.member.id,
       assigneeName: schema.user.name,
+      reportedAt: reportedAtSql,
+      reportReason: reportReasonSql,
     })
     .from(schema.conversation)
     .innerJoin(
@@ -175,11 +216,26 @@ export function serializeConversation(
   contact: typeof schema.contact.$inferSelect,
   preview: string | null = null,
   stageName: string | null = null,
-  assignment: LeadAssignmentDto = { service: null, assignee: null }
+  assignment: LeadAssignmentDto = { service: null, assignee: null },
+  report: {
+    reportedAt: Date | string | null;
+    reportReason: ContactReportReason | null;
+  } = { reportedAt: null, reportReason: null }
 ): ConversationDto {
+  const reportedAt = report.reportedAt
+    ? new Date(report.reportedAt).toISOString()
+    : null;
   return {
     id: c.id,
-    contact: { id: contact.id, name: contact.name, phone: contact.phone },
+    contact: {
+      id: contact.id,
+      name: contact.name,
+      phone: contact.phone,
+      blockedAt: contact.blockedAt?.toISOString() ?? null,
+      blockSyncStatus: contact.blockSyncStatus,
+      reportedAt,
+      reportReason: report.reportReason,
+    },
     stageName,
     aiEnabled: c.aiEnabled,
     handoffAt: c.handoffAt?.toISOString() ?? null,

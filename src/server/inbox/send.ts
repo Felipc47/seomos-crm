@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
+import { scoped } from "@/lib/db/tenant";
 import {
   graphRequest,
   graphUpload,
@@ -23,6 +24,7 @@ export class SendError extends Error {
     | "sandbox_violation"
     | "not_connected"
     | "reconnect_required"
+    | "blocked"
     | "window_closed"
     | "unsupported_media"
     | "too_large"
@@ -52,6 +54,7 @@ export const SEND_ERROR_STATUS: Record<SendError["code"], number> = {
   sandbox_violation: 403,
   not_connected: 409,
   reconnect_required: 409,
+  blocked: 403,
   window_closed: 409,
   unsupported_media: 422,
   too_large: 413,
@@ -196,7 +199,13 @@ async function resolveOutboundTarget(
       schema.contact,
       eq(schema.conversation.contactId, schema.contact.id)
     )
-    .where(eq(schema.conversation.id, conversationId))
+    .where(
+      scoped(
+        schema.conversation.organizationId,
+        organizationId,
+        eq(schema.conversation.id, conversationId)
+      )
+    )
     .limit(1);
   const row = rows[0];
   if (!row || row.conversation.organizationId !== organizationId) {
@@ -207,6 +216,13 @@ async function resolveOutboundTarget(
     throw new SendError(
       "sandbox_violation",
       "Conversación de prueba del Laboratorio: el envío real está prohibido"
+    );
+  }
+
+  if (row.contact.blockedAt) {
+    throw new SendError(
+      "blocked",
+      "Este contacto está bloqueado. Desbloquéalo antes de enviar mensajes."
     );
   }
 

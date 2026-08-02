@@ -104,9 +104,18 @@ check "el outbox sigue en 3 (sin duplicados)" "$([ "$(n_out)" -eq 3 ] && echo tr
 
 echo "── 7. Segmentar por etapa del pipeline"
 # Los 3 contactos ya tienen lead (los creó el CRM). Se mueve UNO a la última
-# etapa y se comprueba que la campaña por etapa apunta solo a ese.
+# etapa abierta (las negativas exigen motivo) y se comprueba la segmentación.
 STAGES=$(curl -s -b "$JAR" "$BASE/api/pipeline/stages")
-STAGE_ULT=$(echo "$STAGES" | sed -n 's/.*"id":"\(stg_[^"]*\)".*/\1/p' | tail -1)
+STAGE_ULT=$(printf '%s' "$STAGES" | node -e '
+  let raw = "";
+  process.stdin.on("data", (chunk) => (raw += chunk));
+  process.stdin.on("end", () => {
+    const stages = JSON.parse(raw).stages;
+    const target = [...stages].reverse().find((stage) => stage.kind === "open");
+    if (!target) process.exit(1);
+    process.stdout.write(target.id);
+  });
+')
 BOARD=$(curl -s -b "$JAR" "$BASE/api/pipeline/board")
 LEAD_ID=$(echo "$BOARD" | sed -n 's/.*"id":"\(ld_[^"]*\)".*/\1/p' | head -1)
 curl -s -b "$JAR" -X PATCH "$BASE/api/pipeline/leads/$LEAD_ID" -H 'content-type: application/json' \

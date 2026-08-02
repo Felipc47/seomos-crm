@@ -14,14 +14,20 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as {
     count?: number;
     mode?: "delivery" | "auth" | "limit";
+    target?: "send" | "block";
   };
   const count = Number.isFinite(body.count) ? Number(body.count) : 1;
   const state = getWaMockState();
-  state.failNextSends = Math.max(0, Math.trunc(count));
+  if (body.target === "block") {
+    state.failNextBlocks = Math.max(0, Math.trunc(count));
+  } else {
+    state.failNextSends = Math.max(0, Math.trunc(count));
+  }
   state.failNextMode =
     body.mode === "auth" || body.mode === "limit" ? body.mode : "delivery";
   return Response.json({
     failNextSends: state.failNextSends,
+    failNextBlocks: state.failNextBlocks,
     failNextMode: state.failNextMode,
   });
 }

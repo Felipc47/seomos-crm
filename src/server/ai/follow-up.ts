@@ -314,6 +314,7 @@ type DueLead = {
   attempts: number;
   stageName: string;
   optedOutAt: Date | null;
+  blockedAt: Date | null;
   contactName: string;
 };
 
@@ -421,6 +422,7 @@ export async function sweepFollowUps(
         isNull(schema.conversation.lastInboundAt),
         lte(schema.conversation.lastMessageAt, threshold),
         isNull(schema.contact.optedOutAt),
+        isNull(schema.contact.blockedAt),
         isNull(schema.lead.followUpDueAt),
         eq(schema.lead.followUpAttempts, 0)
       )
@@ -470,6 +472,7 @@ export async function sweepFollowUps(
       attempts: schema.lead.followUpAttempts,
       stageName: schema.pipelineStage.name,
       optedOutAt: schema.contact.optedOutAt,
+      blockedAt: schema.contact.blockedAt,
       contactName: schema.contact.name,
     })
     .from(schema.lead)
@@ -510,6 +513,7 @@ export async function sweepFollowUps(
     if (
       !conversation ||
       l.optedOutAt ||
+      l.blockedAt ||
       conversation.handoffAt ||
       !conversation.aiEnabled
     ) {

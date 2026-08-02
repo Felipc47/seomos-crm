@@ -1,14 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Archive,
   ArchiveRestore,
+  CheckSquare2,
   ChevronDown,
+  Flag,
+  ListChecks,
   Pin,
   PinOff,
   Search,
+  ShieldBan,
+  ShieldCheck,
   Sparkles,
+  Square,
+  Trash2,
   UserRound,
 } from "lucide-react";
 import type { ConversationDto } from "@/lib/types";
@@ -20,6 +27,12 @@ import { StageTag } from "@/components/ui/stage-tag";
 import { stageColor } from "@/lib/stage-colors";
 import { useStages } from "@/components/use-stage-colors";
 import { formatTime, previewText } from "./helpers";
+
+export type InboxConversationAction =
+  | "delete"
+  | "block"
+  | "unblock"
+  | "report";
 
 function EmptyState({ onSeeded }: { onSeeded: () => void }) {
   const [seeding, setSeeding] = useState(false);
@@ -61,13 +74,15 @@ function EmptyState({ onSeeded }: { onSeeded: () => void }) {
 function RowActions({
   conversation: c,
   onPatch,
+  onAction,
 }: {
   conversation: ConversationDto;
   onPatch: (id: string, patch: { pinned?: boolean; archived?: boolean }) => void;
+  onAction: (action: InboxConversationAction, ids: string[]) => void;
 }) {
   const [open, setOpen] = useState(false);
 
-  const items = [
+  const patchItems = [
     c.archivedAt
       ? null
       : {
@@ -81,6 +96,46 @@ function RowActions({
       patch: { archived: !c.archivedAt },
     },
   ].filter((i) => i !== null);
+
+  const moderationItems = [
+    ...(c.contact.blockedAt && c.contact.blockSyncStatus === "failed"
+      ? [
+          {
+            label: "Reintentar bloqueo",
+            icon: ShieldBan,
+            action: "block" as const,
+            danger: false,
+          },
+          {
+            label: "Desbloquear",
+            icon: ShieldCheck,
+            action: "unblock" as const,
+            danger: false,
+          },
+        ]
+      : [
+          {
+            label: c.contact.blockedAt ? "Desbloquear" : "Bloquear",
+            icon: c.contact.blockedAt ? ShieldCheck : ShieldBan,
+            action: c.contact.blockedAt
+              ? ("unblock" as const)
+              : ("block" as const),
+            danger: false,
+          },
+        ]),
+    {
+      label: "Reportar",
+      icon: Flag,
+      action: "report" as const,
+      danger: false,
+    },
+    {
+      label: "Eliminar chat",
+      icon: Trash2,
+      action: "delete" as const,
+      danger: true,
+    },
+  ];
 
   return (
     <div className="absolute right-2 top-2.5">
@@ -109,7 +164,7 @@ function RowActions({
             }}
           />
           <div className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-[11px] border bg-surface py-1 shadow-lg">
-            {items.map((item) => (
+            {patchItems.map((item) => (
               <button
                 key={item.label}
                 onClick={(e) => {
@@ -120,6 +175,30 @@ function RowActions({
                 className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-[13px] font-semibold transition-colors hover:bg-subtle"
               >
                 <item.icon className="h-4 w-4 text-mute" strokeWidth={2} />
+                {item.label}
+              </button>
+            ))}
+            <div className="my-1 border-t" />
+            {moderationItems.map((item) => (
+              <button
+                key={item.label}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpen(false);
+                  onAction(item.action, [c.id]);
+                }}
+                className={cn(
+                  "flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-[13px] font-semibold transition-colors hover:bg-subtle",
+                  item.danger && "text-destructive"
+                )}
+              >
+                <item.icon
+                  className={cn(
+                    "h-4 w-4",
+                    item.danger ? "text-destructive" : "text-mute"
+                  )}
+                  strokeWidth={2}
+                />
                 {item.label}
               </button>
             ))}
@@ -136,16 +215,25 @@ export function ConversationList({
   onSelect,
   onSeeded,
   onPatch,
+  onAction,
+  selectedActionIds,
+  onSelectedActionIdsChange,
+  selectionResetKey,
 }: {
   conversations: ConversationDto[] | null;
   selectedId: string | null;
   onSelect: (id: string) => void;
   onSeeded: () => void;
   onPatch: (id: string, patch: { pinned?: boolean; archived?: boolean }) => void;
+  onAction: (action: InboxConversationAction, ids: string[]) => void;
+  selectedActionIds: string[];
+  onSelectedActionIdsChange: (ids: string[]) => void;
+  selectionResetKey: number;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "unread" | "archived">("all");
   const [stageFilter, setStageFilter] = useState("");
+  const [selecting, setSelecting] = useState(false);
   const stages = useStages();
   const colorFor = useMemo(() => {
     const byName = Object.fromEntries(
@@ -185,15 +273,78 @@ export function ConversationList({
             return a.pinnedAt < b.pinnedAt ? -1 : 1;
           return 0;
         });
+  const selectedSet = useMemo(
+    () => new Set(selectedActionIds),
+    [selectedActionIds]
+  );
+  const visibleIds = useMemo(() => visible.map((c) => c.id), [visible]);
+  const allVisibleSelected =
+    visibleIds.length > 0 && visibleIds.every((id) => selectedSet.has(id));
+  const selectedConversations = conversations.filter((c) =>
+    selectedSet.has(c.id)
+  );
+  const selectedAreBlocked =
+    selectedConversations.length > 0 &&
+    selectedConversations.every((c) => Boolean(c.contact.blockedAt));
+  const selectedNeedBlockRetry = selectedConversations.some(
+    (c) => c.contact.blockedAt && c.contact.blockSyncStatus === "failed"
+  );
+
+  useEffect(() => {
+    setSelecting(false);
+    onSelectedActionIdsChange([]);
+  }, [selectionResetKey, onSelectedActionIdsChange]);
+
+  useEffect(() => {
+    if (!selecting || selectedActionIds.length === 0) return;
+    const visibleSet = new Set(visibleIds);
+    const next = selectedActionIds.filter((id) => visibleSet.has(id));
+    if (next.length !== selectedActionIds.length) {
+      onSelectedActionIdsChange(next);
+    }
+  }, [
+    selecting,
+    selectedActionIds,
+    visibleIds,
+    onSelectedActionIdsChange,
+  ]);
+
+  function toggleSelected(id: string) {
+    onSelectedActionIdsChange(
+      selectedSet.has(id)
+        ? selectedActionIds.filter((value) => value !== id)
+        : [...selectedActionIds, id]
+    );
+  }
+
+  function stopSelecting() {
+    setSelecting(false);
+    onSelectedActionIdsChange([]);
+  }
 
   return (
     <div className="flex h-full flex-col bg-surface">
       <header className="px-5 pb-3 pt-5">
-        <div className="mb-3.5 flex items-baseline gap-2">
-          <h2 className="font-display text-[21px] font-bold">Bandeja</h2>
-          <span className="text-[13px] font-extrabold text-mute">
-            {conversations.filter((c) => !c.archivedAt).length}
-          </span>
+        <div className="mb-3.5 flex items-center justify-between gap-3">
+          <div className="flex items-baseline gap-2">
+            <h2 className="font-display text-[21px] font-bold">Bandeja</h2>
+            <span className="text-[13px] font-extrabold text-mute">
+              {conversations.filter((c) => !c.archivedAt).length}
+            </span>
+          </div>
+          {conversations.length > 0 && (
+            <button
+              type="button"
+              onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
+              className={cn(
+                "inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-bold transition-colors hover:bg-subtle",
+                selecting && "border-brand bg-brand-tint text-brand-text"
+              )}
+            >
+              <ListChecks className="h-4 w-4" strokeWidth={2} />
+              {selecting ? "Cancelar" : "Seleccionar"}
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-2 rounded-[11px] border bg-surface-2 px-3 py-[10px] transition-colors focus-within:border-brand focus-within:bg-background focus-within:ring-[3px] focus-within:ring-brand-soft">
           <Search className="h-4 w-4 shrink-0 text-faint" strokeWidth={2} />
@@ -240,6 +391,72 @@ export function ConversationList({
             </option>
           ))}
         </select>
+        {selecting && (
+          <div
+            className="mt-2.5 rounded-xl border border-brand/25 bg-brand-tint p-2.5"
+            data-testid="inbox-bulk-actions"
+          >
+            <button
+              type="button"
+              onClick={() =>
+                onSelectedActionIdsChange(allVisibleSelected ? [] : visibleIds)
+              }
+              className="flex w-full items-center gap-2 rounded-lg px-1 py-1 text-left text-[12px] font-bold text-brand-text"
+            >
+              {allVisibleSelected ? (
+                <CheckSquare2 className="h-4 w-4" strokeWidth={2.2} />
+              ) : (
+                <Square className="h-4 w-4" strokeWidth={2.2} />
+              )}
+              {allVisibleSelected ? "Quitar selección" : "Seleccionar visibles"}
+              <span className="ml-auto rounded-full bg-surface px-2 py-0.5 text-[11px] text-mute">
+                {selectedActionIds.length} seleccionados
+              </span>
+            </button>
+            <div className="mt-2 grid grid-cols-3 gap-1.5">
+              <button
+                type="button"
+                disabled={selectedActionIds.length === 0}
+                onClick={() => onAction("report", selectedActionIds)}
+                className="inline-flex items-center justify-center gap-1 rounded-lg border bg-surface px-2 py-2 text-[11px] font-bold transition-colors hover:bg-subtle disabled:opacity-40"
+              >
+                <Flag className="h-3.5 w-3.5" /> Reportar
+              </button>
+              <button
+                type="button"
+                disabled={selectedActionIds.length === 0}
+                onClick={() =>
+                  onAction(
+                    selectedAreBlocked && !selectedNeedBlockRetry
+                      ? "unblock"
+                      : "block",
+                    selectedActionIds
+                  )
+                }
+                className="inline-flex items-center justify-center gap-1 rounded-lg border bg-surface px-2 py-2 text-[11px] font-bold transition-colors hover:bg-subtle disabled:opacity-40"
+              >
+                {selectedAreBlocked && !selectedNeedBlockRetry ? (
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                ) : (
+                  <ShieldBan className="h-3.5 w-3.5" />
+                )}
+                {selectedNeedBlockRetry
+                  ? "Reintentar"
+                  : selectedAreBlocked
+                    ? "Desbloquear"
+                    : "Bloquear"}
+              </button>
+              <button
+                type="button"
+                disabled={selectedActionIds.length === 0}
+                onClick={() => onAction("delete", selectedActionIds)}
+                className="inline-flex items-center justify-center gap-1 rounded-lg border border-destructive/20 bg-surface px-2 py-2 text-[11px] font-bold text-destructive transition-colors hover:bg-destructive/5 disabled:opacity-40"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Eliminar
+              </button>
+            </div>
+          </div>
+        )}
       </header>
 
       <div className="flex-1 overflow-y-auto px-3 pb-4 pt-1">
@@ -261,29 +478,51 @@ export function ConversationList({
               return (
                 <li key={c.id} className="group relative mb-0.5">
                   <button
-                    onClick={() => onSelect(c.id)}
+                    onClick={() =>
+                      selecting ? toggleSelected(c.id) : onSelect(c.id)
+                    }
+                    aria-pressed={selecting ? selectedSet.has(c.id) : undefined}
                     className={cn(
                       "flex w-full items-start gap-3 rounded-[13px] px-3 py-[13px] text-left transition-colors",
-                      active
+                      selecting && selectedSet.has(c.id)
+                        ? "bg-brand-tint ring-1 ring-inset ring-brand/40"
+                        : active
                         ? "bg-brand-tint shadow-[inset_3px_0_0_var(--accent)]"
                         : "hover:bg-subtle"
                     )}
                   >
-                    <span className="relative shrink-0">
-                      <ContactAvatar
-                        name={c.contact.name}
-                        seed={c.contact.id}
-                        size="lg"
-                      />
+                    <span className="relative flex h-11 w-11 shrink-0 items-center justify-center">
+                      {selecting ? (
+                        selectedSet.has(c.id) ? (
+                          <CheckSquare2
+                            className="h-6 w-6 text-brand"
+                            strokeWidth={2.2}
+                          />
+                        ) : (
+                          <Square className="h-6 w-6 text-mute" strokeWidth={2} />
+                        )
+                      ) : (
+                        <ContactAvatar
+                          name={c.contact.name}
+                          seed={c.contact.id}
+                          size="lg"
+                        />
+                      )}
                       <span
                         title={
-                          c.windowOpen
+                          c.contact.blockedAt
+                            ? "Contacto bloqueado"
+                            : c.windowOpen
                             ? "Ventana abierta (24 h)"
                             : "Ventana cerrada — usa una plantilla"
                         }
                         className={cn(
                           "absolute bottom-0 right-0 h-[11px] w-[11px] rounded-full border-2 border-surface",
-                          c.windowOpen ? "bg-success" : "bg-[#B4ADA0]"
+                          c.contact.blockedAt
+                            ? "bg-destructive"
+                            : c.windowOpen
+                              ? "bg-success"
+                              : "bg-[#B4ADA0]"
                         )}
                       />
                     </span>
@@ -341,6 +580,27 @@ export function ConversationList({
                           service={c.service}
                           assignee={c.assignee}
                         />
+                        {c.contact.blockedAt && (
+                          <span
+                            title={
+                              c.contact.blockSyncStatus === "failed"
+                                ? "Bloqueado en el CRM; falta sincronizar con Meta"
+                                : "Bloqueado en el CRM y en Meta"
+                            }
+                            className="inline-flex items-center gap-1 rounded-full border border-destructive/20 bg-destructive/5 px-2.5 py-[3px] text-[11px] font-bold text-destructive"
+                          >
+                            <ShieldBan className="h-3 w-3" strokeWidth={2.2} />
+                            {c.contact.blockSyncStatus === "failed"
+                              ? "Bloqueo pendiente"
+                              : "Bloqueado"}
+                          </span>
+                        )}
+                        {c.contact.reportedAt && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-[3px] text-[11px] font-bold text-amber-700 dark:text-amber-300">
+                            <Flag className="h-3 w-3" strokeWidth={2.2} />
+                            Reportado
+                          </span>
+                        )}
                         {c.handoffAt && (
                           <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-[3px] text-[11px] font-bold text-mute">
                             <UserRound className="h-3 w-3" strokeWidth={2.2} />
@@ -350,7 +610,13 @@ export function ConversationList({
                       </span>
                     </span>
                   </button>
-                  <RowActions conversation={c} onPatch={onPatch} />
+                  {!selecting && (
+                    <RowActions
+                      conversation={c}
+                      onPatch={onPatch}
+                      onAction={onAction}
+                    />
+                  )}
                 </li>
               );
             })}

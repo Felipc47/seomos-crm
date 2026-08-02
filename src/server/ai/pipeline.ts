@@ -295,6 +295,12 @@ async function refreshProfileForConversation(
     .limit(1);
   const conversation = rows[0];
   if (!conversation || conversation.isTest) return;
+  const contacts = await db
+    .select({ blockedAt: schema.contact.blockedAt })
+    .from(schema.contact)
+    .where(eq(schema.contact.id, conversation.contactId))
+    .limit(1);
+  if (contacts[0]?.blockedAt) return;
 
   const history = await db
     .select({
@@ -333,6 +339,14 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
     .limit(1);
   const conversation = convRows[0];
   if (!conversation) return;
+  if (!conversation.isTest) {
+    const contacts = await db
+      .select({ blockedAt: schema.contact.blockedAt })
+      .from(schema.contact)
+      .where(eq(schema.contact.id, conversation.contactId))
+      .limit(1);
+    if (contacts[0]?.blockedAt) return;
+  }
   const organizationId = conversation.organizationId;
 
   // Condiciones de silencio: handoff activo o IA apagada en la conversación.

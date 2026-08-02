@@ -23,6 +23,7 @@ const prefixes = {
   campaign: "cmp",
   campaignRecipient: "crp",
   notification: "ntf",
+  contactReport: "crpt",
 } as const;
 
 export type IdKind = keyof typeof prefixes;

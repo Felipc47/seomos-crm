@@ -72,7 +72,8 @@ export async function resolveAudience(
   };
   const elegible = and(
     isNull(schema.contact.archivedAt),
-    isNull(schema.contact.optedOutAt)
+    isNull(schema.contact.optedOutAt),
+    isNull(schema.contact.blockedAt)
   )!;
 
   let rows: AudienceContact[];

@@ -1,7 +1,15 @@
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { publish } from "@/server/events/bus";
-import { serializeConversation, getConversation, updateConversation } from "@/server/inbox/queries";
+import {
+  serializeConversation,
+  getConversation,
+  updateConversation,
+} from "@/server/inbox/queries";
+import {
+  deleteConversations,
+  ModerationError,
+} from "@/server/inbox/moderation";
 import {
   queuePendingAgentTurn,
   type PendingAgentTurnResult,
@@ -55,7 +63,8 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
           row.assigneeMemberId && row.assigneeName
             ? { memberId: row.assigneeMemberId, name: row.assigneeName }
             : null,
-      }
+      },
+      { reportedAt: row.reportedAt, reportReason: row.reportReason }
     );
     publish(session.organizationId, {
       type: "conversation.updated",
@@ -64,4 +73,20 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
     return Response.json({ conversation: dto, agentTurn });
   }
   return Response.json({ conversation: null, agentTurn });
+});
+
+export const DELETE = withAuth(async (session, _req: Request, ctx: Params) => {
+  const { id } = await ctx.params;
+  try {
+    const result = await deleteConversations(session.organizationId, [id]);
+    return Response.json({ ok: true, affected: result.affected });
+  } catch (error) {
+    if (error instanceof ModerationError) {
+      if (error.code === "not_found") {
+        return apiError(404, error.code, error.message);
+      }
+      return apiError(422, error.code, error.message);
+    }
+    throw error;
+  }
 });

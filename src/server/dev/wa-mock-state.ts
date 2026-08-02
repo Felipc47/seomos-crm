@@ -30,11 +30,15 @@ type WaMockState = {
    * ejercer el camino infeliz (destinatario que falla y luego se reintenta)
    * sin depender de la disponibilidad real de Meta. */
   failNextSends: number;
+  /** Operaciones block_users que el mock debe rechazar. */
+  failNextBlocks: number;
   /** Cómo falla: `delivery` (culpa del destinatario), `auth` (token caído) o
    * `limit` (el número alcanzó el límite de envíos de Meta). */
   failNextMode: "delivery" | "auth" | "limit";
   /** Escalón de mensajería que reporta el número (006). */
   messagingLimitTier: string;
+  /** Usuarios bloqueados por phone_number_id. */
+  blockedUsers: Map<string, Set<string>>;
   /** Adjuntos servidos por el mock (007): id → contenido y tipo. */
   media: Map<string, { bytes: Uint8Array; mime: string }>;
 };
@@ -55,8 +59,10 @@ export function getWaMockState(): WaMockState {
       templates: [],
       counter: seedCounter(),
       failNextSends: 0,
+      failNextBlocks: 0,
       failNextMode: "delivery",
       messagingLimitTier: "TIER_1K",
+      blockedUsers: new Map(),
       media: new Map(),
     };
   }
@@ -69,8 +75,10 @@ export function resetWaMockState(): void {
     templates: [],
     counter: seedCounter(),
     failNextSends: 0,
+    failNextBlocks: 0,
     failNextMode: "delivery",
     messagingLimitTier: "TIER_1K",
+    blockedUsers: new Map(),
     media: new Map(),
   };
 }

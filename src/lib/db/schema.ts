@@ -166,6 +166,17 @@ export const contact = pgTable(
     /** Consentimiento confirmado a mano por el operador (el ~5% que llega por
      * otros medios y sí dio permiso). */
     consentGrantedAt: timestamp("consent_granted_at"),
+    /** Bloqueo operativo del destinatario. Vive en contacto para sobrevivir a
+     * la eliminación/recreación del chat y corta IA + toda salida. */
+    blockedAt: timestamp("blocked_at"),
+    blockedByUserId: text("blocked_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    blockSyncStatus: text("block_sync_status", {
+      enum: ["synced", "failed"],
+    }),
+    /** Mensaje sanitizado; nunca contiene token ni payload crudo de Meta. */
+    blockSyncError: text("block_sync_error"),
     archivedAt: timestamp("archived_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -173,6 +184,7 @@ export const contact = pgTable(
   (t) => [
     uniqueIndex("contact_org_phone_uq").on(t.organizationId, t.phone),
     index("contact_org_name_idx").on(t.organizationId, t.name),
+    index("contact_org_blocked_idx").on(t.organizationId, t.blockedAt),
   ]
 );
 
@@ -279,6 +291,44 @@ export const conversation = pgTable(
       .on(t.organizationId, t.contactId)
       .where(sql`${t.isTest} = false`),
     index("conversation_org_last_idx").on(t.organizationId, t.lastMessageAt),
+  ]
+);
+
+/** Reporte interno y append-only de un contacto. Meta no publica un endpoint
+ * equivalente para reportar spam desde la cuenta de negocio; este registro
+ * conserva la auditoría sin afirmar una sincronización inexistente. */
+export const contactReport = pgTable(
+  "contact_report",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    contactId: text("contact_id")
+      .notNull()
+      .references(() => contact.id, { onDelete: "cascade" }),
+    conversationId: text("conversation_id").references(() => conversation.id, {
+      onDelete: "set null",
+    }),
+    reason: text("reason", {
+      enum: ["spam", "harassment", "fraud", "inappropriate", "other"],
+    }).notNull(),
+    notes: text("notes"),
+    reportedByUserId: text("reported_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("contact_report_org_contact_idx").on(
+      t.organizationId,
+      t.contactId,
+      t.createdAt
+    ),
+    index("contact_report_org_created_idx").on(
+      t.organizationId,
+      t.createdAt
+    ),
   ]
 );
 

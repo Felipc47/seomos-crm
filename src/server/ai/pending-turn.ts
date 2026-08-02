@@ -23,6 +23,7 @@ export type PendingAgentTurnState = {
   agentEnabled: boolean;
   conversationEnabled: boolean;
   handoffActive: boolean;
+  blocked?: boolean;
   windowOpen: boolean;
   lastDirection: "in" | "out" | null;
 };
@@ -40,7 +41,7 @@ export function decidePendingAgentTurn(
   if (!state.agentEnabled) {
     return { queued: false, reason: "agent_disabled" };
   }
-  if (!state.conversationEnabled || state.handoffActive) {
+  if (!state.conversationEnabled || state.handoffActive || state.blocked) {
     return { queued: false, reason: "conversation_inactive" };
   }
   if (!state.windowOpen) {
@@ -68,8 +69,13 @@ export async function queuePendingAgentTurn(
         aiEnabled: schema.conversation.aiEnabled,
         handoffAt: schema.conversation.handoffAt,
         lastInboundAt: schema.conversation.lastInboundAt,
+        blockedAt: schema.contact.blockedAt,
       })
       .from(schema.conversation)
+      .innerJoin(
+        schema.contact,
+        eq(schema.conversation.contactId, schema.contact.id)
+      )
       .where(
         scoped(
           schema.conversation.organizationId,
@@ -106,6 +112,7 @@ export async function queuePendingAgentTurn(
     agentEnabled: profileRows[0]?.enabled ?? false,
     conversationEnabled: conversation?.aiEnabled ?? false,
     handoffActive: Boolean(conversation?.handoffAt),
+    blocked: Boolean(conversation?.blockedAt),
     windowOpen: isWindowOpen(conversation?.lastInboundAt ?? null),
     lastDirection: lastRows[0]?.direction ?? null,
   });

@@ -7,7 +7,15 @@ export type LeadAssignmentDto = {
 
 export type ConversationDto = {
   id: string;
-  contact: { id: string; name: string; phone: string };
+  contact: {
+    id: string;
+    name: string;
+    phone: string;
+    blockedAt: string | null;
+    blockSyncStatus: "synced" | "failed" | null;
+    reportedAt: string | null;
+    reportReason: ContactReportReason | null;
+  };
   stageName: string | null;
   aiEnabled: boolean;
   handoffAt: string | null;
@@ -23,6 +31,13 @@ export type ConversationDto = {
   service: LeadAssignmentDto["service"];
   assignee: LeadAssignmentDto["assignee"];
 };
+
+export type ContactReportReason =
+  | "spam"
+  | "harassment"
+  | "fraud"
+  | "inappropriate"
+  | "other";
 
 export type MessageDto = {
   id: string;
