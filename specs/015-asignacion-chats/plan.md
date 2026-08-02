@@ -120,11 +120,15 @@ responsable compartido por Bandeja, Contactos y Pipeline.
 
 ## Verification Results
 
-- Self-test `us28-asignacion-chats.sh`: **50 verificaciones, 0 fallos** con dos
-  sesiones, historial con adjunto, SSE, aislamiento tenant, responsive y teclado.
+- Self-test `us28-asignacion-chats.sh`: **58 verificaciones, 0 fallos** con dos
+  sesiones, historial con adjunto, SSE, aislamiento tenant, ambos filtros,
+  menú accesible, responsive y teclado.
 - Regresiones: `us14` **17/17**, `us25` **37/37**, `us26` **46/46** y `us27`
   **75/75**.
 - Gate técnico: typecheck, lint y build de producción exitosos; Vitest
   **36 archivos / 192 pruebas**.
 - No se añadió migración ni dependencia de runtime. El servidor local de prueba
   se cerró al terminar.
+- Pulido post-deploy verificado visualmente en escritorio, 375 px y modo oscuro;
+  los selectores nativos se reemplazaron por una fila compacta con menú propio y
+  acción “Limpiar”. Regresiones posteriores: `us25` **37/37** y `us27` **75/75**.

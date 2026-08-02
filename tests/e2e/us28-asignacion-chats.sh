@@ -54,6 +54,16 @@ async function waitFor(check, message, timeout = 15000) {
   throw new Error(`${message}${value ? ` — ${JSON.stringify(value)}` : ""}`);
 }
 
+async function chooseInboxFilter(page, ariaLabel, optionLabel) {
+  const trigger = page.getByRole("button", { name: ariaLabel, exact: true });
+  await trigger.click();
+  const menu = page.getByRole("menu", { name: ariaLabel, exact: true });
+  await menu.waitFor();
+  await menu
+    .getByRole("menuitemradio", { name: optionLabel, exact: true })
+    .click();
+}
+
 async function listConversations(session) {
   const response = await session.get("/api/conversations");
   assert(response.ok(), "Bandeja responde", `${response.status()}`);
@@ -207,6 +217,19 @@ function watchPage(page) {
     update lead set assigned_member_id = null, updated_at = now()
     where contact_id in (${unassignedChat.contact.id}, ${noLeadChat.contact.id})
   `;
+  const [differentStage] = await sql`
+    select ls.id, ls.name
+    from pipeline_stage ls
+    join contact c on c.organization_id = ls.organization_id
+    where c.id = ${teammateChat.contact.id} and ls.name <> 'Nuevo'
+    order by ls.position
+    limit 1
+  `;
+  assert(Boolean(differentStage), "hay una etapa alterna para probar el filtro visual");
+  await sql`
+    update lead set stage_id = ${differentStage.id}, updated_at = now()
+    where contact_id = ${teammateChat.contact.id}
+  `;
 
   const beforeMessagesResponse = await owner.get(
     `/api/conversations/${ownerChat.id}/messages`
@@ -241,26 +264,67 @@ function watchPage(page) {
   watchPage(teammatePage);
 
   await ownerPage.goto(`${baseURL}/inbox`);
-  const ownerFilter = ownerPage.getByRole("combobox", {
+  const ownerFilter = ownerPage.getByRole("button", {
     name: "Filtrar por responsable",
+    exact: true,
   });
   await ownerFilter.waitFor();
+  const stageFilterButton = ownerPage.getByRole("button", {
+    name: "Filtrar por etapa del lead",
+    exact: true,
+  });
+  const [stageFilterBox, ownerFilterBox] = await Promise.all([
+    stageFilterButton.boundingBox(),
+    ownerFilter.boundingBox(),
+  ]);
+  assert(
+    stageFilterBox &&
+      ownerFilterBox &&
+      Math.abs(stageFilterBox.y - ownerFilterBox.y) < 2 &&
+      stageFilterBox.height <= 52 &&
+      ownerFilterBox.height <= 52,
+    "los filtros compactos comparten una sola fila",
+    JSON.stringify({ stageFilterBox, ownerFilterBox })
+  );
+  await ownerFilter.click();
+  const ownerFilterMenu = ownerPage.getByRole("menu", {
+    name: "Filtrar por responsable",
+    exact: true,
+  });
+  await ownerFilterMenu.waitFor();
+  const ownerMineOption = ownerFilterMenu.getByRole("menuitemradio", {
+    name: "Asignados a mí",
+    exact: true,
+  });
   await waitFor(
-    () =>
-      ownerFilter.evaluate((element) => {
-        const option = Array.from(element.options).find(
-          (item) => item.value === "mine"
-        );
-        return Boolean(option && !option.disabled);
-      }),
+    () => ownerMineOption.isEnabled(),
     "el filtro personal del owner no quedó disponible"
   );
+  await ownerPage.keyboard.press("Escape");
+  await ownerFilterMenu.waitFor({ state: "hidden" });
+  ok("el menú personalizado cierra con Escape y devuelve el foco");
   await ownerPage
     .getByTestId(`inbox-conversation-${unassignedChat.id}`)
     .getByText("Sin asignar", { exact: true })
     .waitFor();
   ok("cada chat muestra responsable o Sin asignar");
-  await ownerFilter.selectOption("mine");
+  await chooseInboxFilter(
+    ownerPage,
+    "Filtrar por etapa del lead",
+    "Nuevo"
+  );
+  assert(
+    !(await ownerPage.getByText("Cliente Bruno", { exact: true }).isVisible()),
+    "el menú de etapas aplica el filtro"
+  );
+  await ownerPage.getByRole("button", { name: "Limpiar", exact: true }).click();
+  await ownerPage.getByText("Cliente Bruno", { exact: true }).waitFor();
+  ok("Limpiar restaura ambos filtros");
+  await chooseInboxFilter(
+    ownerPage,
+    "Filtrar por responsable",
+    "Asignados a mí"
+  );
   await ownerPage.getByText("Cliente Propio", { exact: true }).waitFor();
   assert(
     !(await ownerPage.getByText("Cliente Bruno", { exact: true }).isVisible()),
@@ -275,21 +339,25 @@ function watchPage(page) {
   await inboxSearch.fill("");
 
   await teammatePage.goto(`${baseURL}/inbox`);
-  const teammateFilter = teammatePage.getByRole("combobox", {
+  const teammateFilter = teammatePage.getByRole("button", {
     name: "Filtrar por responsable",
+    exact: true,
   });
   await teammateFilter.waitFor();
+  await teammateFilter.click();
+  const teammateMenu = teammatePage.getByRole("menu", {
+    name: "Filtrar por responsable",
+    exact: true,
+  });
+  const teammateMineOption = teammateMenu.getByRole("menuitemradio", {
+    name: "Asignados a mí",
+    exact: true,
+  });
   await waitFor(
-    () =>
-      teammateFilter.evaluate((element) => {
-        const option = Array.from(element.options).find(
-          (item) => item.value === "mine"
-        );
-        return Boolean(option && !option.disabled);
-      }),
+    () => teammateMineOption.isEnabled(),
     "el filtro personal del compañero no quedó disponible"
   );
-  await teammateFilter.selectOption("mine");
+  await teammateMineOption.click();
   await teammatePage.getByText("Cliente Bruno", { exact: true }).waitFor();
   assert(
     !(await teammatePage.getByText("Cliente Propio", { exact: true }).isVisible()),
@@ -443,11 +511,31 @@ function watchPage(page) {
     "creación mínima no duplica ni pierde entidades"
   );
 
-  await ownerFilter.selectOption("all");
+  await chooseInboxFilter(
+    ownerPage,
+    "Filtrar por responsable",
+    "Todos los responsables"
+  );
   for (const width of [375, 768, 1440]) {
     await ownerPage.setViewportSize({ width, height: 900 });
     await ownerPage.goto(`${baseURL}/inbox`);
-    await ownerPage.getByRole("combobox", { name: "Filtrar por responsable" }).waitFor();
+    const responsiveFilter = ownerPage.getByRole("button", {
+      name: "Filtrar por responsable",
+      exact: true,
+    });
+    await responsiveFilter.waitFor();
+    await responsiveFilter.click();
+    const responsiveMenu = ownerPage.getByRole("menu", {
+      name: "Filtrar por responsable",
+      exact: true,
+    });
+    await responsiveMenu.waitFor();
+    const menuFits = await responsiveMenu.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.left >= 0 && rect.right <= window.innerWidth;
+    });
+    assert(menuFits, `Menú de filtros dentro del viewport a ${width}px`);
+    await ownerPage.keyboard.press("Escape");
     await ownerPage.getByTestId(`inbox-conversation-${noLeadChat.id}`).click();
     await ownerPage.getByRole("button", { name: "Transferir chat" }).waitFor();
     const noOverflow = await ownerPage.evaluate(
@@ -456,11 +544,17 @@ function watchPage(page) {
     assert(noOverflow, `Bandeja sin overflow horizontal a ${width}px`);
   }
   await ownerPage
-    .getByRole("combobox", { name: "Filtrar por responsable" })
+    .getByRole("button", {
+      name: "Filtrar por responsable",
+      exact: true,
+    })
     .focus();
   assert(
     await ownerPage
-      .getByRole("combobox", { name: "Filtrar por responsable" })
+      .getByRole("button", {
+        name: "Filtrar por responsable",
+        exact: true,
+      })
       .evaluate((element) => element === document.activeElement),
     "filtro operable con teclado"
   );

@@ -89,6 +89,15 @@ observar salida/entrada del chat más notificación enlazada sin recargar.
 
 ---
 
+## Phase 7: Post-deploy UI polish
+
+- [x] T022 Reemplazar los dos selects nativos por filtros compactos en una fila, con jerarquía visual, iconos y estado activo
+- [x] T023 Implementar menú personalizado accesible, cierre exterior/Escape y acción para limpiar filtros
+- [x] T024 Actualizar el E2E para selección, teclado, menús y responsive sin perder la semántica actual
+- [x] T025 Verificar visualmente en navegador, ejecutar regresión de Bandeja y gate técnico completo
+
+---
+
 ## Dependencies & Execution Order
 
 - Setup → Foundational → US1 y US2 → US3 → Polish.

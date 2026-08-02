@@ -8,16 +8,20 @@ import {
   CheckSquare2,
   ChevronDown,
   Flag,
+  Layers3,
   ListChecks,
   Pin,
   PinOff,
   Search,
   ShieldBan,
   ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
   Square,
   Trash2,
   UserRound,
+  UserRoundX,
+  UsersRound,
 } from "lucide-react";
 import type { ConversationDto } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -28,6 +32,10 @@ import { StageTag } from "@/components/ui/stage-tag";
 import { stageColor } from "@/lib/stage-colors";
 import { useStages } from "@/components/use-stage-colors";
 import { formatTime, previewText } from "./helpers";
+import {
+  InboxFilterDropdown,
+  type InboxFilterOption,
+} from "./inbox-filter-dropdown";
 
 export type InboxConversationAction =
   | "delete"
@@ -254,6 +262,9 @@ export function ConversationList({
   const [assigneeFilter, setAssigneeFilter] = useState<
     "all" | "mine" | "unassigned"
   >("all");
+  const [openFilter, setOpenFilter] = useState<"stage" | "assignee" | null>(
+    null
+  );
   const [selecting, setSelecting] = useState(false);
   const stages = useStages();
   const colorFor = useMemo(() => {
@@ -263,6 +274,46 @@ export function ConversationList({
     return (name: string | null) =>
       name ? (byName[name] ?? "#5B6B8C") : "#5B6B8C";
   }, [stages]);
+  const stageOptions = useMemo<InboxFilterOption[]>(
+    () => [
+      {
+        value: "",
+        label: "Todas las etapas",
+        shortLabel: "Todas",
+        description: "Ver el pipeline completo",
+        icon: Layers3,
+      },
+      ...stages.map((stage) => ({
+        value: stage.name,
+        label: stage.name,
+        color: colorFor(stage.name),
+      })),
+    ],
+    [colorFor, stages]
+  );
+  const assigneeOptions: InboxFilterOption[] = [
+    {
+      value: "all",
+      label: "Todos los responsables",
+      shortLabel: "Todos",
+      description: "Ver conversaciones de todo el equipo",
+      icon: UsersRound,
+    },
+    {
+      value: "mine",
+      label: "Asignados a mí",
+      shortLabel: "Asignados a mí",
+      description: "Mi cola personal de atención",
+      icon: UserRound,
+      disabled: !currentMemberId,
+    },
+    {
+      value: "unassigned",
+      label: "Sin asignar",
+      description: "Conversaciones en la cola general",
+      icon: UserRoundX,
+    },
+  ];
 
   const loading = conversationsProp === null;
   const conversations = conversationsProp ?? [];
@@ -405,35 +456,53 @@ export function ConversationList({
             </button>
           ))}
         </div>
-        <select
-          value={stageFilter}
-          onChange={(e) => setStageFilter(e.target.value)}
-          aria-label="Filtrar por etapa del lead"
-          className="mt-2.5 w-full rounded-[11px] border bg-surface-2 px-3 py-[9px] text-[13px] font-bold outline-none transition-colors focus:border-brand focus:ring-[3px] focus:ring-brand-soft"
-        >
-          <option value="">Todas las etapas</option>
-          {stages.map((s) => (
-            <option key={s.id} value={s.name}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-        <select
-          value={assigneeFilter}
-          onChange={(event) =>
-            setAssigneeFilter(
-              event.target.value as "all" | "mine" | "unassigned"
-            )
-          }
-          aria-label="Filtrar por responsable"
-          className="mt-2.5 w-full rounded-[11px] border bg-surface-2 px-3 py-[9px] text-[13px] font-bold outline-none transition-colors focus:border-brand focus:ring-[3px] focus:ring-brand-soft"
-        >
-          <option value="all">Todos los responsables</option>
-          <option value="mine" disabled={!currentMemberId}>
-            Asignados a mí
-          </option>
-          <option value="unassigned">Sin asignar</option>
-        </select>
+        <div className="mt-3 flex h-4 items-center justify-between px-0.5">
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[.09em] text-faint">
+            <SlidersHorizontal className="h-3 w-3" strokeWidth={2.2} />
+            Filtros
+          </span>
+          {(stageFilter || assigneeFilter !== "all") && (
+            <button
+              type="button"
+              onClick={() => {
+                setStageFilter("");
+                setAssigneeFilter("all");
+                setOpenFilter(null);
+              }}
+              className="text-[10.5px] font-bold text-brand transition-colors hover:text-brand-hover"
+            >
+              Limpiar
+            </button>
+          )}
+        </div>
+        <div className="mt-1.5 grid grid-cols-2 gap-2">
+          <InboxFilterDropdown
+            id="inbox-stage-filter"
+            label="Etapa"
+            ariaLabel="Filtrar por etapa del lead"
+            value={stageFilter}
+            defaultValue=""
+            options={stageOptions}
+            open={openFilter === "stage"}
+            align="left"
+            onOpenChange={(open) => setOpenFilter(open ? "stage" : null)}
+            onChange={setStageFilter}
+          />
+          <InboxFilterDropdown
+            id="inbox-assignee-filter"
+            label="Responsable"
+            ariaLabel="Filtrar por responsable"
+            value={assigneeFilter}
+            defaultValue="all"
+            options={assigneeOptions}
+            open={openFilter === "assignee"}
+            align="right"
+            onOpenChange={(open) => setOpenFilter(open ? "assignee" : null)}
+            onChange={(value) =>
+              setAssigneeFilter(value as "all" | "mine" | "unassigned")
+            }
+          />
+        </div>
         {selecting && (
           <div
             className="mt-2.5 rounded-xl border border-brand/25 bg-brand-tint p-2.5"
