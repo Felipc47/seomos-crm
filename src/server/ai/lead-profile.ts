@@ -44,6 +44,8 @@ export type LeadProfileType = z.infer<typeof LeadProfile>;
 const LeadEnrichment = LeadProfile.extend({
   /** ID exacto de la allowlist incluida en el prompt; null = aún ambiguo. */
   serviceId: z.string().nullable().optional(),
+  /** Cita textual entrante que respalda serviceId. */
+  serviceEvidence: z.string().max(500).nullable().optional(),
 });
 
 /** ¿La ficha aporta algo? Evita guardar un objeto vacío que ensucie la UI. */
@@ -101,7 +103,7 @@ export function buildLeadEnrichmentPrompt(
     "Devuelves ÚNICAMENTE un objeto JSON con estas claves:",
     '{"contactName":"...","businessName":"...","businessType":"...",',
     '"needs":["..."],"budget":"...","timeline":"...","summary":"...",',
-    '"serviceId":"svc_... o null"}',
+    '"serviceId":"svc_... o null","serviceEvidence":"cita o null"}',
     "",
     "SERVICIOS DISPONIBLES (allowlist de esta empresa):",
     catalog,
@@ -117,6 +119,10 @@ export function buildLeadEnrichmentPrompt(
     "  expresada encaja claramente. Puedes inferir sinónimos y tecnologías dentro",
     "  de una categoría (por ejemplo, una tienda virtual o Joomla pueden encajar",
     "  en Desarrollo web). Si faltan datos, hay empate o no encaja, usa null.",
+    "- `serviceEvidence`: si hay serviceId, copia una cita breve y LITERAL de una",
+    "  línea `Cliente:` que exprese la necesidad concreta. Saludos, nombres,",
+    "  agradecimientos, descripciones del negocio o pedidos genéricos de",
+    "  información NO son evidencia: en esos casos usa serviceId y evidencia null.",
     "- Para serviceId usa evidencia de las líneas `Cliente:`. No clasifiques por",
     "  una alternativa que el `Negocio:` apenas sugirió y el cliente no confirmó.",
     "- NUNCA devuelvas un ID que no aparezca en la lista.",
@@ -169,6 +175,8 @@ export async function refreshLeadProfile(input: {
       contactId: input.contactId,
       conversationId: input.conversationId,
       serviceId: detectedService.id,
+      serviceEvidence: result.data.serviceEvidence,
+      history: input.history,
     });
   }
 

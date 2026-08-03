@@ -127,6 +127,13 @@ ingesta leadgen conserva la autoridad sobre el enrutamiento.
 11. La primera aplicación publica `conversation.updated` y notifica al
     ejecutivo; respuestas inválidas, ambiguas o fallos del enriquecimiento no
     interrumpen el turno y se vuelven a intentar con más contexto.
+12. `serviceId` deja de ser suficiente por sí solo: tanto el turno principal
+    como el enriquecimiento deben devolver una evidencia breve. La frontera de
+    persistencia comprueba que provenga del cliente y que no sea saludo,
+    identidad ni consulta genérica; solo entonces aplica servicio y responsable.
+13. Las evidencias visuales se aceptan únicamente en el turno multimodal que
+    contiene la imagen y deben describir una necesidad específica. Audio usa la
+    transcripción persistida y sigue la validación textual normal.
 
 ## Complexity Tracking
 
@@ -136,12 +143,14 @@ prospecto.
 
 ## Verification Results
 
-- Gate técnico completo: `typecheck`, `lint`, `build` y 194 pruebas en 36
+- Gate técnico completo: `typecheck`, `lint`, `build` y 203 pruebas en 36
   archivos, todo verde.
 - E2E US26: 46 verificaciones del flujo de asignación, aislamiento,
   idempotencia, notificación tolerante a fallos, cambios de rol y responsive.
-- E2E US29: 30 verificaciones de conversación directa, ambigüedad, allowlist,
-  transferencia humana, notificación tolerante a fallos, Lead Ads y Bandeja.
+- E2E US29: 34 verificaciones de conversación directa, rechazo de saludo,
+  identidad y consulta genérica aun con falso positivo del proveedor,
+  necesidad concreta, allowlist, transferencia humana, notificación tolerante
+  a fallos, Lead Ads y Bandeja.
 - Regresiones: IA reactiva US25 (37/37) y asignación de chats US28 (58/58),
   ambas verdes.
 - Revisión interactiva en Chrome: creación de ejecutiva y servicio, asignación
@@ -154,3 +163,14 @@ del agente para que conozca el catálogo y extiende el enriquecimiento de ficha
 para clasificar el servicio en la misma llamada económica. La verificación
 añade ingreso directo, ambigüedad, reintento, transferencia manual, fallo de
 notificación y regresión del flujo Lead Ads.
+
+## Correction 2026-08-02 — intención antes de asignación
+
+La allowlist protege el tenant y evita IDs inventados, pero no demuestra que el
+cliente haya expresado una necesidad. Se añade un segundo guard independiente
+del proveedor: cita verificable del mensaje entrante y señal comercial
+específica. Así, una alucinación temprana no se convierte en una atribución
+histórica; la clasificación se reintenta naturalmente cuando llega contexto.
+
+Verificación final: US29 34/34, IA reactiva US25 37/37, servicios US26 46/46,
+203 unitarias y build de producción verdes.

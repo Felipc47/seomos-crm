@@ -493,6 +493,13 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
         contactId: conversation.contactId,
         conversationId,
         serviceId: detectedService.id,
+        serviceEvidence: action.serviceEvidence,
+        history: history.map((message) => ({
+          direction: message.direction as "in" | "out",
+          text: message.text,
+          type: message.type,
+        })),
+        allowUnquotedVisualEvidence: lastInbound.type === "image",
       });
     } catch (err) {
       // El enrutamiento es enriquecimiento: una falla nunca impide responder.

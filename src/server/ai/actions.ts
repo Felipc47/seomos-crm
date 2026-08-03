@@ -4,6 +4,9 @@ const serviceDetection = {
   /** Servicio inferido en este mismo turno (incluye visión); el servidor lo
    * resuelve contra la allowlist antes de cualquier escritura. */
   serviceId: z.string().nullable().optional(),
+  /** Cita breve del cliente que demuestra la necesidad. Sin evidencia válida,
+   * el servidor ignora serviceId aunque pertenezca a la allowlist. */
+  serviceEvidence: z.string().max(500).nullable().optional(),
 };
 
 /**

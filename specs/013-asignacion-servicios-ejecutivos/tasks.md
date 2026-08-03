@@ -138,6 +138,26 @@ superficies y “Sin asignar” cuando corresponda.
 | FR-018–FR-020 | T027–T030 |
 | SC-007–SC-008 | T029–T030 |
 
+## Phase 8: Guard de intención explícita — corrección 2026-08-02
+
+- [x] T031 Documentar que saludo, nombre y consulta genérica no son evidencia,
+  y que una necesidad concreta sí puede clasificar desde el primer mensaje.
+- [x] T032 Exigir `serviceEvidence` en las salidas del agente y del
+  enriquecimiento, con instrucciones conservadoras para el proveedor.
+- [x] T033 Validar en la frontera de persistencia que la evidencia provenga del
+  cliente y exprese intención, conservando audio e imagen.
+- [x] T034 Añadir unitarias para saludo, identidad, consulta genérica, cita
+  inventada, necesidad inicial, respuesta a calificación y evidencia visual.
+- [x] T035 Hacer que el mock reproduzca el falso positivo y ampliar US29 con la
+  secuencia saludo → nombre → consulta genérica → necesidad concreta.
+- [x] T036 Ejecutar gate completo, US29 y regresiones aplicables; documentar la
+  evidencia observable en Bandeja.
+
+| Requirement | Tasks |
+|---|---|
+| FR-021–FR-023 | T031–T035 |
+| SC-009 | T035–T036 |
+
 ## Implementation Strategy
 
 1. Persistir la regla y la copia histórica.

@@ -131,6 +131,14 @@ con suficiente contexto completa la asignación.
    pero conserva la transferencia humana.
 6. **Given** audios o imágenes convertidos en contexto textual, **When** allí se
    evidencia la necesidad, **Then** participan en la misma clasificación.
+7. **Given** una conversación nueva, **When** el cliente únicamente saluda,
+   comparte su nombre o pide información de forma genérica, **Then** el
+   prospecto permanece sin servicio y sin responsable aunque el proveedor
+   devuelva prematuramente un `serviceId` válido.
+8. **Given** una conversación todavía sin servicio, **When** el cliente expresa
+   una necesidad concreta en el primer mensaje o después de una pregunta de
+   calificación, **Then** esa evidencia permite clasificar y asignar sin exigir
+   artificialmente un número mínimo de turnos.
 
 ### Edge Cases
 
@@ -152,6 +160,9 @@ con suficiente contexto completa la asignación.
   sin servicio; una salida ambigua o inválida del LLM nunca elige por descarte.
 - Una asignación manual tiene prioridad sobre el responsable automático del
   servicio. La IA puede completar el servicio faltante sin pisar al humano.
+- Un saludo, nombre, agradecimiento, descripción general del negocio o pedido
+  genérico de información no constituye intención de servicio. La evidencia
+  debe provenir de una línea del cliente; una sugerencia del agente nunca basta.
 
 ## Requirements
 
@@ -200,6 +211,15 @@ con suficiente contexto completa la asignación.
   actualización y notificar una sola vez al ejecutivo elegible.
 - **FR-020**: Un fallo, salida ambigua o servicio inexistente del proveedor MUST
   degradar sin asignación incorrecta y permitir reintentar en otro turno.
+- **FR-021**: Toda clasificación directa MUST incluir una evidencia concreta de
+  la necesidad del cliente y el servidor MUST comprobarla antes de persistir;
+  un `serviceId` válido sin evidencia suficiente MUST ignorarse.
+- **FR-022**: Saludos, identidad, cierres y solicitudes genéricas de información
+  MUST permanecer sin servicio ni responsable hasta que aparezca una intención
+  o necesidad comercial específica.
+- **FR-023**: La validación MUST aceptar una necesidad explícita desde el primer
+  mensaje y respuestas concretas a una pregunta de calificación, sin depender
+  de un mínimo fijo de mensajes.
 
 ### Key Entities
 
@@ -234,6 +254,9 @@ con suficiente contexto completa la asignación.
   de IA, sin intervención manual.
 - **SC-008**: Reanalizar diez veces un prospecto ya clasificado produce cero
   cambios de responsable y una sola notificación de asignación.
+- **SC-009**: Una secuencia “Hola” → nombre → consulta genérica produce cero
+  asignaciones incluso si el mock del proveedor intenta devolver un servicio;
+  el siguiente mensaje con necesidad concreta produce exactamente una.
 
 ## Assumptions
 

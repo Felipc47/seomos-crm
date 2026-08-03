@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  hasExplicitServiceIntent,
   isCommercialMemberRole,
   isEligibleServiceAssignee,
   resolveDetectedService,
@@ -50,5 +51,69 @@ describe("asignación comercial por servicio", () => {
     expect(resolveDetectedService("Desarrollo web", services)).toBeNull();
     expect(resolveDetectedService("svc_otro_tenant", services)).toBeNull();
     expect(resolveDetectedService(null, services)).toBeNull();
+  });
+
+  describe("evidencia de intención antes de enrutar", () => {
+    const web = { id: "svc_web", name: "Desarrollo web" };
+    const check = (
+      evidence: string,
+      history: { direction: "in" | "out"; text: string; type?: string }[],
+      allowUnquotedVisualEvidence = false
+    ) =>
+      hasExplicitServiceIntent({
+        evidence,
+        service: web,
+        history,
+        allowUnquotedVisualEvidence,
+      });
+
+    it.each(["Hola", "Soy Juan Fernandino", "Quisiera información"])(
+      "rechaza señal prematura aunque el proveedor cite: %s",
+      (message) => {
+        expect(check(message, [{ direction: "in", text: message }])).toBe(false);
+      }
+    );
+
+    it("rechaza una cita inventada o tomada del negocio", () => {
+      expect(
+        check("Necesito desarrollo web", [
+          { direction: "in", text: "Hola" },
+          { direction: "out", text: "Podemos ayudarte con desarrollo web" },
+        ])
+      ).toBe(false);
+    });
+
+    it("acepta una necesidad concreta desde el primer mensaje", () => {
+      const message = "Necesito una tienda virtual con carrito de compras";
+      expect(check(message, [{ direction: "in", text: message }])).toBe(true);
+    });
+
+    it("acepta una respuesta concreta a una pregunta de calificación", () => {
+      expect(
+        check("un logo para mi empresa", [
+          { direction: "out", text: "¿En qué podemos ayudarte?" },
+          { direction: "in", text: "Un logo para mi empresa" },
+        ])
+      ).toBe(true);
+    });
+
+    it("no convierte una descripción general del negocio en necesidad", () => {
+      const message = "Tengo una panadería en Bogotá";
+      expect(check(message, [{ direction: "in", text: message }])).toBe(false);
+      const serviceContext = "Somos una agencia de desarrollo web";
+      expect(
+        check(serviceContext, [{ direction: "in", text: serviceContext }])
+      ).toBe(false);
+    });
+
+    it("admite evidencia visual específica solo en el turno de imagen", () => {
+      const history = [{ direction: "in" as const, text: "", type: "image" }];
+      expect(
+        check("captura de una tienda virtual con carrito", history, true)
+      ).toBe(true);
+      expect(
+        check("captura de una tienda virtual con carrito", history, false)
+      ).toBe(false);
+    });
   });
 });

@@ -158,8 +158,10 @@ async function conversationByPhone(api, phone) {
 
   const anaSession = await session(anaEmail);
 
-  // Ambigüedad segura: aún no hay evidencia para escoger un servicio.
-  await inbound(owner, phones.direct, "Cliente Directa", "Hola, quisiera información");
+  // El mock se comporta como un proveedor sobreconfiado y devuelve el primer
+  // serviceId válido en estas tres entradas. La frontera de persistencia debe
+  // rechazarlo hasta que el CLIENTE exprese una necesidad concreta.
+  await inbound(owner, phones.direct, "Cliente Directa", "Hola");
   const directConversation = await waitFor(
     () => conversationByPhone(owner, phones.direct),
     "no apareció la conversación directa"
@@ -175,7 +177,37 @@ async function conversationByPhone(api, phone) {
   const ambiguous = await contactByPhone(owner, phones.direct);
   assert(
     ambiguous.service === null && ambiguous.assignee === null,
-    "mensaje ambiguo no se asigna a ciegas"
+    "saludo no se asigna aunque el proveedor devuelva un servicio válido"
+  );
+
+  await inbound(owner, phones.direct, "Cliente Directa", "Soy Juan Fernandino");
+  await waitFor(async () => {
+    const messages = await body(
+      await owner.get(`/api/conversations/${directConversation.id}/messages`)
+    );
+    return messages.messages?.filter(
+      (message) => message.direction === "out" && message.aiGenerated
+    ).length >= 2;
+  }, "la IA no atendió el nombre del cliente");
+  const afterName = await contactByPhone(owner, phones.direct);
+  assert(
+    afterName.service === null && afterName.assignee === null,
+    "nombre del cliente no se confunde con intención comercial"
+  );
+
+  await inbound(owner, phones.direct, "Cliente Directa", "Quisiera información");
+  await waitFor(async () => {
+    const messages = await body(
+      await owner.get(`/api/conversations/${directConversation.id}/messages`)
+    );
+    return messages.messages?.filter(
+      (message) => message.direction === "out" && message.aiGenerated
+    ).length >= 3;
+  }, "la IA no atendió la consulta genérica");
+  const afterGeneric = await contactByPhone(owner, phones.direct);
+  assert(
+    afterGeneric.service === null && afterGeneric.assignee === null,
+    "consulta genérica permanece sin servicio y sin responsable"
   );
 
   // Con contexto suficiente, la misma conversación se clasifica y enruta.

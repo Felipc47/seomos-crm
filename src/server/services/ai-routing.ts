@@ -3,8 +3,10 @@ import { getDb, schema } from "@/lib/db";
 import { publish } from "@/server/events/bus";
 import { notifyUser } from "@/server/notifications";
 import {
+  hasExplicitServiceIntent,
   isEligibleServiceAssignee,
   type ServiceCatalogEntry,
+  type ServiceIntentHistoryMessage,
 } from "@/server/services/assignment";
 
 export type ServiceRoutingOption = ServiceCatalogEntry;
@@ -34,6 +36,9 @@ export async function routeUnclassifiedLeadByService(input: {
   contactId: string;
   conversationId: string;
   serviceId: string;
+  serviceEvidence: string | null | undefined;
+  history: readonly ServiceIntentHistoryMessage[];
+  allowUnquotedVisualEvidence?: boolean;
 }): Promise<{ applied: boolean; assigned: boolean }> {
   const db = getDb();
   const services = await db
@@ -59,6 +64,16 @@ export async function routeUnclassifiedLeadByService(input: {
     .limit(1);
   const service = services[0];
   if (!service) return { applied: false, assigned: false };
+  if (
+    !hasExplicitServiceIntent({
+      evidence: input.serviceEvidence,
+      service,
+      history: input.history,
+      allowUnquotedVisualEvidence: input.allowUnquotedVisualEvidence,
+    })
+  ) {
+    return { applied: false, assigned: false };
+  }
 
   const classified = await db
     .update(schema.lead)

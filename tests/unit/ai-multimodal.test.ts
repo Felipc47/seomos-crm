@@ -64,6 +64,23 @@ describe("contenido multimodal (007)", () => {
     expect(JSON.parse(raw)).toMatchObject({
       action: "reply",
       serviceId: "svc_web",
+      serviceEvidence: expect.stringContaining("tienda virtual"),
+    });
+  });
+
+  it("puede simular un proveedor sobreconfiado para probar el guard", () => {
+    const raw = aiMockCompletion([
+      {
+        role: "system",
+        content:
+          "SERVICIOS CONFIGURADOS (allowlist):\n- svc_web: Desarrollo web",
+      },
+      { role: "user", content: "Hola" },
+    ]);
+    expect(JSON.parse(raw)).toMatchObject({
+      action: "reply",
+      serviceId: "svc_web",
+      serviceEvidence: "Hola",
     });
   });
 });

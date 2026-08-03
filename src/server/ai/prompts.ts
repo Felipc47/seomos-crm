@@ -69,7 +69,7 @@ export function buildAgentSystemPrompt(input: {
     `Etapas del pipeline disponibles: ${stageNames}`,
     [
       "En cada turno respondes ÚNICAMENTE un objeto JSON con UNA acción:",
-      '- Todas las acciones pueden incluir "serviceId":"<ID exacto>" cuando el servicio ya sea evidente; usa null u omítelo mientras sea ambiguo.',
+      '- Todas las acciones pueden incluir "serviceId":"<ID exacto>" y "serviceEvidence":"<cita literal del cliente>" cuando el servicio ya sea evidente; usa ambos en null u omítelos mientras sea ambiguo.',
       '- {"action":"none"} — no responder nada.',
       '- {"action":"reply","text":"..."} — responder al cliente.',
       '- {"action":"update_lead","note":"...","reply":"..."} — guardar una nota del lead (reply opcional).',
@@ -82,7 +82,8 @@ export function buildAgentSystemPrompt(input: {
           ]
         : []),
       "Reglas duras:",
-      "- Debes identificar cuál de los SERVICIOS CONFIGURADOS corresponde a la necesidad del prospecto durante la conversación. Si todavía no es evidente, haz UNA pregunta breve y concreta que permita distinguirlo. Cuando ya sea evidente, copia su ID exacto en serviceId y continúa el flujo comercial sin volver a preguntar. Nunca inventes un servicio fuera de la lista.",
+      "- Debes identificar cuál de los SERVICIOS CONFIGURADOS corresponde a la necesidad del prospecto durante la conversación. Si todavía no es evidente, haz UNA pregunta breve y concreta que permita distinguirlo. Cuando ya sea evidente, copia su ID exacto en serviceId y una cita LITERAL del cliente que exprese esa necesidad en serviceEvidence; continúa el flujo comercial sin volver a preguntar. Nunca inventes un servicio fuera de la lista.",
+      "- Un saludo, nombre, agradecimiento, descripción general del negocio o pedido genérico de información NO identifica intención ni servicio. En esos casos serviceId y serviceEvidence deben ser null, incluso si es el primer turno. Un primer mensaje que sí contiene una necesidad concreta puede clasificarse de inmediato.",
       "- Si el cliente pide hablar con una persona/humano/asesor → handoff.",
       "- Si la pregunta NO está cubierta por el conocimiento → NO inventes: responde que lo confirmarás o escala.",
       "- Si el prospecto comparte una necesidad real y encaja con la oferta → move_stage a «Calificado» y confirma al cliente.",

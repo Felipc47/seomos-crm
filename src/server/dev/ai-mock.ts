@@ -43,27 +43,57 @@ export function hasImage(messages: InMessage[]): boolean {
   );
 }
 
-function mockServiceId(system: string, transcript: string): string | null {
+function mockServiceDetection(
+  system: string,
+  transcript: string
+): { serviceId: string | null; serviceEvidence: string | null } {
   const text = transcript.toLowerCase();
   const serviceRows = [...system.matchAll(/^- (svc_[^:\s]+): (.+)$/gm)];
   const serviceByName = (pattern: RegExp) =>
     serviceRows.find((row) => pattern.test(row[2] ?? ""))?.[1] ?? null;
+  const evidenceFor = (pattern: RegExp) => {
+    const line = transcript
+      .split("\n")
+      .find((candidate) => pattern.test(candidate));
+    return line?.replace(/^(Cliente|Negocio):\s*/i, "").trim() ?? null;
+  };
   if (text.includes("servicio fantasma")) {
-    return "svc_inventado_fuera_de_allowlist";
+    return {
+      serviceId: "svc_inventado_fuera_de_allowlist",
+      serviceEvidence: evidenceFor(/servicio fantasma/i),
+    };
   }
-  if (
-    text.includes("página web") ||
-    text.includes("pagina web") ||
-    text.includes("tienda virtual") ||
-    text.includes("carrito de compras") ||
-    text.includes("joomla")
-  ) {
-    return serviceByName(/desarrollo\s*web|tienda|e-?commerce/i);
+  const webEvidence = evidenceFor(
+    /página web|pagina web|tienda virtual|carrito de compras|joomla/i
+  );
+  if (webEvidence) {
+    return {
+      serviceId: serviceByName(/desarrollo\s*web|tienda|e-?commerce/i),
+      serviceEvidence: webEvidence,
+    };
   }
-  if (text.includes("seo") || text.includes("posicionamiento")) {
-    return serviceByName(/seo|posicionamiento/i);
+  const seoEvidence = evidenceFor(/\bseo\b|posicionamiento/i);
+  if (seoEvidence) {
+    return {
+      serviceId: serviceByName(/seo|posicionamiento/i),
+      serviceEvidence: seoEvidence,
+    };
   }
-  return null;
+
+  // US29 reproduce deliberadamente un proveedor sobreconfiado: intenta usar
+  // el primer servicio ante saludo, identidad o consulta genérica. El guard
+  // del servidor debe rechazarlo aunque el ID pertenezca a la allowlist.
+  const prematureEvidence = evidenceFor(
+    /^(?:Cliente:\s*)?(?:hola(?:,? quisiera información)?|soy\s+[\p{L}\s'-]+|quisiera información)$/iu
+  );
+  if (prematureEvidence && serviceRows[0]?.[1]) {
+    return {
+      serviceId: serviceRows[0][1],
+      serviceEvidence: prematureEvidence,
+    };
+  }
+
+  return { serviceId: null, serviceEvidence: null };
 }
 
 export function aiMockCompletion(messages: InMessage[]): string {
@@ -121,7 +151,10 @@ export function aiMockCompletion(messages: InMessage[]): string {
       .split("\n")
       .filter((line) => line.startsWith("Cliente:"))
       .join("\n");
-    const serviceId = mockServiceId(system, clientEvidence);
+    const { serviceId, serviceEvidence } = mockServiceDetection(
+      system,
+      clientEvidence
+    );
     return JSON.stringify({
       contactName: nombre?.[1] ?? null,
       businessName: negocio ? `Panadería ${negocio[1]}` : null,
@@ -135,11 +168,33 @@ export function aiMockCompletion(messages: InMessage[]): string {
         ? `Dueño de Panadería ${negocio[1]}; busca una página web para vender en línea.`
         : null,
       serviceId,
+      serviceEvidence,
     });
   }
 
   const text = lastUser.toLowerCase();
-  const serviceId = mockServiceId(system, lastUser);
+  const { serviceId, serviceEvidence } = mockServiceDetection(system, lastUser);
+
+  if (
+    serviceId &&
+    (/^hola(?:,? quisiera información)?[.!]?$/iu.test(lastUser.trim()) ||
+      /^soy\s+[\p{L}'-]+(?:\s+[\p{L}'-]+){0,3}[.!]?$/iu.test(
+        lastUser.trim()
+      ) ||
+      /^quisiera información[.!]?$/iu.test(lastUser.trim()))
+  ) {
+    const qualificationReply = /^soy\s+/iu.test(lastUser.trim())
+      ? "Mucho gusto. ¿Qué servicio o necesidad concreta tienes?"
+      : /^quisiera información/iu.test(lastUser.trim())
+        ? "Claro. ¿Sobre qué servicio o necesidad concreta buscas información?"
+        : "Para orientarte bien, ¿qué servicio o necesidad concreta tienes?";
+    return JSON.stringify({
+      action: "reply",
+      text: qualificationReply,
+      serviceId,
+      serviceEvidence,
+    });
+  }
 
   // 007: el turno trae una imagen. Se responde citando su contenido para que
   // el self-test pueda comprobar que el modelo la recibió de verdad.
@@ -148,7 +203,7 @@ export function aiMockCompletion(messages: InMessage[]): string {
     return JSON.stringify({
       action: "reply",
       text: `Veo en la imagen: ${imageMatch[1]?.trim()}. ¿Cómo te ayudo con eso?`,
-      ...(serviceId ? { serviceId } : {}),
+      ...(serviceId ? { serviceId, serviceEvidence } : {}),
     });
   }
 
@@ -285,6 +340,6 @@ export function aiMockCompletion(messages: InMessage[]): string {
   return JSON.stringify({
     action: "reply",
     text: `Respuesta de prueba sobre: ${eco}`,
-    ...(serviceId ? { serviceId } : {}),
+    ...(serviceId ? { serviceId, serviceEvidence } : {}),
   });
 }
