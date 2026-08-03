@@ -23,3 +23,22 @@ export function isEligibleServiceAssignee(
       isCommercialMemberRole(member.role)
   );
 }
+
+export type ServiceCatalogEntry = {
+  id: string;
+  name: string;
+};
+
+/**
+ * Resuelve la clasificación del LLM contra la allowlist REAL de la empresa.
+ * Se acepta únicamente el ID exacto: nunca hacemos fuzzy matching con una
+ * salida inventada porque una asignación incorrecta es peor que preguntar.
+ */
+export function resolveDetectedService<T extends ServiceCatalogEntry>(
+  requestedId: string | null | undefined,
+  services: readonly T[]
+): T | null {
+  const id = requestedId?.trim();
+  if (!id) return null;
+  return services.find((service) => service.id === id) ?? null;
+}

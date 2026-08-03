@@ -42,6 +42,11 @@ import {
   type CalendarSettings,
 } from "@/server/org-settings";
 import type { SchedulingContext } from "@/server/ai/prompts";
+import {
+  listServiceRoutingOptions,
+  routeUnclassifiedLeadByService,
+} from "@/server/services/ai-routing";
+import { resolveDetectedService } from "@/server/services/assignment";
 
 /** Etiqueta legible de una fecha en la zona del negocio. */
 function formatInTz(d: Date, timezone: string): string {
@@ -406,6 +411,7 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
     .from(schema.pipelineStage)
     .where(eq(schema.pipelineStage.organizationId, organizationId))
     .orderBy(asc(schema.pipelineStage.position));
+  const services = await listServiceRoutingOptions(organizationId);
 
   // 004: la acción schedule_meeting solo se ofrece con Calendar conectado y
   // NUNCA en el sandbox del Laboratorio (una evaluación no crea eventos).
@@ -445,6 +451,7 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
         profile,
         kb,
         stages,
+        services,
         calendarAvailable,
         scheduling,
         contactEmail: knownEmail,
@@ -474,6 +481,27 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
   }
 
   let action: AgentActionType = result.data;
+
+  // Clasificación embebida en el turno principal: aprovecha texto, audio e
+  // imagen sin otra llamada. La pasada de ficha posterior actúa como segundo
+  // intento cuando el agente está pausado/handoff o el modelo la omite.
+  const detectedService = resolveDetectedService(action.serviceId, services);
+  if (detectedService && !conversation.isTest) {
+    try {
+      await routeUnclassifiedLeadByService({
+        organizationId,
+        contactId: conversation.contactId,
+        conversationId,
+        serviceId: detectedService.id,
+      });
+    } catch (err) {
+      // El enrutamiento es enriquecimiento: una falla nunca impide responder.
+      console.error(
+        `[servicio-ia] no se pudo aplicar ${detectedService.id} en ${conversationId}:`,
+        err
+      );
+    }
+  }
 
   if (action.action === "move_stage") {
     const stage = resolveStage(action.stage, stages);

@@ -126,7 +126,12 @@ function watchPage(page) {
       role: "commercial",
     },
   });
-  assert(createMate.ok(), "compañero creado", `${createMate.status()}`);
+  const createMateBody = await body(createMate);
+  assert(
+    createMate.ok(),
+    "compañero creado",
+    `${createMate.status()} ${JSON.stringify(createMateBody)}`
+  );
   const teammate = await request.newContext({ baseURL });
   const teammateLogin = await teammate.post("/api/auth/sign-in/email", {
     data: { email: teammateEmail, password },

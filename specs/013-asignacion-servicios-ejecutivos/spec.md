@@ -98,6 +98,40 @@ sin errores ni datos de otra empresa.
    modifican datos, **Then** nunca ven ni pueden seleccionar servicios,
    ejecutivos o prospectos de otra organización.
 
+---
+
+### User Story 4 - Enrutar conversaciones iniciadas por el cliente (Priority: P1)
+
+Como administrador, quiero que la IA identifique entre los servicios
+configurados cuál corresponde a la necesidad expresada en WhatsApp y asigne el
+prospecto a su ejecutivo, para que los contactos que escriben primero no queden
+sin responsable por no venir de un formulario de Meta.
+
+**Independent Test**: Con «Desarrollo web» asignado a una ejecutiva, un contacto
+nuevo escribe que necesita una tienda virtual; después del turno de IA, la
+Bandeja muestra ese servicio y esa ejecutiva y ella recibe una sola
+notificación. Un mensaje ambiguo no se asigna a ciegas y el siguiente mensaje
+con suficiente contexto completa la asignación.
+
+**Acceptance Scenarios**:
+
+1. **Given** una conversación directa sin servicio, **When** el historial
+   identifica inequívocamente uno de los servicios configurados, **Then** la IA
+   persiste ese servicio y copia su responsable vigente al prospecto.
+2. **Given** un servicio detectado con responsable elegible, **When** se aplica
+   por primera vez, **Then** el ejecutivo recibe una sola notificación
+   navegable y la Bandeja se actualiza por SSE.
+3. **Given** un mensaje insuficiente o un identificador inventado por el
+   proveedor, **When** no existe coincidencia exacta con el catálogo de la
+   organización, **Then** no se asigna a ciegas ni se bloquea la conversación.
+4. **Given** un prospecto ya clasificado por Lead Ads, **When** la IA analiza la
+   conversación, **Then** no reemplaza su servicio ni responsable histórico.
+5. **Given** un prospecto transferido manualmente antes de clasificar el
+   servicio, **When** la IA identifica el servicio, **Then** guarda el servicio
+   pero conserva la transferencia humana.
+6. **Given** audios o imágenes convertidos en contexto textual, **When** allí se
+   evidencia la necesidad, **Then** participan en la misma clasificación.
+
 ### Edge Cases
 
 - Si un ejecutivo cambia a un rol no comercial, deja de ser seleccionable y
@@ -114,6 +148,10 @@ sin errores ni datos de otra empresa.
   comercial se rechaza.
 - Si la notificación falla, el prospecto y su asignación permanecen guardados y
   el flujo de ingreso no se bloquea.
+- La detección se reintenta en turnos posteriores mientras el prospecto siga
+  sin servicio; una salida ambigua o inválida del LLM nunca elige por descarte.
+- Una asignación manual tiene prioridad sobre el responsable automático del
+  servicio. La IA puede completar el servicio faltante sin pisar al humano.
 
 ## Requirements
 
@@ -149,6 +187,19 @@ sin errores ni datos de otra empresa.
   bloquear el ingreso del prospecto.
 - **FR-015**: La funcionalidad MUST reutilizar las dependencias existentes y no
   agregar servicios externos de runtime.
+- **FR-016**: El contexto del agente MUST incluir el catálogo de servicios de la
+  organización y pedir una pregunta de calificación cuando aún no sea posible
+  distinguirlos.
+- **FR-017**: La pasada de enriquecimiento posterior al turno MUST devolver
+  cero o un identificador exacto del catálogo y resolverlo contra una allowlist
+  tenant-safe antes de persistirlo.
+- **FR-018**: La detección directa MUST escribir servicio y responsable solo
+  mientras el prospecto no tenga servicio, preservando asignaciones manuales y
+  atribuciones previas de Lead Ads.
+- **FR-019**: La primera asignación automática por IA MUST publicar la
+  actualización y notificar una sola vez al ejecutivo elegible.
+- **FR-020**: Un fallo, salida ambigua o servicio inexistente del proveedor MUST
+  degradar sin asignación incorrecta y permitir reintentar en otro turno.
 
 ### Key Entities
 
@@ -178,14 +229,20 @@ sin errores ni datos de otra empresa.
   operación ni cruzar datos.
 - **SC-006**: La configuración y los indicadores son utilizables sin
   desplazamiento horizontal en anchos de 375, 768 y 1440 píxeles.
+- **SC-007**: Una conversación directa con necesidad inequívoca queda asociada
+  al servicio y ejecutivo correctos antes de cinco segundos después del turno
+  de IA, sin intervención manual.
+- **SC-008**: Reanalizar diez veces un prospecto ya clasificado produce cero
+  cambios de responsable y una sola notificación de asignación.
 
 ## Assumptions
 
 - Se amplía la sección “Servicios” que ya existe en el panel izquierdo en lugar
   de crear una segunda opción duplicada.
-- En esta versión, la fuente que permite conocer el servicio es el formulario
-  de Meta ya vinculado al servicio; conversaciones directas sin servicio
-  identificable permanecen sin servicio y sin responsable.
+- El formulario de Meta sigue siendo la fuente determinista y prioritaria. En
+  conversaciones directas, la IA clasifica contra los servicios configurados;
+  si aún no hay evidencia suficiente, pregunta y reintenta en el siguiente
+  turno en vez de inventar una asignación.
 - “Le llega al asesor” significa asignación persistente, visibilidad uniforme
   y notificación personal; no restringe la visibilidad del prospecto al resto
   del equipo.

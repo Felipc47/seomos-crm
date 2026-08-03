@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { flattenContent, hasImage } from "@/server/dev/ai-mock";
+import {
+  aiMockCompletion,
+  flattenContent,
+  hasImage,
+} from "@/server/dev/ai-mock";
 
 /**
  * El contenido multimodal (007) es el punto donde una regresión rompería en
@@ -41,5 +45,25 @@ describe("contenido multimodal (007)", () => {
         },
       ])
     ).toBe(true);
+  });
+
+  it("puede devolver servicio junto con la respuesta multimodal", () => {
+    const payload = "captura de una tienda virtual con carrito de compras";
+    const dataUri = `data:image/jpeg;base64,${Buffer.from(payload).toString("base64")}`;
+    const raw = aiMockCompletion([
+      {
+        role: "system",
+        content:
+          "SERVICIOS CONFIGURADOS (allowlist):\n- svc_web: Desarrollo web",
+      },
+      {
+        role: "user",
+        content: [{ type: "image_url", image_url: { url: dataUri } }],
+      },
+    ]);
+    expect(JSON.parse(raw)).toMatchObject({
+      action: "reply",
+      serviceId: "svc_web",
+    });
   });
 });

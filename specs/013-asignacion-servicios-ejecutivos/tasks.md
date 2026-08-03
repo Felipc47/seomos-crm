@@ -113,6 +113,31 @@ superficies y “Sin asignar” cuando corresponda.
 | FR-015 | T020–T023 |
 | SC-001–SC-006 | T011, T015, T019–T023 |
 
+---
+
+## Phase 7: Conversaciones directas — extensión 2026-08-02
+
+- [x] T024 Actualizar spec y diseño con precedencia Lead Ads/manual, allowlist
+  tenant-safe, idempotencia y degradación ambigua.
+- [x] T025 [P] Extender el prompt principal con el catálogo para que el agente
+  haga preguntas de calificación cuando el servicio aún no sea evidente.
+- [x] T026 Extender la pasada de ficha para devolver `serviceId` en la misma
+  llamada y resolverlo únicamente contra servicios de la organización.
+- [x] T027 Persistir servicio/responsable sin pisar Lead Ads ni transferencias,
+  publicar SSE y notificar una sola vez con fallo tolerante.
+- [x] T028 [P] Añadir unitarias para normalización/allowlist y adaptar el
+  proveedor IA mock a clasificación determinista e inválida.
+- [x] T029 Añadir E2E de WhatsApp directo: asignado, ambiguo→reintento,
+  transferencia preservada, notificación idempotente y regresión Lead Ads.
+- [x] T030 Ejecutar gate técnico completo y regresiones de IA, servicios,
+  gestión/asignación de chats; documentar resultados.
+
+| Requirement | Tasks |
+|---|---|
+| FR-016–FR-017 | T025–T026, T028 |
+| FR-018–FR-020 | T027–T030 |
+| SC-007–SC-008 | T029–T030 |
+
 ## Implementation Strategy
 
 1. Persistir la regla y la copia histórica.

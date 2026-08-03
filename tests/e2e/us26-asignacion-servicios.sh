@@ -240,7 +240,11 @@ async function createSession(name, email) {
   const laura = await waitFor(async () => {
     const response = await owner.get("/api/contacts?q=573100026001");
     if (!response.ok()) return null;
-    return (await response.json()).contacts[0] ?? null;
+    const contact = (await response.json()).contacts[0] ?? null;
+    return contact?.service?.name === "SEO" &&
+      contact?.assignee?.name === "Ana Comercial"
+      ? contact
+      : null;
   }, "Laura SEO no apareció en Contactos");
   assert(
     laura.service?.name === "SEO" &&
@@ -339,7 +343,8 @@ async function createSession(name, email) {
   assert(inboundWeb.ok(), "leadgen sin responsable no se bloquea");
   const diego = await waitFor(async () => {
     const response = await owner.get("/api/contacts?q=573100026002");
-    return (await response.json()).contacts[0] ?? null;
+    const contact = (await response.json()).contacts[0] ?? null;
+    return contact?.service?.name === "Desarrollo web" ? contact : null;
   }, "Diego Web no apareció");
   assert(
     diego.service?.name === "Desarrollo web" && diego.assignee === null,

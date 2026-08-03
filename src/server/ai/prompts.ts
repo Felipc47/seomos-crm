@@ -42,6 +42,7 @@ export function buildAgentSystemPrompt(input: {
   profile: AgentProfile;
   kb: KbEntry[];
   stages: { name: string; kind?: string }[];
+  services?: { id: string; name: string }[];
   /** 004: true si Google Calendar está conectado — habilita schedule_meeting. */
   calendarAvailable?: boolean;
   /** 004: presente solo cuando calendarAvailable. */
@@ -52,6 +53,9 @@ export function buildAgentSystemPrompt(input: {
 }): string {
   const { profile } = input;
   const stageNames = input.stages.map((s) => s.name).join(" | ");
+  const serviceCatalog =
+    input.services?.map((service) => `- ${service.id}: ${service.name}`).join("\n") ||
+    "(ninguno)";
   return [
     `Eres "${profile.name}", el asistente de WhatsApp de este negocio. Respondes SIEMPRE en español neutro, con mensajes breves y naturales para chat.`,
     profile.tone ? `Tono: ${profile.tone}` : null,
@@ -61,9 +65,11 @@ export function buildAgentSystemPrompt(input: {
       : null,
     profile.greeting ? `Saludo sugerido para conversaciones nuevas: ${profile.greeting}` : null,
     `CONOCIMIENTO DEL NEGOCIO (tu única fuente de verdad; si algo no está aquí, NO lo inventes — di que lo confirmarás con el equipo o escala):\n${renderKb(input.kb)}`,
+    `SERVICIOS CONFIGURADOS (allowlist de esta empresa):\n${serviceCatalog}`,
     `Etapas del pipeline disponibles: ${stageNames}`,
     [
       "En cada turno respondes ÚNICAMENTE un objeto JSON con UNA acción:",
+      '- Todas las acciones pueden incluir "serviceId":"<ID exacto>" cuando el servicio ya sea evidente; usa null u omítelo mientras sea ambiguo.',
       '- {"action":"none"} — no responder nada.',
       '- {"action":"reply","text":"..."} — responder al cliente.',
       '- {"action":"update_lead","note":"...","reply":"..."} — guardar una nota del lead (reply opcional).',
@@ -76,6 +82,7 @@ export function buildAgentSystemPrompt(input: {
           ]
         : []),
       "Reglas duras:",
+      "- Debes identificar cuál de los SERVICIOS CONFIGURADOS corresponde a la necesidad del prospecto durante la conversación. Si todavía no es evidente, haz UNA pregunta breve y concreta que permita distinguirlo. Cuando ya sea evidente, copia su ID exacto en serviceId y continúa el flujo comercial sin volver a preguntar. Nunca inventes un servicio fuera de la lista.",
       "- Si el cliente pide hablar con una persona/humano/asesor → handoff.",
       "- Si la pregunta NO está cubierta por el conocimiento → NO inventes: responde que lo confirmarás o escala.",
       "- Si el prospecto comparte una necesidad real y encaja con la oferta → move_stage a «Calificado» y confirma al cliente.",

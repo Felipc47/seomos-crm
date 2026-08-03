@@ -43,6 +43,29 @@ export function hasImage(messages: InMessage[]): boolean {
   );
 }
 
+function mockServiceId(system: string, transcript: string): string | null {
+  const text = transcript.toLowerCase();
+  const serviceRows = [...system.matchAll(/^- (svc_[^:\s]+): (.+)$/gm)];
+  const serviceByName = (pattern: RegExp) =>
+    serviceRows.find((row) => pattern.test(row[2] ?? ""))?.[1] ?? null;
+  if (text.includes("servicio fantasma")) {
+    return "svc_inventado_fuera_de_allowlist";
+  }
+  if (
+    text.includes("página web") ||
+    text.includes("pagina web") ||
+    text.includes("tienda virtual") ||
+    text.includes("carrito de compras") ||
+    text.includes("joomla")
+  ) {
+    return serviceByName(/desarrollo\s*web|tienda|e-?commerce/i);
+  }
+  if (text.includes("seo") || text.includes("posicionamiento")) {
+    return serviceByName(/seo|posicionamiento/i);
+  }
+  return null;
+}
+
 export function aiMockCompletion(messages: InMessage[]): string {
   const system = flattenContent(
     messages.find((m) => m.role === "system")?.content ?? ""
@@ -94,6 +117,11 @@ export function aiMockCompletion(messages: InMessage[]): string {
     const t = lastUser.toLowerCase();
     const negocio = /panader[íi]a\s+([\wáéíóúñ]+)/i.exec(lastUser);
     const nombre = /me llamo\s+([A-Za-zÁÉÍÓÚÑáéíóúñ]+)/i.exec(lastUser);
+    const clientEvidence = lastUser
+      .split("\n")
+      .filter((line) => line.startsWith("Cliente:"))
+      .join("\n");
+    const serviceId = mockServiceId(system, clientEvidence);
     return JSON.stringify({
       contactName: nombre?.[1] ?? null,
       businessName: negocio ? `Panadería ${negocio[1]}` : null,
@@ -106,10 +134,12 @@ export function aiMockCompletion(messages: InMessage[]): string {
       summary: negocio
         ? `Dueño de Panadería ${negocio[1]}; busca una página web para vender en línea.`
         : null,
+      serviceId,
     });
   }
 
   const text = lastUser.toLowerCase();
+  const serviceId = mockServiceId(system, lastUser);
 
   // 007: el turno trae una imagen. Se responde citando su contenido para que
   // el self-test pueda comprobar que el modelo la recibió de verdad.
@@ -118,6 +148,7 @@ export function aiMockCompletion(messages: InMessage[]): string {
     return JSON.stringify({
       action: "reply",
       text: `Veo en la imagen: ${imageMatch[1]?.trim()}. ¿Cómo te ayudo con eso?`,
+      ...(serviceId ? { serviceId } : {}),
     });
   }
 
@@ -243,9 +274,17 @@ export function aiMockCompletion(messages: InMessage[]): string {
     });
   }
 
+  if (/^- svc_[^:\s]+: .+$/m.test(system) && !serviceId) {
+    return JSON.stringify({
+      action: "reply",
+      text: "Para orientarte bien, ¿qué necesitas exactamente: desarrollo web, SEO u otro servicio?",
+    });
+  }
+
   const eco = lastUser.slice(0, 80);
   return JSON.stringify({
     action: "reply",
     text: `Respuesta de prueba sobre: ${eco}`,
+    ...(serviceId ? { serviceId } : {}),
   });
 }

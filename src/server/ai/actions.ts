@@ -1,17 +1,28 @@
 import { z } from "zod";
 
+const serviceDetection = {
+  /** Servicio inferido en este mismo turno (incluye visión); el servidor lo
+   * resuelve contra la allowlist antes de cualquier escritura. */
+  serviceId: z.string().nullable().optional(),
+};
+
 /**
  * Acción tipada del agente: exactamente UNA por turno (FR-021).
  * El servidor valida cada acción contra sus allowlists (etapas de la org);
  * lo que no valida se degrada, nunca se ejecuta a ciegas.
  */
 export const AgentAction = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("none") }),
-  z.object({ action: z.literal("reply"), text: z.string().min(1) }),
+  z.object({ action: z.literal("none"), ...serviceDetection }),
+  z.object({
+    action: z.literal("reply"),
+    text: z.string().min(1),
+    ...serviceDetection,
+  }),
   z.object({
     action: z.literal("update_lead"),
     note: z.string().min(1),
     reply: z.string().optional(),
+    ...serviceDetection,
   }),
   z.object({
     action: z.literal("move_stage"),
@@ -19,11 +30,13 @@ export const AgentAction = z.discriminatedUnion("action", [
     /** Código obligatorio al cerrar en No calificado/No convertido. */
     reason: z.string().optional(),
     reply: z.string().optional(),
+    ...serviceDetection,
   }),
   z.object({
     action: z.literal("handoff"),
     reason: z.string().optional(),
     farewell: z.string().optional(),
+    ...serviceDetection,
   }),
   // 008: el cliente pidió que lo contacten más tarde → rutina de seguimiento.
   z.object({
@@ -33,6 +46,7 @@ export const AgentAction = z.discriminatedUnion("action", [
      * el default de 12 horas. */
     datetime: z.string().optional(),
     reply: z.string().optional(),
+    ...serviceDetection,
   }),
   // 004: agendar la sesión de diagnóstico en Google Calendar. Solo se ofrece
   // al modelo cuando la conexión de Calendar está activa (ver prompts.ts).
@@ -48,6 +62,7 @@ export const AgentAction = z.discriminatedUnion("action", [
     clientOk: z.string().optional(),
     title: z.string().optional(),
     reply: z.string().optional(),
+    ...serviceDetection,
   }),
 ]);
 

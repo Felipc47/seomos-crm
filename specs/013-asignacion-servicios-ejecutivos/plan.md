@@ -116,6 +116,17 @@ ingesta leadgen conserva la autoridad sobre el enrutamiento.
    común `{ service, assignee }`; las tarjetas muestran chips compactos.
 8. La sección Servicios incorpora un selector por tarjeta y la sección Equipo
    muestra los servicios asignados a cada ejecutivo.
+9. Las conversaciones directas clasifican sin llamadas adicionales: el turno
+   principal puede devolver `serviceId` junto con cualquier acción (incluida
+   visión) y la pasada de ficha posterior reintenta con la misma allowlist si
+   la IA estaba pausada, en handoff o había omitido la clasificación.
+10. La persistencia de la detección es condicional (`service_id IS NULL`) e
+    idempotente. Copia el responsable elegible solo si el lead también estaba
+    sin responsable, de modo que Lead Ads y las transferencias humanas tienen
+    prioridad.
+11. La primera aplicación publica `conversation.updated` y notifica al
+    ejecutivo; respuestas inválidas, ambiguas o fallos del enriquecimiento no
+    interrumpen el turno y se vuelven a intentar con más contexto.
 
 ## Complexity Tracking
 
@@ -125,10 +136,21 @@ prospecto.
 
 ## Verification Results
 
-- Gate técnico completo: `typecheck`, `lint`, `build` y 183 pruebas en 34
+- Gate técnico completo: `typecheck`, `lint`, `build` y 194 pruebas en 36
   archivos, todo verde.
 - E2E US26: 46 verificaciones del flujo de asignación, aislamiento,
   idempotencia, notificación tolerante a fallos, cambios de rol y responsive.
-- Regresiones: US20 (35/35), US8 (14/14) y US24 (41/41), todas verdes.
+- E2E US29: 30 verificaciones de conversación directa, ambigüedad, allowlist,
+  transferencia humana, notificación tolerante a fallos, Lead Ads y Bandeja.
+- Regresiones: IA reactiva US25 (37/37) y asignación de chats US28 (58/58),
+  ambas verdes.
 - Revisión interactiva en Chrome: creación de ejecutiva y servicio, asignación
-  persistente, resumen en Equipo, consola limpia y sin overflow.
+  directa visible en Bandeja, consola limpia y sin overflow.
+
+## Extension 2026-08-02 — clasificación de conversaciones directas
+
+La ampliación no requiere migración ni proveedor adicional. Modifica el prompt
+del agente para que conozca el catálogo y extiende el enriquecimiento de ficha
+para clasificar el servicio en la misma llamada económica. La verificación
+añade ingreso directo, ambigüedad, reintento, transferencia manual, fallo de
+notificación y regresión del flujo Lead Ads.

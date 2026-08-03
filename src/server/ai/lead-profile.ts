@@ -3,6 +3,12 @@ import { z } from "zod";
 import { getDb, schema } from "@/lib/db";
 import { chatJson, type ChatMessage } from "@/lib/ai";
 import { publish } from "@/server/events/bus";
+import { resolveDetectedService } from "@/server/services/assignment";
+import {
+  listServiceRoutingOptions,
+  routeUnclassifiedLeadByService,
+  type ServiceRoutingOption,
+} from "@/server/services/ai-routing";
 
 /**
  * Ficha del lead extraída por IA de la conversación.
@@ -34,6 +40,11 @@ export const LeadProfile = z.object({
   summary: z.string().nullable().optional(),
 });
 export type LeadProfileType = z.infer<typeof LeadProfile>;
+
+const LeadEnrichment = LeadProfile.extend({
+  /** ID exacto de la allowlist incluida en el prompt; null = aún ambiguo. */
+  serviceId: z.string().nullable().optional(),
+});
 
 /** ¿La ficha aporta algo? Evita guardar un objeto vacío que ensucie la UI. */
 export function isProfileUseful(p: LeadProfileType): boolean {
@@ -76,24 +87,42 @@ export function normalizeProfile(
   };
 }
 
-const SYSTEM_PROMPT = [
-  "Eres un analista de CRM. Lees la conversación de WhatsApp entre un negocio y",
-  "un prospecto, y extraes una ficha del PROSPECTO para que el equipo comercial",
-  "entienda el caso de un vistazo.",
-  "",
-  "Devuelves ÚNICAMENTE un objeto JSON con estas claves:",
-  '{"contactName":"...","businessName":"...","businessType":"...",',
-  '"needs":["..."],"budget":"...","timeline":"...","summary":"..."}',
-  "",
-  "Reglas:",
-  "- SOLO información dicha explícitamente en la conversación. NO inventes ni",
-  "  supongas: si un dato no aparece, pon null (y [] en needs).",
-  "- `contactName`: cómo se llama la persona SI lo dijo en el chat.",
-  "- `businessName` y `businessType`: el negocio DEL PROSPECTO, nunca el nuestro.",
-  "- `needs`: qué pide o necesita, en frases cortas y concretas.",
-  "- `summary`: una o dos frases en español, en tercera persona.",
-  "- JSON puro, sin markdown ni texto adicional.",
-].join("\n");
+export function buildLeadEnrichmentPrompt(
+  services: readonly ServiceRoutingOption[]
+): string {
+  const catalog = services.length
+    ? services.map((service) => `- ${service.id}: ${service.name}`).join("\n")
+    : "(no hay servicios configurados)";
+  return [
+    "Eres un analista de CRM. Lees la conversación de WhatsApp entre un negocio y",
+    "un prospecto, extraes su ficha e identificas el servicio comercial que",
+    "corresponde a su necesidad.",
+    "",
+    "Devuelves ÚNICAMENTE un objeto JSON con estas claves:",
+    '{"contactName":"...","businessName":"...","businessType":"...",',
+    '"needs":["..."],"budget":"...","timeline":"...","summary":"...",',
+    '"serviceId":"svc_... o null"}',
+    "",
+    "SERVICIOS DISPONIBLES (allowlist de esta empresa):",
+    catalog,
+    "",
+    "Reglas:",
+    "- SOLO información dicha explícitamente en la conversación. NO inventes ni",
+    "  supongas: si un dato no aparece, pon null (y [] en needs).",
+    "- `contactName`: cómo se llama la persona SI lo dijo en el chat.",
+    "- `businessName` y `businessType`: el negocio DEL PROSPECTO, nunca el nuestro.",
+    "- `needs`: qué pide o necesita, en frases cortas y concretas.",
+    "- `summary`: una o dos frases en español, en tercera persona.",
+    "- `serviceId`: copia el ID exacto de UN servicio solo cuando la necesidad",
+    "  expresada encaja claramente. Puedes inferir sinónimos y tecnologías dentro",
+    "  de una categoría (por ejemplo, una tienda virtual o Joomla pueden encajar",
+    "  en Desarrollo web). Si faltan datos, hay empate o no encaja, usa null.",
+    "- Para serviceId usa evidencia de las líneas `Cliente:`. No clasifiques por",
+    "  una alternativa que el `Negocio:` apenas sugirió y el cliente no confirmó.",
+    "- NUNCA devuelvas un ID que no aparezca en la lista.",
+    "- JSON puro, sin markdown ni texto adicional.",
+  ].join("\n");
+}
 
 /**
  * Recalcula la ficha del contacto a partir del historial y la persiste.
@@ -115,19 +144,34 @@ export async function refreshLeadProfile(input: {
     .map((m) => `${m.direction === "in" ? "Cliente" : "Negocio"}: ${m.text}`)
     .join("\n");
 
+  const services = await listServiceRoutingOptions(input.organizationId);
   const messages: ChatMessage[] = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: buildLeadEnrichmentPrompt(services) },
     { role: "user", content: `Conversación:\n${transcript}` },
   ];
 
   // `judge: true` usa el modelo barato si hay uno configurado.
-  const result = await chatJson(LeadProfile, messages, { judge: true });
+  const result = await chatJson(LeadEnrichment, messages, { judge: true });
   if (!result.ok) {
     console.warn(`[ficha-lead] no se pudo extraer: ${result.error}`);
     return null;
   }
 
   const profile = normalizeProfile(result.data);
+  const detectedService = resolveDetectedService(
+    result.data.serviceId,
+    services
+  );
+
+  if (detectedService) {
+    await routeUnclassifiedLeadByService({
+      organizationId: input.organizationId,
+      contactId: input.contactId,
+      conversationId: input.conversationId,
+      serviceId: detectedService.id,
+    });
+  }
+
   if (!isProfileUseful(profile)) return null;
 
   const db = getDb();
