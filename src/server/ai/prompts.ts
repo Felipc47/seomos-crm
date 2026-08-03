@@ -19,6 +19,28 @@ export function renderKb(entries: KbEntry[]): string {
 }
 
 /**
+ * Extrae la última línea "[Meta Ads] …" de las notas del contacto (la escribe
+ * la ingesta de Lead Ads) para dar al agente el origen del lead sin exponerle
+ * las notas del operador. El segmento "Form: <id>" se descarta: es un id
+ * técnico que no aporta a la conversación.
+ */
+export function extractMetaAdsOrigin(
+  notes: string | null | undefined
+): string | null {
+  if (!notes) return null;
+  const line = [...notes.split("\n")]
+    .reverse()
+    .find((l) => l.trim().startsWith("[Meta Ads]"));
+  if (!line) return null;
+  const detail = line.trim().slice("[Meta Ads]".length).trim();
+  const parts = detail
+    .split("·")
+    .map((p) => p.trim())
+    .filter((p) => p && !p.startsWith("Form:"));
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+/**
  * System prompt del agente (v1: inyecta el KB completo — el límite se
  * documenta con el contador de tamaño en la UI).
  */
@@ -50,6 +72,13 @@ export function buildAgentSystemPrompt(input: {
   /** Correo YA conocido del contacto (Lead Ads o capturado antes): si existe,
    * el agente NO debe volver a pedirlo, solo confirmarlo. */
   contactEmail?: string | null;
+  /** Nombre YA conocido del prospecto — SOLO cuando él mismo lo escribió en
+   * un formulario de Meta Lead Ads. El nombre de perfil de WhatsApp NO se
+   * pasa aquí: no es confiable y en ese caso el agente debe preguntarlo. */
+  contactName?: string | null;
+  /** Origen del lead ("Servicio: … · Campaña: …") extraído de la nota que
+   * deja la ingesta de Lead Ads en el contacto. */
+  leadOrigin?: string | null;
 }): string {
   const { profile } = input;
   const stageNames = input.stages.map((s) => s.name).join(" | ");
@@ -64,6 +93,19 @@ export function buildAgentSystemPrompt(input: {
       ? `Reglas de escalado a humano:\n${profile.escalationRules}`
       : null,
     profile.greeting ? `Saludo sugerido para conversaciones nuevas: ${profile.greeting}` : null,
+    input.contactName || input.leadOrigin
+      ? [
+          "DATOS YA CONOCIDOS DE ESTE PROSPECTO (los escribió él mismo en un formulario de Meta Lead Ads — esta información PREVALECE sobre cualquier instrucción de pedirlos):",
+          input.contactName
+            ? `- Nombre: ${input.contactName}. YA conoces su nombre: NUNCA se lo preguntes. Salúdalo dirigiéndote a él por su primer nombre desde el primer mensaje.`
+            : null,
+          input.leadOrigin
+            ? `- Origen: ${input.leadOrigin}. NO le preguntes por qué anuncio o medio llegó ni qué servicio necesita si el origen ya lo indica: usa este contexto para continuar la conversación.`
+            : null,
+        ]
+          .filter(Boolean)
+          .join("\n")
+      : null,
     `CONOCIMIENTO DEL NEGOCIO (tu única fuente de verdad; si algo no está aquí, NO lo inventes — di que lo confirmarás con el equipo o escala):\n${renderKb(input.kb)}`,
     `SERVICIOS CONFIGURADOS (allowlist de esta empresa):\n${serviceCatalog}`,
     `Etapas del pipeline disponibles: ${stageNames}`,

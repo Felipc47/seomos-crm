@@ -21,7 +21,10 @@ import {
 } from "@/server/ai/schedule-confirm";
 import { refreshLeadProfile } from "@/server/ai/lead-profile";
 import { armFollowUp } from "@/server/ai/follow-up";
-import { buildAgentSystemPrompt } from "@/server/ai/prompts";
+import {
+  buildAgentSystemPrompt,
+  extractMetaAdsOrigin,
+} from "@/server/ai/prompts";
 import { isGoogleConfigured } from "@/lib/env";
 import {
   freeRangesByDay,
@@ -435,14 +438,34 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
     }
   }
 
-  // Correo ya conocido (Meta Lead Ads o capturado antes): sin esto el agente
-  // lo vuelve a pedir en cada reunión aunque ya esté en la ficha del contacto.
+  // Datos ya conocidos del contacto: sin esto el agente vuelve a pedir el
+  // correo o el nombre aunque ya estén en la ficha. El nombre solo se pasa
+  // cuando el propio prospecto lo escribió en un form de Meta Lead Ads — el
+  // nombre de perfil de WhatsApp (inbound_message) no es confiable y ahí el
+  // agente sí debe preguntarlo.
   const contactRows = await db
-    .select({ email: schema.contact.email })
+    .select({
+      name: schema.contact.name,
+      phone: schema.contact.phone,
+      email: schema.contact.email,
+      notes: schema.contact.notes,
+      consentSource: schema.contact.consentSource,
+    })
     .from(schema.contact)
     .where(eq(schema.contact.id, conversation.contactId))
     .limit(1);
-  const knownEmail = contactRows[0]?.email?.trim() || null;
+  const contactRow = contactRows[0];
+  const knownEmail = contactRow?.email?.trim() || null;
+  const fromLeadAds = contactRow?.consentSource === "meta_lead_ads";
+  const trimmedName = contactRow?.name?.trim() || null;
+  // Si el form no traía nombre, la ficha guarda el teléfono como nombre.
+  const knownName =
+    fromLeadAds && trimmedName && trimmedName !== contactRow?.phone
+      ? trimmedName
+      : null;
+  const leadOrigin = fromLeadAds
+    ? extractMetaAdsOrigin(contactRow?.notes)
+    : null;
 
   const messages: ChatMessage[] = [
     {
@@ -455,6 +478,8 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
         calendarAvailable,
         scheduling,
         contactEmail: knownEmail,
+        contactName: knownName,
+        leadOrigin,
       }),
     },
     ...(await buildHistoryMessages(organizationId, history)),
