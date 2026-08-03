@@ -1,5 +1,12 @@
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
+import {
+  INSTRUCTION_SECTION_KEYS,
+  MAX_TONE_PRESETS,
+  TONE_PRESET_IDS,
+  type InstructionSectionKey,
+  type TonePresetId,
+} from "@/lib/agent-behavior";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { isAiConfigured } from "@/lib/env";
@@ -24,7 +31,9 @@ export const GET = withAuth(async (session) => {
       enabled: p.enabled,
       name: p.name,
       tone: p.tone,
+      tonePresets: p.tonePresets ?? [],
       instructions: p.instructions,
+      instructionSections: p.instructionSections ?? {},
       escalationRules: p.escalationRules,
       greeting: p.greeting,
     },
@@ -36,9 +45,24 @@ const putSchema = z.object({
   enabled: z.boolean().optional(),
   name: z.string().trim().min(1).max(60).optional(),
   tone: z.string().max(1000).nullable().optional(),
+  tonePresets: z
+    .array(z.enum(TONE_PRESET_IDS as [TonePresetId, ...TonePresetId[]]))
+    .max(MAX_TONE_PRESETS)
+    .optional(),
   // Holgado a propósito: un playbook comercial completo cabe varias veces
   // (~8k tokens). El costo por turno lo gobierna el modelo elegido.
   instructions: z.string().max(128000).nullable().optional(),
+  instructionSections: z
+    .record(
+      z.enum(
+        INSTRUCTION_SECTION_KEYS as [
+          InstructionSectionKey,
+          ...InstructionSectionKey[],
+        ]
+      ),
+      z.string().max(64000)
+    )
+    .optional(),
   escalationRules: z.string().max(8000).nullable().optional(),
   greeting: z.string().max(2000).nullable().optional(),
 });

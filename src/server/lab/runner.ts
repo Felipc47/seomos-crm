@@ -1,5 +1,6 @@
 import { and, asc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { composeInstructions, composeTone } from "@/lib/agent-behavior";
 import { newId } from "@/lib/db/ids";
 import { publish } from "@/server/events/bus";
 import { runAgentTurn } from "@/server/ai/pipeline";
@@ -98,11 +99,16 @@ async function runAllCases(
     .where(eq(schema.agentProfile.organizationId, organizationId))
     .limit(1);
   const profile = profileRows[0];
+  const labTone = composeTone(profile?.tonePresets, profile?.tone);
+  const labInstructions = composeInstructions(
+    profile?.instructionSections,
+    profile?.instructions
+  );
   const behaviorText = profile
     ? [
         `Nombre: ${profile.name}`,
-        profile.tone ? `Tono: ${profile.tone}` : null,
-        profile.instructions ? `Instrucciones: ${profile.instructions}` : null,
+        labTone ? `Tono: ${labTone}` : null,
+        labInstructions ? `Instrucciones: ${labInstructions}` : null,
         profile.escalationRules ? `Escalado: ${profile.escalationRules}` : null,
       ]
         .filter(Boolean)

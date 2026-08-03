@@ -1,4 +1,5 @@
 import type { schema } from "@/lib/db";
+import { composeInstructions, composeTone } from "@/lib/agent-behavior";
 
 type AgentProfile = typeof schema.agentProfile.$inferSelect;
 type KbEntry = typeof schema.kbEntry.$inferSelect;
@@ -81,14 +82,19 @@ export function buildAgentSystemPrompt(input: {
   leadOrigin?: string | null;
 }): string {
   const { profile } = input;
+  const tone = composeTone(profile.tonePresets, profile.tone);
+  const instructions = composeInstructions(
+    profile.instructionSections,
+    profile.instructions
+  );
   const stageNames = input.stages.map((s) => s.name).join(" | ");
   const serviceCatalog =
     input.services?.map((service) => `- ${service.id}: ${service.name}`).join("\n") ||
     "(ninguno)";
   return [
     `Eres "${profile.name}", el asistente de WhatsApp de este negocio. Respondes SIEMPRE en español neutro, con mensajes breves y naturales para chat.`,
-    profile.tone ? `Tono: ${profile.tone}` : null,
-    profile.instructions ? `Instrucciones del negocio:\n${profile.instructions}` : null,
+    tone ? `Tono: ${tone}` : null,
+    instructions ? `Instrucciones del negocio:\n${instructions}` : null,
     profile.escalationRules
       ? `Reglas de escalado a humano:\n${profile.escalationRules}`
       : null,

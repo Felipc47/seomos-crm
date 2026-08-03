@@ -462,7 +462,15 @@ export const agentProfile = pgTable(
     enabled: boolean("enabled").notNull().default(false),
     name: text("name").notNull().default("Asistente"),
     tone: text("tone"),
+    /** Presets de tono elegidos en la UI (máx. 2, ids de TONE_PRESETS). Se
+     * componen con `tone` (matices libres) al armar el prompt. */
+    tonePresets: jsonb("tone_presets").$type<string[]>(),
     instructions: text("instructions"),
+    /** Entrenamiento por secciones guiadas (claves de INSTRUCTION_SECTIONS).
+     * Se compone con `instructions` (texto libre heredado) en el prompt. */
+    instructionSections: jsonb("instruction_sections").$type<
+      Record<string, string>
+    >(),
     escalationRules: text("escalation_rules"),
     greeting: text("greeting"),
     createdAt: timestamp("created_at").notNull().defaultNow(),

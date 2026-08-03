@@ -1,7 +1,30 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Sparkles, Trash2 } from "lucide-react";
+import {
+  BadgeDollarSign,
+  Briefcase,
+  CalendarClock,
+  Check,
+  ChevronDown,
+  FileText,
+  Hand,
+  ListChecks,
+  MessageCircleQuestion,
+  Plus,
+  ShieldAlert,
+  Sparkles,
+  Trash2,
+  type LucideIcon,
+} from "lucide-react";
+import {
+  INSTRUCTION_SECTIONS,
+  MAX_TONE_PRESETS,
+  TONE_PRESETS,
+  type AgentInstructionSections,
+  type InstructionSectionKey,
+} from "@/lib/agent-behavior";
+import { cn } from "@/lib/utils";
 import { SchedulingSection } from "@/components/agent/scheduling-section";
 import { FollowUpSection } from "@/components/agent/follow-up-section";
 import { Badge } from "@/components/ui/badge";
@@ -17,9 +40,21 @@ type Profile = {
   enabled: boolean;
   name: string;
   tone: string | null;
+  tonePresets: string[];
   instructions: string | null;
+  instructionSections: AgentInstructionSections;
   escalationRules: string | null;
   greeting: string | null;
+};
+
+/** Icono por sección de entrenamiento (solo presentación). */
+const SECTION_ICONS: Record<InstructionSectionKey, LucideIcon> = {
+  presentacion: Hand,
+  negocio: Briefcase,
+  calificacion: ListChecks,
+  precios: BadgeDollarSign,
+  agendamiento: CalendarClock,
+  reglas: ShieldAlert,
 };
 
 type KbEntry = {
@@ -143,7 +178,30 @@ function ProfileSection({
   onSave: (patch: Partial<Profile>) => Promise<void>;
 }) {
   const [form, setForm] = useState(profile);
+  const [openSection, setOpenSection] = useState<string | null>(null);
   useEffect(() => setForm(profile), [profile]);
+
+  function togglePreset(id: string) {
+    const selected = form.tonePresets.includes(id);
+    if (selected) {
+      setForm({
+        ...form,
+        tonePresets: form.tonePresets.filter((p) => p !== id),
+      });
+      return;
+    }
+    if (form.tonePresets.length >= MAX_TONE_PRESETS) return;
+    setForm({ ...form, tonePresets: [...form.tonePresets, id] });
+  }
+
+  function setSection(key: InstructionSectionKey, value: string) {
+    setForm({
+      ...form,
+      instructionSections: { ...form.instructionSections, [key]: value },
+    });
+  }
+
+  const toneFull = form.tonePresets.length >= MAX_TONE_PRESETS;
 
   return (
     <Card>
@@ -153,53 +211,274 @@ function ProfileSection({
           Cómo se presenta y actúa el agente al responder a tus clientes.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="agent-name">Nombre del agente</Label>
-          <Input
-            id="agent-name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
+      <CardContent className="space-y-6">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="agent-name">Nombre del agente</Label>
+            <Input
+              id="agent-name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="agent-greeting">Saludo</Label>
+            <Input
+              id="agent-greeting"
+              placeholder="Saludo para conversaciones nuevas"
+              value={form.greeting ?? ""}
+              onChange={(e) => setForm({ ...form, greeting: e.target.value })}
+            />
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="agent-tone">Tono</Label>
+
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between gap-2">
+            <Label>Tono</Label>
+            <span
+              className={cn(
+                "text-[11px] font-semibold",
+                toneFull ? "text-brand" : "text-mute"
+              )}
+            >
+              {form.tonePresets.length}/{MAX_TONE_PRESETS} elegidos
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Tonos preestablecidos">
+            {TONE_PRESETS.map((preset) => {
+              const selected = form.tonePresets.includes(preset.id);
+              const blocked = !selected && toneFull;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  aria-pressed={selected}
+                  title={preset.hint}
+                  onClick={() => togglePreset(preset.id)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-soft",
+                    selected
+                      ? "border-brand/40 bg-brand-tint text-brand shadow-sm"
+                      : "bg-surface-2 text-foreground hover:border-foreground/20",
+                    blocked && "cursor-not-allowed opacity-40"
+                  )}
+                >
+                  {selected && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+                  {preset.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[11.5px] text-mute">
+            Combina hasta {MAX_TONE_PRESETS}. Pasa el cursor sobre cada tono
+            para ver qué significa.
+          </p>
           <Input
             id="agent-tone"
-            placeholder="p. ej. cercano y directo, con usted"
+            placeholder="Matices propios (opcional): p. ej. usa emojis con moderación"
             value={form.tone ?? ""}
             onChange={(e) => setForm({ ...form, tone: e.target.value })}
           />
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="agent-instructions">Instrucciones</Label>
-          <Textarea
-            id="agent-instructions"
-            rows={20}
-            placeholder="Qué debe y no debe hacer el agente…"
-            value={form.instructions ?? ""}
-            onChange={(e) => setForm({ ...form, instructions: e.target.value })}
-          />
+
+        <div className="space-y-2">
+          <Label>Entrenamiento del agente</Label>
+          <p className="-mt-0.5 text-[11.5px] text-mute">
+            Divide las instrucciones por tema: el agente recibe cada sección
+            con su contexto y es mucho más fácil de mantener.
+          </p>
+          <div className="space-y-2">
+            {INSTRUCTION_SECTIONS.map((section) => {
+              const Icon = SECTION_ICONS[section.key];
+              const value = form.instructionSections[section.key] ?? "";
+              const filled = value.trim().length > 0;
+              const open = openSection === section.key;
+              return (
+                <div
+                  key={section.key}
+                  className={cn(
+                    "overflow-hidden rounded-xl border transition-colors",
+                    open ? "border-brand/35 bg-background" : "bg-surface-2",
+                    filled && !open && "border-brand/20"
+                  )}
+                >
+                  <button
+                    type="button"
+                    aria-expanded={open}
+                    onClick={() => setOpenSection(open ? null : section.key)}
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-soft"
+                  >
+                    <span
+                      className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border bg-surface text-mute shadow-sm",
+                        filled && "border-brand/25 text-brand"
+                      )}
+                    >
+                      <Icon className="h-4 w-4" strokeWidth={2.1} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13px] font-bold">
+                        {section.title}
+                      </span>
+                      <span className="block truncate text-[11px] text-mute">
+                        {filled
+                          ? `${value.trim().length.toLocaleString("es-CO")} caracteres`
+                          : section.description}
+                      </span>
+                    </span>
+                    {filled && (
+                      <span className="rounded-full bg-brand-tint px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-brand">
+                        Listo
+                      </span>
+                    )}
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 shrink-0 text-faint transition-transform",
+                        open && "rotate-180 text-brand"
+                      )}
+                      strokeWidth={2.2}
+                    />
+                  </button>
+                  {open && (
+                    <div className="border-t px-3 pb-3 pt-2.5">
+                      <p className="mb-2 text-[11.5px] text-mute">
+                        {section.description}
+                      </p>
+                      <Textarea
+                        aria-label={section.title}
+                        rows={8}
+                        placeholder={section.placeholder}
+                        value={value}
+                        onChange={(e) => setSection(section.key, e.target.value)}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            <div
+              className={cn(
+                "overflow-hidden rounded-xl border transition-colors",
+                openSection === "escalation"
+                  ? "border-brand/35 bg-background"
+                  : "bg-surface-2",
+                (form.escalationRules ?? "").trim() &&
+                  openSection !== "escalation" &&
+                  "border-brand/20"
+              )}
+            >
+              <button
+                type="button"
+                aria-expanded={openSection === "escalation"}
+                onClick={() =>
+                  setOpenSection(
+                    openSection === "escalation" ? null : "escalation"
+                  )
+                }
+                className="flex w-full items-center gap-3 px-3 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-soft"
+              >
+                <span
+                  className={cn(
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border bg-surface text-mute shadow-sm",
+                    (form.escalationRules ?? "").trim() &&
+                      "border-brand/25 text-brand"
+                  )}
+                >
+                  <MessageCircleQuestion className="h-4 w-4" strokeWidth={2.1} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-bold">
+                    Escalado a humano
+                  </span>
+                  <span className="block truncate text-[11px] text-mute">
+                    Cuándo pasar la conversación a una persona del equipo.
+                  </span>
+                </span>
+                {(form.escalationRules ?? "").trim() && (
+                  <span className="rounded-full bg-brand-tint px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-brand">
+                    Listo
+                  </span>
+                )}
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 shrink-0 text-faint transition-transform",
+                    openSection === "escalation" && "rotate-180 text-brand"
+                  )}
+                  strokeWidth={2.2}
+                />
+              </button>
+              {openSection === "escalation" && (
+                <div className="border-t px-3 pb-3 pt-2.5">
+                  <Textarea
+                    id="agent-escalation"
+                    aria-label="Escalado a humano"
+                    rows={4}
+                    placeholder="Cuándo pasar la conversación a un humano…"
+                    value={form.escalationRules ?? ""}
+                    onChange={(e) =>
+                      setForm({ ...form, escalationRules: e.target.value })
+                    }
+                  />
+                </div>
+              )}
+            </div>
+
+            {((form.instructions ?? "").trim() !== "" ||
+              openSection === "legacy") && (
+              <div
+                className={cn(
+                  "overflow-hidden rounded-xl border transition-colors",
+                  openSection === "legacy"
+                    ? "border-brand/35 bg-background"
+                    : "bg-surface-2 border-brand/20"
+                )}
+              >
+                <button
+                  type="button"
+                  aria-expanded={openSection === "legacy"}
+                  onClick={() =>
+                    setOpenSection(openSection === "legacy" ? null : "legacy")
+                  }
+                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-soft"
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border bg-surface text-brand shadow-sm">
+                    <FileText className="h-4 w-4" strokeWidth={2.1} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[13px] font-bold">
+                      Otras instrucciones (texto libre)
+                    </span>
+                    <span className="block truncate text-[11px] text-mute">
+                      {`${(form.instructions ?? "").trim().length.toLocaleString("es-CO")} caracteres — puedes repartirlo en las secciones de arriba`}
+                    </span>
+                  </span>
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 shrink-0 text-faint transition-transform",
+                      openSection === "legacy" && "rotate-180 text-brand"
+                    )}
+                    strokeWidth={2.2}
+                  />
+                </button>
+                {openSection === "legacy" && (
+                  <div className="border-t px-3 pb-3 pt-2.5">
+                    <Textarea
+                      id="agent-instructions"
+                      aria-label="Otras instrucciones"
+                      rows={14}
+                      value={form.instructions ?? ""}
+                      onChange={(e) =>
+                        setForm({ ...form, instructions: e.target.value })
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="agent-escalation">Reglas de escalado</Label>
-          <Textarea
-            id="agent-escalation"
-            rows={3}
-            placeholder="Cuándo pasar la conversación a un humano…"
-            value={form.escalationRules ?? ""}
-            onChange={(e) => setForm({ ...form, escalationRules: e.target.value })}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="agent-greeting">Saludo</Label>
-          <Input
-            id="agent-greeting"
-            placeholder="Saludo para conversaciones nuevas"
-            value={form.greeting ?? ""}
-            onChange={(e) => setForm({ ...form, greeting: e.target.value })}
-          />
-        </div>
+
         <Button onClick={() => void onSave(form)}>Guardar comportamiento</Button>
       </CardContent>
     </Card>

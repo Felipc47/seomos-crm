@@ -127,6 +127,13 @@
       "when": 1785683895514,
       "tag": "0017_gray_tempest",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1785781515454,
+      "tag": "0018_friendly_rick_jones",
+      "breakpoints": true
     }
   ]
 }

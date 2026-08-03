@@ -2,6 +2,7 @@ import { and, asc, desc, eq, isNull, lte } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@/lib/db";
 import { chatJson, type ChatMessage } from "@/lib/ai";
+import { composeInstructions, composeTone } from "@/lib/agent-behavior";
 import {
   addBusinessDays,
   atLocalTime,
@@ -275,14 +276,19 @@ async function composeFollowUpText(
     .map((m) => `${m.direction === "in" ? "CLIENTE" : "AGENTE"}: ${m.text}`)
     .join("\n");
 
+  const followUpTone = composeTone(profile?.tonePresets, profile?.tone);
+  const followUpInstructions = composeInstructions(
+    profile?.instructionSections,
+    profile?.instructions
+  );
   const messages: ChatMessage[] = [
     {
       role: "system",
       content: [
         `${FOLLOW_UP_MARKER} Eres "${profile?.name ?? "el asistente"}", el asistente de WhatsApp de este negocio. El cliente pidió que lo contactaran más tarde o dejó la conversación pendiente, y llegó el momento de retomarla.`,
-        profile?.tone ? `Tono: ${profile.tone}` : null,
-        profile?.instructions
-          ? `Instrucciones del negocio:\n${profile.instructions}`
+        followUpTone ? `Tono: ${followUpTone}` : null,
+        followUpInstructions
+          ? `Instrucciones del negocio:\n${followUpInstructions}`
           : null,
         `Escribe UN solo mensaje breve y natural de seguimiento para WhatsApp: saluda, retoma el tema pendiente de la conversación y facilita que responda. No inventes datos ni ofertas.`,
         `Respondes ÚNICAMENTE un objeto JSON: {"text":"..."} — sin markdown ni texto adicional.`,
