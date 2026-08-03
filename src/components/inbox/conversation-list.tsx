@@ -23,7 +23,8 @@ import {
   UserRoundX,
   UsersRound,
 } from "lucide-react";
-import type { ConversationDto } from "@/lib/types";
+import type { ConversationDto, InboxAssigneeOptionDto } from "@/lib/types";
+import { ROLE_LABELS, type Role } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
 import { LeadAssignmentBadges } from "@/components/lead-assignment-badges";
@@ -240,6 +241,7 @@ export function ConversationList({
   onAction,
   onTransfer,
   currentMemberId,
+  members,
   selectedActionIds,
   onSelectedActionIdsChange,
   selectionResetKey,
@@ -252,6 +254,7 @@ export function ConversationList({
   onAction: (action: InboxConversationAction, ids: string[]) => void;
   onTransfer: (id: string) => void;
   currentMemberId: string | null;
+  members: InboxAssigneeOptionDto[];
   selectedActionIds: string[];
   onSelectedActionIdsChange: (ids: string[]) => void;
   selectionResetKey: number;
@@ -259,9 +262,9 @@ export function ConversationList({
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "unread" | "archived">("all");
   const [stageFilter, setStageFilter] = useState("");
-  const [assigneeFilter, setAssigneeFilter] = useState<
-    "all" | "mine" | "unassigned"
-  >("all");
+  // "all" | "mine" | "unassigned" | memberId concreto (ids con prefijo, sin
+  // colisión posible con los valores reservados).
+  const [assigneeFilter, setAssigneeFilter] = useState("all");
   const [openFilter, setOpenFilter] = useState<"stage" | "assignee" | null>(
     null
   );
@@ -291,29 +294,42 @@ export function ConversationList({
     ],
     [colorFor, stages]
   );
-  const assigneeOptions: InboxFilterOption[] = [
-    {
-      value: "all",
-      label: "Todos los responsables",
-      shortLabel: "Todos",
-      description: "Ver conversaciones de todo el equipo",
-      icon: UsersRound,
-    },
-    {
-      value: "mine",
-      label: "Asignados a mí",
-      shortLabel: "Asignados a mí",
-      description: "Mi cola personal de atención",
-      icon: UserRound,
-      disabled: !currentMemberId,
-    },
-    {
-      value: "unassigned",
-      label: "Sin asignar",
-      description: "Conversaciones en la cola general",
-      icon: UserRoundX,
-    },
-  ];
+  const assigneeOptions = useMemo<InboxFilterOption[]>(
+    () => [
+      {
+        value: "all",
+        label: "Todos los responsables",
+        shortLabel: "Todos",
+        description: "Ver conversaciones de todo el equipo",
+        icon: UsersRound,
+      },
+      {
+        value: "mine",
+        label: "Asignados a mí",
+        shortLabel: "Asignados a mí",
+        description: "Mi cola personal de atención",
+        icon: UserRound,
+        disabled: !currentMemberId,
+      },
+      {
+        value: "unassigned",
+        label: "Sin asignar",
+        description: "Conversaciones en la cola general",
+        icon: UserRoundX,
+      },
+      // Cada persona del equipo como opción propia ("Asignados a mí" ya cubre
+      // al miembro actual, así que se omite para no duplicarlo).
+      ...members
+        .filter((member) => !member.isCurrent)
+        .map((member) => ({
+          value: member.memberId,
+          label: member.name,
+          description: ROLE_LABELS[member.role as Role] ?? "Equipo",
+          icon: UserRound,
+        })),
+    ],
+    [currentMemberId, members]
+  );
 
   const loading = conversationsProp === null;
   const conversations = conversationsProp ?? [];
@@ -324,7 +340,11 @@ export function ConversationList({
       (assigneeFilter === "mine" &&
         Boolean(currentMemberId) &&
         c.assignee?.memberId === currentMemberId) ||
-      (assigneeFilter === "unassigned" && !c.assignee)) &&
+      (assigneeFilter === "unassigned" && !c.assignee) ||
+      // Valor restante = memberId de una persona concreta del equipo.
+      (assigneeFilter !== "mine" &&
+        assigneeFilter !== "unassigned" &&
+        c.assignee?.memberId === assigneeFilter)) &&
     (!q ||
       c.contact.name.toLowerCase().includes(q) ||
       c.contact.phone.includes(q) ||
@@ -498,9 +518,7 @@ export function ConversationList({
             open={openFilter === "assignee"}
             align="right"
             onOpenChange={(open) => setOpenFilter(open ? "assignee" : null)}
-            onChange={(value) =>
-              setAssigneeFilter(value as "all" | "mine" | "unassigned")
-            }
+            onChange={setAssigneeFilter}
           />
         </div>
         {selecting && (

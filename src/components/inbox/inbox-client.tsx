@@ -546,6 +546,7 @@ export function InboxClient() {
           onAction={requestConversationAction}
           onTransfer={setTransferConversationId}
           currentMemberId={assignmentOptions?.currentMemberId ?? null}
+          members={assignmentOptions?.members ?? []}
           selectedActionIds={selectedActionIds}
           onSelectedActionIdsChange={setSelectedActionIds}
           selectionResetKey={selectionResetKey}

@@ -335,6 +335,23 @@ function watchPage(page) {
     !(await ownerPage.getByText("Cliente Bruno", { exact: true }).isVisible()),
     "Asignados a mí oculta chats ajenos"
   );
+  await chooseInboxFilter(
+    ownerPage,
+    "Filtrar por responsable",
+    "Bruno Comercial"
+  );
+  await ownerPage.getByText("Cliente Bruno", { exact: true }).waitFor();
+  assert(
+    !(await ownerPage.getByText("Cliente Propio", { exact: true }).isVisible()),
+    "el filtro por un compañero concreto muestra solo sus chats"
+  );
+  await chooseInboxFilter(
+    ownerPage,
+    "Filtrar por responsable",
+    "Asignados a mí"
+  );
+  await ownerPage.getByText("Cliente Propio", { exact: true }).waitFor();
+  ok("volver a Asignados a mí restaura la cola personal");
   const inboxSearch = ownerPage.getByRole("textbox", {
     name: "Buscar conversación",
   });
