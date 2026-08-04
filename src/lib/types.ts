@@ -159,4 +159,7 @@ export type AudienceFilterDto =
   | { mode: "all" }
   | { mode: "stages"; stageIds: string[] }
   | { mode: "services"; serviceIds: string[] }
+  /** Condiciones combinadas: dentro de cada dimensión es "cualquiera de";
+   * entre dimensiones es "Y" (p. ej. Desarrollo web Y etapa Interesado). */
+  | { mode: "filtered"; stageIds?: string[]; serviceIds?: string[] }
   | { mode: "manual"; contactIds: string[] };

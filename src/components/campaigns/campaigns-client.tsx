@@ -40,8 +40,17 @@ const AUDIENCE_LABEL: Record<AudienceFilterDto["mode"], string> = {
   all: "Todos los contactos",
   stages: "Por etapa del pipeline",
   services: "Por servicio",
+  filtered: "Combinar condiciones (etapa y servicio)",
   manual: "Selección manual",
 };
+
+/** Modos ofrecidos al crear: "filtered" reemplaza a los filtros de una sola
+ * dimensión (que siguen siendo válidos para campañas ya guardadas). */
+const AUDIENCE_MODES: AudienceFilterDto["mode"][] = [
+  "all",
+  "filtered",
+  "manual",
+];
 
 const selectClass =
   "h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -139,6 +148,12 @@ export function CampaignsClient() {
   function buildAudience(): AudienceFilterDto {
     if (mode === "stages") return { mode: "stages", stageIds };
     if (mode === "services") return { mode: "services", serviceIds };
+    if (mode === "filtered")
+      return {
+        mode: "filtered",
+        stageIds: stageIds.length > 0 ? stageIds : undefined,
+        serviceIds: serviceIds.length > 0 ? serviceIds : undefined,
+      };
     if (mode === "manual") return { mode: "manual", contactIds };
     return { mode: "all" };
   }
@@ -147,6 +162,7 @@ export function CampaignsClient() {
     mode === "all" ||
     (mode === "stages" && stageIds.length > 0) ||
     (mode === "services" && serviceIds.length > 0) ||
+    (mode === "filtered" && stageIds.length + serviceIds.length > 0) ||
     (mode === "manual" && contactIds.length > 0);
 
   useEffect(() => {
@@ -326,9 +342,7 @@ export function CampaignsClient() {
                 setMode(e.target.value as AudienceFilterDto["mode"])
               }
             >
-              {(
-                Object.keys(AUDIENCE_LABEL) as AudienceFilterDto["mode"][]
-              ).map((m) => (
+              {AUDIENCE_MODES.map((m) => (
                 <option key={m} value={m}>
                   {AUDIENCE_LABEL[m]}
                 </option>
@@ -368,6 +382,62 @@ export function CampaignsClient() {
                   {s.name}
                 </button>
               ))}
+            </div>
+          )}
+
+          {mode === "filtered" && (
+            <div className="flex flex-col gap-3 rounded-xl border border-border p-3.5">
+              <p className="text-[12.5px] text-mute">
+                El contacto debe cumplir <strong>todas</strong> las condiciones
+                elegidas; dentro de cada grupo basta con una opción. Ejemplo:
+                servicio «Desarrollo web» y etapa «Interesado».
+              </p>
+              <div className="flex flex-col gap-1.5">
+                <p className="text-[12px] font-extrabold uppercase tracking-wide text-faint">
+                  Etapa del prospecto
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {stages.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setStageIds((prev) => toggle(prev, s.id))}
+                      className={chipClass(stageIds.includes(s.id))}
+                    >
+                      {s.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <p className="text-[12px] font-extrabold uppercase tracking-wide text-faint">
+                  Servicio de interés
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {services.length === 0 && (
+                    <p className="text-[13px] text-mute">
+                      No hay servicios configurados todavía.
+                    </p>
+                  )}
+                  {services.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() =>
+                        setServiceIds((prev) => toggle(prev, s.id))
+                      }
+                      className={chipClass(serviceIds.includes(s.id))}
+                    >
+                      {s.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {stageIds.length + serviceIds.length === 0 && (
+                <p className="text-[12.5px] text-mute">
+                  Elige al menos una condición para calcular la audiencia.
+                </p>
+              )}
             </div>
           )}
 

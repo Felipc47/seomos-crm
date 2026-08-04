@@ -1,4 +1,5 @@
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, exists, inArray, isNull, or } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
@@ -21,6 +22,15 @@ export const audienceFilterSchema = z.discriminatedUnion("mode", [
   z.object({
     mode: z.literal("services"),
     serviceIds: z.array(z.string().min(1)).min(1).max(50),
+  }),
+  // Condiciones combinadas: dentro de cada dimensión "cualquiera de"; entre
+  // dimensiones "Y" (p. ej. servicio Desarrollo web Y etapa Interesado).
+  // Sin condiciones la audiencia resuelve VACÍA (el discriminatedUnion de zod
+  // v3 no admite .refine aquí; el resolver hace la guarda).
+  z.object({
+    mode: z.literal("filtered"),
+    stageIds: z.array(z.string().min(1)).max(50).optional(),
+    serviceIds: z.array(z.string().min(1)).max(50).optional(),
   }),
   z.object({
     mode: z.literal("manual"),
@@ -120,6 +130,62 @@ export async function resolveAudience(
         )
         .orderBy(asc(schema.contact.name));
       break;
+
+    case "filtered": {
+      const stageIds = filter.stageIds ?? [];
+      const serviceIds = filter.serviceIds ?? [];
+      if (stageIds.length === 0 && serviceIds.length === 0) {
+        rows = [];
+        break;
+      }
+      const conditions = [];
+      if (stageIds.length > 0) {
+        conditions.push(inArray(schema.lead.stageId, stageIds));
+      }
+      if (serviceIds.length > 0) {
+        // Servicio del lead (form vinculado o detección IA) O el camino
+        // histórico de Lead Ads (evento → formulario → servicio) para los
+        // contactos anteriores a que existiera lead.service_id.
+        const legacyLeadAds = db
+          .select({ one: sql`1` })
+          .from(schema.leadgenEvent)
+          .innerJoin(
+            schema.serviceForm,
+            and(
+              eq(schema.serviceForm.formId, schema.leadgenEvent.formId),
+              eq(schema.serviceForm.organizationId, organizationId)
+            )
+          )
+          .where(
+            and(
+              eq(schema.leadgenEvent.contactId, schema.contact.id),
+              eq(schema.leadgenEvent.organizationId, organizationId),
+              inArray(schema.serviceForm.serviceId, serviceIds)
+            )
+          );
+        conditions.push(
+          or(
+            inArray(schema.lead.serviceId, serviceIds),
+            exists(legacyLeadAds)
+          )!
+        );
+      }
+      rows = await db
+        .selectDistinct(columns)
+        .from(schema.contact)
+        .innerJoin(schema.lead, eq(schema.lead.contactId, schema.contact.id))
+        .where(
+          scoped(
+            schema.contact.organizationId,
+            organizationId,
+            elegible,
+            eq(schema.lead.organizationId, organizationId),
+            ...conditions
+          )
+        )
+        .orderBy(asc(schema.contact.name));
+      break;
+    }
 
     case "services":
       // contacto → evento de Lead Ads → formulario → servicio
