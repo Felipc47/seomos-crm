@@ -3,6 +3,7 @@ import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 import { publish } from "@/server/events/bus";
+import { notifyOrgApprovers, notifyUser } from "@/server/notifications";
 import { getOrCreateConversation } from "@/server/inbox/ingest";
 import { countVariables, sendTemplate } from "@/server/whatsapp/templates";
 import {
@@ -151,7 +152,8 @@ export async function createCampaign(
 /** Pone la campaña en marcha y despacha en segundo plano (fire-and-forget). */
 export async function startCampaign(
   organizationId: string,
-  campaignId: string
+  campaignId: string,
+  startedBy?: string
 ): Promise<void> {
   const campaign = await loadCampaign(organizationId, campaignId);
   if (campaign.status === "running") return;
@@ -162,7 +164,7 @@ export async function startCampaign(
     }
   }
 
-  await markRunning(organizationId, campaignId);
+  await markRunning(organizationId, campaignId, startedBy);
   spawnDispatch(organizationId, campaignId);
 }
 
@@ -191,7 +193,8 @@ export async function pauseCampaign(
 /** Devuelve los fallidos a `pending` y reanuda la campaña. */
 export async function retryFailed(
   organizationId: string,
-  campaignId: string
+  campaignId: string,
+  startedBy?: string
 ): Promise<number> {
   const db = getDb();
   await loadCampaign(organizationId, campaignId);
@@ -213,7 +216,7 @@ export async function retryFailed(
     throw new CampaignError("invalid", "No hay envíos fallidos que reintentar");
   }
 
-  await markRunning(organizationId, campaignId);
+  await markRunning(organizationId, campaignId, startedBy);
   spawnDispatch(organizationId, campaignId);
   return reset.length;
 }
@@ -221,7 +224,8 @@ export async function retryFailed(
 /** Marca `running` respetando el lock de una campaña activa por organización. */
 async function markRunning(
   organizationId: string,
-  campaignId: string
+  campaignId: string,
+  startedBy?: string
 ): Promise<void> {
   try {
     await getDb()
@@ -232,6 +236,7 @@ async function markRunning(
         startedAt: new Date(),
         finishedAt: null,
         updatedAt: new Date(),
+        ...(startedBy ? { startedBy } : {}),
       })
       .where(
         scoped(
@@ -289,7 +294,44 @@ function spawnDispatch(organizationId: string, campaignId: string): void {
       })
       .where(eq(schema.campaign.id, campaignId));
     await publishProgress(organizationId, campaignId, "failed");
+    await notifyCampaignEvent(organizationId, campaignId, {
+      type: "campaign.failed",
+      title: "Campaña detenida por un error",
+      body: String(err).slice(0, 300),
+    });
   });
+}
+
+/**
+ * Notifica un evento del despacho a quien lanzó la campaña (o, si no consta,
+ * a los admins de la empresa). Nunca lanza: un fallo al notificar no debe
+ * afectar el estado del despacho.
+ */
+async function notifyCampaignEvent(
+  organizationId: string,
+  campaignId: string,
+  input: { type: string; title: string; body?: string | null }
+): Promise<void> {
+  try {
+    const campaign = await loadCampaign(organizationId, campaignId);
+    const payload = {
+      type: input.type,
+      title: `${input.title}: ${campaign.name}`,
+      body: input.body ?? null,
+      href: "/campaigns",
+    };
+    if (campaign.startedBy) {
+      await notifyUser({
+        userId: campaign.startedBy,
+        organizationId,
+        ...payload,
+      });
+    } else {
+      await notifyOrgApprovers(organizationId, payload);
+    }
+  } catch (err) {
+    console.warn("[campaigns] no se pudo notificar el evento:", err);
+  }
 }
 
 /**
@@ -340,6 +382,15 @@ async function dispatch(
         })
         .where(eq(schema.campaign.id, campaignId));
       await publishProgress(organizationId, campaignId, "done");
+      const tally = await countByStatus(organizationId, campaignId);
+      await notifyCampaignEvent(organizationId, campaignId, {
+        type: "campaign.done",
+        title: "Campaña completada",
+        body:
+          tally.failed > 0
+            ? `${tally.sent} enviados · ${tally.failed} fallidos (puedes reintentarlos)`
+            : `${tally.sent} mensajes enviados`,
+      });
       return;
     }
 
@@ -378,6 +429,11 @@ async function dispatch(
           .set({ status: "paused", error: message, updatedAt: new Date() })
           .where(eq(schema.campaign.id, campaignId));
         await publishProgress(organizationId, campaignId, "paused");
+        await notifyCampaignEvent(organizationId, campaignId, {
+          type: "campaign.paused",
+          title: "Campaña pausada por un problema del canal",
+          body: `${message.slice(0, 300)} — los pendientes quedan listos para reanudar.`,
+        });
         return;
       }
 

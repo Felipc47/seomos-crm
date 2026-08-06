@@ -57,6 +57,14 @@ export function NotificationsBell({
     void refetch();
   }, [refetch]);
 
+  // La página /notifications marca todo leído: apagar el contador al instante.
+  useEffect(() => {
+    const onRead = () => setUnread(0);
+    window.addEventListener("seomos:notifications-read", onRead);
+    return () =>
+      window.removeEventListener("seomos:notifications-read", onRead);
+  }, []);
+
   useEvents({
     onNotificationNew: () => void refetch(),
     onReconnect: () => void refetch(),
@@ -115,7 +123,7 @@ export function NotificationsBell({
               Notificaciones
             </p>
             {items.length === 0 ? (
-              <p className="px-3 pb-4 pt-1 text-center text-[12.5px] text-text-3">
+              <p className="px-3 pb-2 pt-1 text-center text-[12.5px] text-text-3">
                 Nada por ahora.
               </p>
             ) : (
@@ -148,6 +156,15 @@ export function NotificationsBell({
                 ))}
               </ul>
             )}
+            <button
+              onClick={() => {
+                setOpen(false);
+                router.push("/notifications");
+              }}
+              className="mt-1 w-full rounded-[11px] border-t border-border px-3 py-2.5 text-center text-[12.5px] font-bold text-brand transition-colors hover:bg-subtle"
+            >
+              Ver todas las notificaciones
+            </button>
           </div>
         </>
       )}

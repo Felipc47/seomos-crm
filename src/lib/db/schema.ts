@@ -656,6 +656,10 @@ export const campaign = pgTable(
       .default("draft"),
     /** JSON del filtro de audiencia usado al crear (`AudienceFilter`). */
     audience: jsonb("audience"),
+    /** Quién puso en marcha la campaña: destinatario de sus notificaciones. */
+    startedBy: text("started_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
     error: text("error"),
     startedAt: timestamp("started_at"),
     finishedAt: timestamp("finished_at"),

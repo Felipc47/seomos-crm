@@ -6,8 +6,15 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export const GET = withAuth(async (session) => {
-  const data = await listNotifications(session.userId);
+export const GET = withAuth(async (session, req: Request) => {
+  const url = new URL(req.url);
+  const limitRaw = Number(url.searchParams.get("limit"));
+  const beforeRaw = url.searchParams.get("before");
+  const before = beforeRaw ? new Date(beforeRaw) : undefined;
+  const data = await listNotifications(session.userId, {
+    limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined,
+    before: before && !Number.isNaN(before.getTime()) ? before : undefined,
+  });
   return Response.json(data);
 });
 

@@ -1,0 +1,2 @@
+ALTER TABLE "campaign" ADD COLUMN "started_by" text;--> statement-breakpoint
+ALTER TABLE "campaign" ADD CONSTRAINT "campaign_started_by_user_id_fk" FOREIGN KEY ("started_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;

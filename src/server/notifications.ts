@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, lt } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { publish } from "@/server/events/bus";
@@ -115,17 +115,33 @@ export async function notifyOrgApprovers(
   }
 }
 
-export async function listNotifications(userId: string): Promise<{
+/**
+ * Lista paginada por cursor (`before` = createdAt del último ítem visto):
+ * la campana pide la primera página; /notifications avanza con "Cargar más".
+ */
+export async function listNotifications(
+  userId: string,
+  opts?: { limit?: number; before?: Date }
+): Promise<{
   notifications: NotificationDto[];
   unread: number;
+  hasMore: boolean;
 }> {
   const db = getDb();
+  const limit = Math.min(Math.max(opts?.limit ?? 30, 1), 100);
   const rows = await db
     .select()
     .from(schema.notification)
-    .where(eq(schema.notification.userId, userId))
+    .where(
+      and(
+        eq(schema.notification.userId, userId),
+        opts?.before ? lt(schema.notification.createdAt, opts.before) : undefined
+      )
+    )
     .orderBy(desc(schema.notification.createdAt))
-    .limit(30);
+    .limit(limit + 1);
+  const hasMore = rows.length > limit;
+  if (hasMore) rows.pop();
   const unreadRows = await db
     .select({ id: schema.notification.id })
     .from(schema.notification)
@@ -135,7 +151,11 @@ export async function listNotifications(userId: string): Promise<{
         isNull(schema.notification.readAt)
       )
     );
-  return { notifications: rows.map(serialize), unread: unreadRows.length };
+  return {
+    notifications: rows.map(serialize),
+    unread: unreadRows.length,
+    hasMore,
+  };
 }
 
 export async function markAllNotificationsRead(userId: string): Promise<void> {

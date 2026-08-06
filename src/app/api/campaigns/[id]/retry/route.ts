@@ -14,7 +14,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export const POST = withAuth(async (session, _req: Request, ctx: Ctx) => {
   const { id } = await ctx.params;
   try {
-    const retried = await retryFailed(session.organizationId, id);
+    const retried = await retryFailed(session.organizationId, id, session.userId);
     return Response.json({
       ok: true,
       retried,

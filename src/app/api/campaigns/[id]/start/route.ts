@@ -14,7 +14,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export const POST = withAuth(async (session, _req: Request, ctx: Ctx) => {
   const { id } = await ctx.params;
   try {
-    await startCampaign(session.organizationId, id);
+    await startCampaign(session.organizationId, id, session.userId);
     return Response.json({
       ok: true,
       progress: await countByStatus(session.organizationId, id),
