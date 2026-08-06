@@ -56,7 +56,12 @@ export async function GET(req: Request, ctx: Params) {
         language: t.language,
         category: t.category,
         status: t.status,
-        components: [{ type: "BODY", text: t.body }],
+        components: [
+          ...(t.headerFormat
+            ? [{ type: "HEADER", format: t.headerFormat }]
+            : []),
+          { type: "BODY", text: t.body },
+        ],
       })),
     });
   }
@@ -139,6 +144,44 @@ export async function POST(req: Request, ctx: Params) {
   const path = normalizePath((await ctx.params).path);
   const token = bearerToken(req);
   if (token.endsWith("-invalid")) return invalidTokenResponse();
+
+  // POST app/uploads → sesión de la Resumable Upload API (016): los
+  // parámetros van en la query, el cuerpo va vacío.
+  if (path.length === 2 && path[0] === "app" && path[1] === "uploads") {
+    const url = new URL(req.url);
+    if (!url.searchParams.get("file_length") || !url.searchParams.get("file_type")) {
+      return Response.json(
+        {
+          error: {
+            message: "file_length and file_type are required",
+            type: "GraphMethodException",
+            code: 100,
+          },
+        },
+        { status: 400 }
+      );
+    }
+    return Response.json({ id: `upload:mock_${nextN()}` });
+  }
+
+  // POST {upload-session} (cuerpo BINARIO — debe ir antes de cualquier
+  // req.json(), que consumiría el body) → header_handle `h`.
+  if (path.length === 1 && path[0]?.startsWith("upload:")) {
+    const bytes = new Uint8Array(await req.arrayBuffer());
+    if (bytes.byteLength === 0) {
+      return Response.json(
+        {
+          error: {
+            message: "Empty upload",
+            type: "GraphMethodException",
+            code: 100,
+          },
+        },
+        { status: 400 }
+      );
+    }
+    return Response.json({ h: `handlemock_${nextN()}` });
+  }
 
   // POST {phoneNumberId}/media → subida multipart de un adjunto saliente,
   // como la real: devuelve un media_id reutilizable (envío + descarga).
@@ -240,9 +283,36 @@ export async function POST(req: Request, ctx: Params) {
   // POST {wabaId}/message_templates → alta de plantilla (queda PENDING)
   if (path.length === 2 && path[1] === "message_templates") {
     const state = getWaMockState();
-    const bodyComponent = (
-      body.components as { type?: string; text?: string }[] | undefined
-    )?.find((c) => (c.type ?? "").toUpperCase() === "BODY");
+    const components = body.components as
+      | {
+          type?: string;
+          format?: string;
+          text?: string;
+          example?: { header_handle?: string[] };
+        }[]
+      | undefined;
+    const bodyComponent = components?.find(
+      (c) => (c.type ?? "").toUpperCase() === "BODY"
+    );
+    // HEADER multimedia (016): como la real, el alta exige el ejemplo
+    // subido (header_handle) — sin él, error 100 (camino infeliz).
+    const headerComponent = components?.find(
+      (c) =>
+        (c.type ?? "").toUpperCase() === "HEADER" &&
+        ["IMAGE", "DOCUMENT"].includes((c.format ?? "").toUpperCase())
+    );
+    if (headerComponent && !headerComponent.example?.header_handle?.[0]) {
+      return Response.json(
+        {
+          error: {
+            message: "Missing example header_handle for media HEADER",
+            type: "GraphMethodException",
+            code: 100,
+          },
+        },
+        { status: 400 }
+      );
+    }
     const tpl: MockTemplate = {
       id: `tplmock_${nextN()}`,
       name: String(body.name ?? ""),
@@ -250,6 +320,14 @@ export async function POST(req: Request, ctx: Params) {
       category: String(body.category ?? "UTILITY"),
       status: "PENDING",
       body: bodyComponent?.text ?? "",
+      ...(headerComponent
+        ? {
+            headerFormat: (headerComponent.format ?? "").toUpperCase() as
+              | "IMAGE"
+              | "DOCUMENT",
+            headerHandle: headerComponent.example!.header_handle![0],
+          }
+        : {}),
     };
     state.templates.push(tpl);
     return Response.json({ id: tpl.id, status: "PENDING", category: tpl.category });
@@ -276,11 +354,56 @@ export async function POST(req: Request, ctx: Params) {
         { status: 404 }
       );
     }
-    const bodyComponent = (
-      body.components as { type?: string; text?: string }[] | undefined
-    )?.find((c) => (c.type ?? "").toUpperCase() === "BODY");
+    const components = body.components as
+      | {
+          type?: string;
+          format?: string;
+          text?: string;
+          example?: { header_handle?: string[] };
+        }[]
+      | undefined;
+    const bodyComponent = components?.find(
+      (c) => (c.type ?? "").toUpperCase() === "BODY"
+    );
     if (bodyComponent?.text !== undefined) tpl.body = bodyComponent.text;
     if (body.category !== undefined) tpl.category = String(body.category);
+    // La edición reemplaza componentes: si la plantilla tenía HEADER
+    // multimedia, debe volver a venir con handle (como la real).
+    const headerComponent = components?.find(
+      (c) =>
+        (c.type ?? "").toUpperCase() === "HEADER" &&
+        ["IMAGE", "DOCUMENT"].includes((c.format ?? "").toUpperCase())
+    );
+    if (tpl.headerFormat && components && !headerComponent) {
+      return Response.json(
+        {
+          error: {
+            message: "Media HEADER component missing on edit",
+            type: "GraphMethodException",
+            code: 100,
+          },
+        },
+        { status: 400 }
+      );
+    }
+    if (headerComponent) {
+      if (!headerComponent.example?.header_handle?.[0]) {
+        return Response.json(
+          {
+            error: {
+              message: "Missing example header_handle for media HEADER",
+              type: "GraphMethodException",
+              code: 100,
+            },
+          },
+          { status: 400 }
+        );
+      }
+      tpl.headerFormat = (headerComponent.format ?? "").toUpperCase() as
+        | "IMAGE"
+        | "DOCUMENT";
+      tpl.headerHandle = headerComponent.example.header_handle[0];
+    }
     tpl.status = "PENDING";
     return Response.json({ success: true });
   }

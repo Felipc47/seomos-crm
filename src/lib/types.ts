@@ -69,6 +69,9 @@ export type TemplateDto = {
   body: string;
   status: "draft" | "awaiting_approval" | "pending" | "approved" | "rejected";
   rejectionReason: string | null;
+  /** Encabezado multimedia (016): null = plantilla solo de texto. */
+  headerKind: "image" | "document" | null;
+  headerFilename: string | null;
 };
 
 /** Kinds de etapa: las cuatro distintas de `open` son anclas del sistema. */

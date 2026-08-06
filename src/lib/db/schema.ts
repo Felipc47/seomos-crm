@@ -1,5 +1,6 @@
 import {
   boolean,
+  customType,
   index,
   integer,
   jsonb,
@@ -9,6 +10,13 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+
+/** Binario en Postgres (bytea). node-postgres entrega/acepta Buffer. */
+const bytea = customType<{ data: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
+});
 
 /* ============================================================
  * Auth (Better Auth + plugin organization)
@@ -518,6 +526,15 @@ export const template = pgTable(
     /** Quién pidió la aprobación (para notificarle el resultado). */
     requestedById: text("requested_by_id"),
     waTemplateId: text("wa_template_id"),
+    /** Encabezado multimedia (016): imagen o documento, fijado al crear.
+     * null = plantilla solo de texto. El binario vive en `template_media`. */
+    headerKind: text("header_kind", { enum: ["image", "document"] }),
+    headerFilename: text("header_filename"),
+    headerMime: text("header_mime"),
+    /** media_id vigente en Meta para los envíos; caduca ~30 días y se
+     * renueva re-subiendo los bytes guardados. */
+    headerMediaId: text("header_media_id"),
+    headerMediaUploadedAt: timestamp("header_media_uploaded_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -529,6 +546,21 @@ export const template = pgTable(
     ),
   ]
 );
+
+/** Binario del encabezado de la plantilla (016). Tabla aparte 1:1 para que
+ * los SELECT de plantillas (listas, campañas) no carguen el archivo. Es la
+ * fuente de verdad para re-subir a Meta cuando el media_id caduque. */
+export const templateMedia = pgTable("template_media", {
+  templateId: text("template_id")
+    .primaryKey()
+    .references(() => template.id, { onDelete: "cascade" }),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  bytes: bytea("bytes").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
 
 /** Servicio del negocio (SEO, desarrollo web…): agrupa formularios de Meta
  * Lead Ads, define su saludo y la regla vigente de distribución comercial. */

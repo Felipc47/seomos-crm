@@ -1,7 +1,15 @@
 import { and, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
-import { graphRequest, MetaApiError, normalizeRecipient } from "@/lib/meta/client";
+import {
+  graphCreateUploadSession,
+  graphRequest,
+  graphUpload,
+  graphUploadToSession,
+  MetaApiError,
+  normalizeRecipient,
+} from "@/lib/meta/client";
+import { formatBytes, WA_MEDIA_MAX_BYTES } from "@/lib/wa-media";
 import { scoped } from "@/lib/db/tenant";
 import { publish } from "@/server/events/bus";
 import {
@@ -78,7 +86,178 @@ export function serializeTemplate(t: TemplateRow) {
     body: t.body,
     status: t.status,
     rejectionReason: t.rejectionReason,
+    headerKind: t.headerKind,
+    headerFilename: t.headerFilename,
   };
+}
+
+/* ============================================================
+ * Encabezado multimedia (016): imagen o documento en la plantilla
+ * ============================================================ */
+
+export type TemplateHeaderInput = {
+  kind: "image" | "document";
+  bytes: Uint8Array;
+  mime: string;
+  filename: string;
+};
+
+/** Formatos y topes que Meta acepta en el HEADER de una plantilla (v1:
+ * imagen JPG/PNG ≤5 MB; documento solo PDF, tope operativo 16 MB). */
+const HEADER_RULES: Record<
+  TemplateHeaderInput["kind"],
+  { mimes: string[]; maxBytes: number; label: string }
+> = {
+  image: {
+    mimes: ["image/jpeg", "image/png"],
+    maxBytes: 5 * 1024 * 1024,
+    label: "una imagen JPG o PNG",
+  },
+  document: {
+    mimes: ["application/pdf"],
+    maxBytes: WA_MEDIA_MAX_BYTES,
+    label: "un documento PDF",
+  },
+};
+
+/** Valida el archivo del encabezado; null = válido. */
+export function validateTemplateHeader(
+  header: Pick<TemplateHeaderInput, "kind" | "mime"> & { size: number }
+): string | null {
+  const rule = HEADER_RULES[header.kind];
+  const mime = header.mime.toLowerCase().split(";")[0]?.trim() ?? "";
+  if (!rule.mimes.includes(mime)) {
+    return `El encabezado de ${header.kind === "image" ? "imagen" : "documento"} debe ser ${rule.label}`;
+  }
+  if (header.size <= 0) return "El archivo está vacío";
+  if (header.size > rule.maxBytes) {
+    return `El archivo supera el máximo permitido (${formatBytes(rule.maxBytes)})`;
+  }
+  return null;
+}
+
+/** El media_id de Meta caduca a los ~30 días; se renueva con margen. */
+const HEADER_MEDIA_TTL_MS = 25 * 24 * 60 * 60 * 1000;
+
+/** Bytes del encabezado guardados en `template_media` (fuente de verdad). */
+async function loadHeaderBytes(templateId: string): Promise<Uint8Array> {
+  const rows = await getDb()
+    .select({ bytes: schema.templateMedia.bytes })
+    .from(schema.templateMedia)
+    .where(eq(schema.templateMedia.templateId, templateId))
+    .limit(1);
+  const row = rows[0];
+  if (!row) {
+    throw new TemplateError(
+      "invalid",
+      "La plantilla tiene encabezado pero el archivo no está guardado; edítala y vuelve a subirlo"
+    );
+  }
+  return new Uint8Array(row.bytes);
+}
+
+/** Guarda (o reemplaza) el binario del encabezado. */
+async function saveHeaderBytes(
+  organizationId: string,
+  templateId: string,
+  bytes: Uint8Array
+): Promise<void> {
+  await getDb()
+    .insert(schema.templateMedia)
+    .values({
+      templateId,
+      organizationId,
+      bytes: Buffer.from(bytes),
+    })
+    .onConflictDoUpdate({
+      target: schema.templateMedia.templateId,
+      set: { bytes: Buffer.from(bytes), updatedAt: new Date() },
+    });
+}
+
+/** Sube el ejemplo a la Resumable Upload API → header_handle para el alta. */
+async function uploadHeaderExample(
+  organizationId: string,
+  creds: NonNullable<Awaited<ReturnType<typeof getCredentialsByOrg>>>,
+  header: { bytes: Uint8Array; mime: string; filename: string }
+): Promise<string> {
+  try {
+    const sessionId = await graphCreateUploadSession(creds.token, {
+      length: header.bytes.byteLength,
+      type: header.mime,
+      name: header.filename,
+    });
+    return await graphUploadToSession(creds.token, sessionId, header.bytes);
+  } catch (err) {
+    await toTemplateError(organizationId, err);
+    throw err; // inalcanzable
+  }
+}
+
+/** Componente HEADER del alta/edición en Meta. */
+function headerComponent(
+  kind: "image" | "document",
+  handle: string
+): Record<string, unknown> {
+  return {
+    type: "HEADER",
+    format: kind.toUpperCase(),
+    example: { header_handle: [handle] },
+  };
+}
+
+/**
+ * Garantiza un media_id vigente para ENVIAR el encabezado: reusa el actual
+ * si tiene menos de 25 días; si no, re-sube los bytes guardados. Una campaña
+ * entera reutiliza así UN solo media_id.
+ */
+async function ensureHeaderMediaId(
+  organizationId: string,
+  creds: NonNullable<Awaited<ReturnType<typeof getCredentialsByOrg>>>,
+  template: TemplateRow
+): Promise<string> {
+  const fresh =
+    template.headerMediaId &&
+    template.headerMediaUploadedAt &&
+    Date.now() - template.headerMediaUploadedAt.getTime() < HEADER_MEDIA_TTL_MS;
+  if (fresh) return template.headerMediaId!;
+
+  const bytes = await loadHeaderBytes(template.id);
+  const form = new FormData();
+  form.set("messaging_product", "whatsapp");
+  form.set("type", template.headerMime ?? "application/octet-stream");
+  form.set(
+    "file",
+    new Blob([bytes as BlobPart], {
+      type: template.headerMime ?? "application/octet-stream",
+    }),
+    template.headerFilename ?? "archivo"
+  );
+  let mediaId: string;
+  try {
+    const uploaded = await graphUpload<{ id?: string }>(
+      `${creds.phoneNumberId}/media`,
+      { token: creds.token, form }
+    );
+    if (!uploaded.id) {
+      throw new TemplateError("meta_error", "Meta no devolvió ID del archivo");
+    }
+    mediaId = uploaded.id;
+  } catch (err) {
+    if (err instanceof TemplateError) throw err;
+    await toTemplateError(organizationId, err);
+    throw err; // inalcanzable
+  }
+
+  await getDb()
+    .update(schema.template)
+    .set({
+      headerMediaId: mediaId,
+      headerMediaUploadedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.template.id, template.id));
+  return mediaId;
 }
 
 /**
@@ -88,11 +267,25 @@ export function serializeTemplate(t: TemplateRow) {
  */
 export async function createTemplate(
   organizationId: string,
-  input: { name: string; language: string; category: string; body: string },
+  input: {
+    name: string;
+    language: string;
+    category: string;
+    body: string;
+    header?: TemplateHeaderInput | null;
+  },
   opts: { requiresApproval?: boolean; requestedById?: string | null } = {}
 ): Promise<TemplateRow> {
   const variableError = validateBodyVariables(input.body);
   if (variableError) throw new TemplateError("invalid", variableError);
+  if (input.header) {
+    const headerError = validateTemplateHeader({
+      kind: input.header.kind,
+      mime: input.header.mime,
+      size: input.header.bytes.byteLength,
+    });
+    if (headerError) throw new TemplateError("invalid", headerError);
+  }
 
   const name = input.name
     .toLowerCase()
@@ -103,11 +296,19 @@ export async function createTemplate(
   let waTemplateId: string | null = null;
   if (!opts.requiresApproval) {
     const creds = await requireConnectedCredentials(organizationId);
+    // El ejemplo del encabezado viaja ANTES del alta: Meta lo exige en el
+    // componente HEADER como header_handle.
+    const headerHandle = input.header
+      ? await uploadHeaderExample(organizationId, creds, input.header)
+      : null;
     waTemplateId = await pushCreateToMeta(organizationId, creds, {
       name,
       language: input.language,
       category: input.category,
       body: input.body,
+      ...(input.header && headerHandle
+        ? { header: { kind: input.header.kind, handle: headerHandle } }
+        : {}),
     });
   }
 
@@ -125,6 +326,9 @@ export async function createTemplate(
       status,
       requestedById: opts.requestedById ?? null,
       waTemplateId,
+      headerKind: input.header?.kind ?? null,
+      headerFilename: input.header?.filename ?? null,
+      headerMime: input.header?.mime ?? null,
     })
     .onConflictDoUpdate({
       target: [
@@ -139,11 +343,27 @@ export async function createTemplate(
         rejectionReason: null,
         requestedById: opts.requestedById ?? null,
         ...(waTemplateId ? { waTemplateId } : {}),
+        headerKind: input.header?.kind ?? null,
+        headerFilename: input.header?.filename ?? null,
+        headerMime: input.header?.mime ?? null,
+        // Archivo nuevo (o sin encabezado): el media de envío anterior ya no vale.
+        headerMediaId: null,
+        headerMediaUploadedAt: null,
         updatedAt: new Date(),
       },
     })
     .returning();
-  return inserted[0]!;
+  const row = inserted[0]!;
+
+  if (input.header) {
+    await saveHeaderBytes(organizationId, row.id, input.header.bytes);
+  } else {
+    // Re-creación sin encabezado sobre un nombre reutilizado: limpiar restos.
+    await db
+      .delete(schema.templateMedia)
+      .where(eq(schema.templateMedia.templateId, row.id));
+  }
+  return row;
 }
 
 async function requireConnectedCredentials(organizationId: string) {
@@ -161,7 +381,13 @@ async function requireConnectedCredentials(organizationId: string) {
 async function pushCreateToMeta(
   organizationId: string,
   creds: NonNullable<Awaited<ReturnType<typeof getCredentialsByOrg>>>,
-  tpl: { name: string; language: string; category: string; body: string }
+  tpl: {
+    name: string;
+    language: string;
+    category: string;
+    body: string;
+    header?: { kind: "image" | "document"; handle: string };
+  }
 ): Promise<string | null> {
   const hasVariable = countVariables(tpl.body) === 1;
   try {
@@ -175,6 +401,9 @@ async function pushCreateToMeta(
           language: tpl.language,
           category: tpl.category,
           components: [
+            ...(tpl.header
+              ? [headerComponent(tpl.header.kind, tpl.header.handle)]
+              : []),
             {
               type: "BODY",
               text: tpl.body,
@@ -283,7 +512,12 @@ export async function deleteTemplate(
 export async function updateTemplate(
   organizationId: string,
   templateId: string,
-  input: { body: string; category: string },
+  input: {
+    body: string;
+    category: string;
+    /** Reemplazo del archivo del encabezado (mismo tipo que el actual). */
+    headerFile?: Omit<TemplateHeaderInput, "kind"> | null;
+  },
   opts: { requiresApproval?: boolean; requestedById?: string | null } = {}
 ): Promise<TemplateRow> {
   const variableError = validateBodyVariables(input.body);
@@ -291,6 +525,31 @@ export async function updateTemplate(
 
   const template = await requireTemplate(organizationId, templateId);
   const db = getDb();
+
+  if (input.headerFile) {
+    if (!template.headerKind) {
+      throw new TemplateError(
+        "invalid",
+        "Esta plantilla no tiene encabezado; para agregar uno, elimínala y créala de nuevo"
+      );
+    }
+    const headerError = validateTemplateHeader({
+      kind: template.headerKind,
+      mime: input.headerFile.mime,
+      size: input.headerFile.bytes.byteLength,
+    });
+    if (headerError) throw new TemplateError("invalid", headerError);
+  }
+
+  /** El archivo nuevo invalida el media de envío vigente. */
+  const headerFileSet = input.headerFile
+    ? {
+        headerFilename: input.headerFile.filename,
+        headerMime: input.headerFile.mime,
+        headerMediaId: null,
+        headerMediaUploadedAt: null,
+      }
+    : {};
 
   // Comercial: el cambio queda local esperando el visto bueno del admin.
   if (opts.requiresApproval) {
@@ -302,16 +561,39 @@ export async function updateTemplate(
         status: "awaiting_approval",
         rejectionReason: null,
         requestedById: opts.requestedById ?? null,
+        ...headerFileSet,
         updatedAt: new Date(),
       })
       .where(eq(schema.template.id, template.id))
       .returning();
+    if (input.headerFile) {
+      await saveHeaderBytes(organizationId, template.id, input.headerFile.bytes);
+    }
     return updated[0]!;
   }
 
   const creds = await requireConnectedCredentials(organizationId);
+
+  // Con encabezado, el push a Meta SIEMPRE re-incluye el componente HEADER
+  // (la edición reemplaza todos los componentes): handle fresco del archivo
+  // nuevo o del guardado.
+  let header: { kind: "image" | "document"; handle: string } | undefined;
+  if (template.headerKind) {
+    const bytes = input.headerFile?.bytes ?? (await loadHeaderBytes(template.id));
+    const handle = await uploadHeaderExample(organizationId, creds, {
+      bytes,
+      mime: input.headerFile?.mime ?? template.headerMime ?? "application/octet-stream",
+      filename: input.headerFile?.filename ?? template.headerFilename ?? "archivo",
+    });
+    header = { kind: template.headerKind, handle };
+  }
+
   if (template.waTemplateId) {
-    await pushEditToMeta(organizationId, creds, template.waTemplateId, input);
+    await pushEditToMeta(organizationId, creds, template.waTemplateId, {
+      body: input.body,
+      category: input.category,
+      header,
+    });
   } else {
     // Nunca llegó a Meta (nació esperando aprobación): se crea allá ahora.
     const waTemplateId = await pushCreateToMeta(organizationId, creds, {
@@ -319,6 +601,7 @@ export async function updateTemplate(
       language: template.language,
       category: input.category,
       body: input.body,
+      header,
     });
     await db
       .update(schema.template)
@@ -333,10 +616,14 @@ export async function updateTemplate(
       category: input.category,
       status: "pending",
       rejectionReason: null,
+      ...headerFileSet,
       updatedAt: new Date(),
     })
     .where(eq(schema.template.id, template.id))
     .returning();
+  if (input.headerFile) {
+    await saveHeaderBytes(organizationId, template.id, input.headerFile.bytes);
+  }
   return updated[0]!;
 }
 
@@ -345,7 +632,11 @@ async function pushEditToMeta(
   organizationId: string,
   creds: NonNullable<Awaited<ReturnType<typeof getCredentialsByOrg>>>,
   waTemplateId: string,
-  input: { body: string; category: string }
+  input: {
+    body: string;
+    category: string;
+    header?: { kind: "image" | "document"; handle: string };
+  }
 ): Promise<void> {
   const hasVariable = countVariables(input.body) === 1;
   try {
@@ -354,7 +645,12 @@ async function pushEditToMeta(
       token: creds.token,
       body: {
         category: input.category,
+        // Meta REEMPLAZA todos los componentes al editar: si la plantilla
+        // tiene encabezado hay que volver a mandarlo con un handle vigente.
         components: [
+          ...(input.header
+            ? [headerComponent(input.header.kind, input.header.handle)]
+            : []),
           {
             type: "BODY",
             text: input.body,
@@ -383,12 +679,25 @@ export async function submitTemplate(
   }
   const creds = await requireConnectedCredentials(organizationId);
 
+  // El encabezado guardado localmente viaja a Meta recién ahora (016).
+  let header: { kind: "image" | "document"; handle: string } | undefined;
+  if (template.headerKind) {
+    const bytes = await loadHeaderBytes(template.id);
+    const handle = await uploadHeaderExample(organizationId, creds, {
+      bytes,
+      mime: template.headerMime ?? "application/octet-stream",
+      filename: template.headerFilename ?? "archivo",
+    });
+    header = { kind: template.headerKind, handle };
+  }
+
   const db = getDb();
   let waTemplateId = template.waTemplateId;
   if (waTemplateId) {
     await pushEditToMeta(organizationId, creds, waTemplateId, {
       body: template.body,
       category: template.category,
+      header,
     });
   } else {
     waTemplateId = await pushCreateToMeta(organizationId, creds, {
@@ -396,6 +705,7 @@ export async function submitTemplate(
       language: template.language,
       category: template.category,
       body: template.body,
+      header,
     });
   }
 
@@ -611,6 +921,39 @@ export async function sendTemplate(input: {
     throw new TemplateError("reconnect_required", "Reconecta el número");
   }
 
+  // Encabezado multimedia (016): media_id vigente — una campaña entera
+  // reutiliza el mismo; solo se re-sube si caducó. Va DESPUÉS de los guards:
+  // una conversación de prueba jamás debe disparar esta subida real.
+  let headerMediaId: string | null = null;
+  const components: Record<string, unknown>[] = [];
+  if (template.headerKind) {
+    headerMediaId = await ensureHeaderMediaId(
+      input.organizationId,
+      creds,
+      template
+    );
+    components.push({
+      type: "header",
+      parameters: [
+        template.headerKind === "image"
+          ? { type: "image", image: { id: headerMediaId } }
+          : {
+              type: "document",
+              document: {
+                id: headerMediaId,
+                filename: template.headerFilename ?? "documento.pdf",
+              },
+            },
+      ],
+    });
+  }
+  if (needsVariable) {
+    components.push({
+      type: "body",
+      parameters: [{ type: "text", text: input.variable!.trim() }],
+    });
+  }
+
   const waMessageId = await callGraphSend(creds, {
     messaging_product: "whatsapp",
     to: normalizeRecipient(row.contact.phone),
@@ -618,16 +961,7 @@ export async function sendTemplate(input: {
     template: {
       name: template.name,
       language: { code: template.language },
-      ...(needsVariable
-        ? {
-            components: [
-              {
-                type: "body",
-                parameters: [{ type: "text", text: input.variable!.trim() }],
-              },
-            ],
-          }
-        : {}),
+      ...(components.length > 0 ? { components } : {}),
     },
   });
 
@@ -641,6 +975,11 @@ export async function sendTemplate(input: {
       direction: "out",
       type: "template",
       text: renderBody(template.body, input.variable?.trim()),
+      // El hilo muestra el encabezado como adjunto descargable bajo demanda.
+      mediaId: headerMediaId,
+      mediaMime: template.headerKind ? template.headerMime : null,
+      mediaFilename:
+        template.headerKind === "document" ? template.headerFilename : null,
       status: "pending",
     })
     .returning();

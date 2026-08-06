@@ -64,6 +64,81 @@ export async function graphUpload<T>(
   });
 }
 
+/**
+ * Resumable Upload API (encabezados de plantilla): abre la sesión de subida.
+ * El `id` devuelto se usa como path del POST binario (graphUploadToSession).
+ * `app/uploads` resuelve a la app dueña del token — no hace falta el app id.
+ */
+export async function graphCreateUploadSession(
+  token: string,
+  file: { length: number; type: string; name: string }
+): Promise<string> {
+  const query = new URLSearchParams({
+    file_length: String(file.length),
+    file_type: file.type,
+    file_name: file.name,
+  });
+  const res = await graphRequest<{ id?: string }>(
+    `app/uploads?${query.toString()}`,
+    { method: "POST", token }
+  );
+  if (!res.id) {
+    throw new MetaApiError("Meta no devolvió sesión de subida", { status: 502 });
+  }
+  return res.id;
+}
+
+/**
+ * Sube el binario a la sesión y devuelve el `header_handle` (`h`) que exige
+ * el componente HEADER al crear/editar la plantilla. Esta API usa el esquema
+ * `OAuth` (no `Bearer`) y el offset va en un header propio.
+ */
+export async function graphUploadToSession(
+  token: string,
+  sessionId: string,
+  bytes: Uint8Array
+): Promise<string> {
+  const env = getEnv();
+  const url = `${env.META_GRAPH_BASE_URL}/${env.META_GRAPH_API_VERSION}/${sessionId}`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `OAuth ${token}`,
+        file_offset: "0",
+        "Content-Type": "application/octet-stream",
+      },
+      body: bytes as BodyInit,
+    });
+  } catch (cause) {
+    throw new MetaApiError("No se pudo contactar la API de Meta", {
+      status: 0,
+      details: cause,
+    });
+  }
+  const text = await res.text();
+  let json: { h?: string; error?: { message?: string; code?: number; type?: string } } | null =
+    null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    // no-JSON: details conserva el texto
+  }
+  if (!res.ok || !json?.h) {
+    throw new MetaApiError(
+      json?.error?.message ?? `La subida del archivo falló (${res.status})`,
+      {
+        status: res.status,
+        code: json?.error?.code ?? null,
+        type: json?.error?.type ?? null,
+        details: json ?? text,
+      }
+    );
+  }
+  return json.h;
+}
+
 async function graphFetch<T>(
   path: string,
   opts: {

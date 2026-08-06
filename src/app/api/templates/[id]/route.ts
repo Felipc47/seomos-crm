@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import {
+  isMultipart,
+  parseTemplateMultipart,
+} from "@/app/api/templates/multipart";
+import {
   canApproveTemplates,
   canWriteTemplates,
   templatesRequireApproval,
@@ -30,12 +34,33 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Ctx) => {
     return apiError(403, "forbidden", "Tu rol no puede editar plantillas");
   }
   const { id } = await ctx.params;
-  const parsed = await parseBody(req, updateSchema);
-  if (!parsed.ok) return parsed.response;
+
+  // Multipart cuando reemplaza el archivo del encabezado (016).
+  let data: z.infer<typeof updateSchema> & {
+    headerFile?: { bytes: Uint8Array; mime: string; filename: string } | null;
+  };
+  if (isMultipart(req)) {
+    const parsed = await parseTemplateMultipart(req, updateSchema);
+    if (!parsed.ok) return apiError(422, "invalid", parsed.message);
+    data = {
+      ...parsed.fields,
+      headerFile: parsed.header
+        ? {
+            bytes: parsed.header.bytes,
+            mime: parsed.header.mime,
+            filename: parsed.header.filename,
+          }
+        : null,
+    };
+  } else {
+    const parsed = await parseBody(req, updateSchema);
+    if (!parsed.ok) return parsed.response;
+    data = parsed.data;
+  }
 
   const requiresApproval = templatesRequireApproval(session.role);
   try {
-    const template = await updateTemplate(session.organizationId, id, parsed.data, {
+    const template = await updateTemplate(session.organizationId, id, data, {
       requiresApproval,
       requestedById: requiresApproval ? session.userId : null,
     });

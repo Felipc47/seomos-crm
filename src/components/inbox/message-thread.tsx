@@ -288,7 +288,22 @@ export function MessageThread({ messages }: { messages: MessageDto[] }) {
                   !grouped && (out ? "rounded-br-[5px]" : "rounded-bl-[5px]")
                 )}
               >
-                {m.type === "text" || m.type === "template" ? (
+                {m.type === "template" && m.hasMedia ? (
+                  /* Plantilla con encabezado multimedia (016): el adjunto
+                     arriba y el cuerpo debajo, como lo ve el destinatario. */
+                  <div className="space-y-1.5">
+                    {m.mediaMime?.startsWith("image/") ? (
+                      <ImageAttachment m={m} />
+                    ) : (
+                      <DocumentAttachment m={m} />
+                    )}
+                    {m.text && (
+                      <span className="block whitespace-pre-wrap break-words">
+                        {m.text}
+                      </span>
+                    )}
+                  </div>
+                ) : m.type === "text" || m.type === "template" ? (
                   <span className="whitespace-pre-wrap break-words">
                     {m.text}
                   </span>

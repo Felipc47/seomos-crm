@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Pencil, RefreshCw, Trash2 } from "lucide-react";
+import { FileText, ImageIcon, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import type { TemplateDto } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,31 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+
+/** Reglas del encabezado (espejo de validateTemplateHeader del servidor). */
+const HEADER_ACCEPT: Record<"image" | "document", string> = {
+  image: "image/jpeg,image/png",
+  document: "application/pdf",
+};
+const HEADER_MAX_MB: Record<"image" | "document", number> = {
+  image: 5,
+  document: 16,
+};
+
+function validateHeaderFile(
+  kind: "image" | "document",
+  file: File
+): string | null {
+  if (!HEADER_ACCEPT[kind].split(",").includes(file.type)) {
+    return kind === "image"
+      ? "La imagen debe ser JPG o PNG"
+      : "El documento debe ser un PDF";
+  }
+  if (file.size > HEADER_MAX_MB[kind] * 1024 * 1024) {
+    return `El archivo supera el máximo (${HEADER_MAX_MB[kind]} MB)`;
+  }
+  return null;
+}
 
 const STATUS_BADGE: Record<
   TemplateDto["status"],
@@ -193,6 +218,8 @@ function TemplateCard({
   const [category, setCategory] = useState(
     t.category === "MARKETING" ? "MARKETING" : "UTILITY"
   );
+  // 016: reemplazo opcional del archivo del encabezado (mismo tipo).
+  const [replaceFile, setReplaceFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -200,13 +227,33 @@ function TemplateCard({
   const marketing = t.category?.toUpperCase() === "MARKETING";
 
   async function save() {
+    if (replaceFile && t.headerKind) {
+      const fileError = validateHeaderFile(t.headerKind, replaceFile);
+      if (fileError) {
+        setError(fileError);
+        return;
+      }
+    }
     setBusy(true);
     setError(null);
-    const res = await fetch(`/api/templates/${t.id}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ body, category }),
-    }).catch(() => null);
+    let res: Response | null;
+    if (replaceFile && t.headerKind) {
+      const form = new FormData();
+      form.set("body", body);
+      form.set("category", category);
+      form.set("headerKind", t.headerKind);
+      form.set("headerFile", replaceFile);
+      res = await fetch(`/api/templates/${t.id}`, {
+        method: "PATCH",
+        body: form,
+      }).catch(() => null);
+    } else {
+      res = await fetch(`/api/templates/${t.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ body, category }),
+      }).catch(() => null);
+    }
     setBusy(false);
     if (!res?.ok) {
       const data = (await res?.json().catch(() => null)) as {
@@ -216,6 +263,7 @@ function TemplateCard({
       return;
     }
     setEditing(false);
+    setReplaceFile(null);
     onChanged();
   }
 
@@ -278,6 +326,17 @@ function TemplateCard({
           <span className="text-muted-foreground">({t.language})</span>
         </p>
         <div className="flex flex-wrap items-center gap-2">
+          {t.headerKind && (
+            <Badge variant="secondary">
+              {t.headerKind === "image" ? (
+                <ImageIcon className="mr-1 h-3 w-3" />
+              ) : (
+                <FileText className="mr-1 h-3 w-3" />
+              )}
+              {t.headerKind === "image" ? "Imagen" : "PDF"}
+              {t.headerFilename ? ` · ${t.headerFilename}` : ""}
+            </Badge>
+          )}
           <Badge variant={marketing ? "warning" : "secondary"}>
             {marketing ? "MARKETING" : "UTILITY"}
           </Badge>
@@ -318,6 +377,25 @@ function TemplateCard({
               <option value="MARKETING">MARKETING</option>
             </select>
           </div>
+          {t.headerKind && (
+            <div className="space-y-1.5">
+              <Label htmlFor={`edit-header-${t.id}`}>
+                Reemplazar {t.headerKind === "image" ? "la imagen" : "el PDF"}{" "}
+                del encabezado (opcional)
+              </Label>
+              <input
+                id={`edit-header-${t.id}`}
+                type="file"
+                accept={HEADER_ACCEPT[t.headerKind]}
+                onChange={(e) => setReplaceFile(e.target.files?.[0] ?? null)}
+                className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border file:border-input file:bg-card file:px-3 file:py-1.5 file:text-sm file:font-medium"
+              />
+              <p className="text-xs text-muted-foreground">
+                Actual: {t.headerFilename ?? "archivo"} — si no adjuntas nada,
+                se conserva.
+              </p>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
             Al guardar, Meta vuelve a revisar la plantilla y queda pendiente
             hasta que la apruebe. El nombre y el idioma no se pueden cambiar:
@@ -335,6 +413,7 @@ function TemplateCard({
               onClick={() => {
                 setEditing(false);
                 setBody(t.body);
+                setReplaceFile(null);
                 setError(null);
               }}
             >
@@ -440,17 +519,45 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
   const [language, setLanguage] = useState("es_CO");
   const [category, setCategory] = useState<"UTILITY" | "MARKETING">("UTILITY");
   const [body, setBody] = useState("");
+  // 016: encabezado multimedia opcional, fijado al crear.
+  const [headerKind, setHeaderKind] = useState<"" | "image" | "document">("");
+  const [headerFile, setHeaderFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function create() {
+    if (headerKind && !headerFile) {
+      setError("Adjunta el archivo del encabezado");
+      return;
+    }
+    if (headerKind && headerFile) {
+      const fileError = validateHeaderFile(headerKind, headerFile);
+      if (fileError) {
+        setError(fileError);
+        return;
+      }
+    }
     setSaving(true);
     setError(null);
-    const res = await fetch("/api/templates", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name, language, category, body }),
-    }).catch(() => null);
+    let res: Response | null;
+    if (headerKind && headerFile) {
+      const form = new FormData();
+      form.set("name", name);
+      form.set("language", language);
+      form.set("category", category);
+      form.set("body", body);
+      form.set("headerKind", headerKind);
+      form.set("headerFile", headerFile);
+      res = await fetch("/api/templates", { method: "POST", body: form }).catch(
+        () => null
+      );
+    } else {
+      res = await fetch("/api/templates", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name, language, category, body }),
+      }).catch(() => null);
+    }
     setSaving(false);
     if (!res?.ok) {
       const data = (await res?.json().catch(() => null)) as {
@@ -461,6 +568,8 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
     }
     setName("");
     setBody("");
+    setHeaderKind("");
+    setHeaderFile(null);
     onCreated();
   }
 
@@ -523,6 +632,43 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
             value={body}
             onChange={(e) => setBody(e.target.value)}
           />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="tpl-header">Encabezado (opcional)</Label>
+            <select
+              id="tpl-header"
+              value={headerKind}
+              onChange={(e) => {
+                setHeaderKind(e.target.value as "" | "image" | "document");
+                setHeaderFile(null);
+              }}
+              className="flex h-9 w-full rounded-md border border-input bg-card px-3 text-sm"
+            >
+              <option value="">Sin encabezado (solo texto)</option>
+              <option value="image">Imagen (JPG/PNG, máx. 5 MB)</option>
+              <option value="document">Documento PDF (máx. 16 MB)</option>
+            </select>
+          </div>
+          {headerKind && (
+            <div className="space-y-1.5">
+              <Label htmlFor="tpl-header-file">
+                {headerKind === "image" ? "Imagen" : "PDF"} del encabezado
+              </Label>
+              <input
+                id="tpl-header-file"
+                type="file"
+                accept={HEADER_ACCEPT[headerKind]}
+                onChange={(e) => setHeaderFile(e.target.files?.[0] ?? null)}
+                className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border file:border-input file:bg-card file:px-3 file:py-1.5 file:text-sm file:font-medium"
+              />
+              <p className="text-xs text-muted-foreground">
+                Se envía a Meta como ejemplo para la aprobación y acompañará
+                cada mensaje de esta plantilla. El encabezado no puede
+                agregarse ni quitarse después de creada.
+              </p>
+            </div>
+          )}
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
         <Button

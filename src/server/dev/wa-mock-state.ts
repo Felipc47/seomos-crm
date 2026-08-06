@@ -20,6 +20,9 @@ export type MockTemplate = {
   category: string;
   status: "PENDING" | "APPROVED" | "REJECTED";
   body: string;
+  /** Encabezado multimedia (016): formato y handle del ejemplo aprobado. */
+  headerFormat?: "IMAGE" | "DOCUMENT";
+  headerHandle?: string;
 };
 
 type WaMockState = {
