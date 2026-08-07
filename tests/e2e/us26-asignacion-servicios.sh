@@ -87,6 +87,24 @@ async function createSession(name, email) {
     },
   });
   assert(whatsapp.ok(), "WhatsApp mock conectado");
+  // El comercial se marca al DERIVAR a atención humana: el agente debe estar
+  // encendido para que la petición de asesor dispare el handoff.
+  const agent = await owner.put("/api/agent/profile", {
+    data: { enabled: true, name: "Agente Distribución" },
+  });
+  assert(agent.ok(), "agente encendido");
+
+  async function inbound(phone, name, text) {
+    const response = await owner.post("/api/dev/wa-mock/inbound", {
+      data: {
+        phoneNumberId: "phone_service_assignment",
+        from: phone,
+        name,
+        text,
+      },
+    });
+    assert(response.ok(), `entrante: ${name}`, `${response.status()}`);
+  }
 
   for (const member of [
     {
@@ -237,19 +255,36 @@ async function createSession(name, email) {
   });
   assert(inboundSeo.ok(), "leadgen SEO procesado", `${inboundSeo.status()}`);
 
+  const lauraIngested = await waitFor(async () => {
+    const response = await owner.get("/api/contacts?q=573100026001");
+    if (!response.ok()) return null;
+    const contact = (await response.json()).contacts[0] ?? null;
+    return contact?.service?.name === "SEO" ? contact : null;
+  }, "Laura SEO no apareció en Contactos");
+  assert(
+    lauraIngested.assignee === null,
+    "el form clasifica el servicio SIN marcar comercial al llegar"
+  );
+  const preHandoff = await commercialSession.get("/api/notifications");
+  assert(
+    !((await json(preHandoff)).notifications ?? []).some(
+      (notification) => notification.type === "lead_assigned"
+    ),
+    "sin derivación no hay notificación de asignación"
+  );
+
+  // La derivación a atención humana ES el momento de la asignación.
+  await inbound("573100026001", "Laura SEO", "Hola, quiero hablar con un asesor");
   const laura = await waitFor(async () => {
     const response = await owner.get("/api/contacts?q=573100026001");
     if (!response.ok()) return null;
     const contact = (await response.json()).contacts[0] ?? null;
-    return contact?.service?.name === "SEO" &&
-      contact?.assignee?.name === "Ana Comercial"
-      ? contact
-      : null;
-  }, "Laura SEO no apareció en Contactos");
+    return contact?.assignee?.name === "Ana Comercial" ? contact : null;
+  }, "la derivación no asignó a Ana Comercial");
   assert(
     laura.service?.name === "SEO" &&
       laura.assignee?.name === "Ana Comercial",
-    "Contactos muestra servicio y responsable"
+    "Contactos muestra servicio y responsable tras derivar"
   );
 
   const board = await waitFor(async () => {
@@ -446,6 +481,22 @@ async function createSession(name, email) {
       "fallo de notificación no bloquea el webhook",
       `${failureInbound.status()}`
     );
+    await waitFor(async () => {
+      const rows = await sql`
+        select s.name as service_name
+        from lead l
+        join contact c on c.id = l.contact_id
+        left join service s on s.id = l.service_id
+        where c.phone = '573100026003'
+      `;
+      return rows[0]?.service_name === "Automatización" ? rows[0] : null;
+    }, "el lead no persistió mientras fallaba la notificación");
+    // La derivación asigna aunque la campana esté rota.
+    await inbound(
+      "573100026003",
+      "Sofía Automatización",
+      "Quiero hablar con un asesor"
+    );
     failureLead = await waitFor(async () => {
       const rows = await sql`
         select l.assigned_member_id, s.name as service_name
@@ -454,8 +505,8 @@ async function createSession(name, email) {
         left join service s on s.id = l.service_id
         where c.phone = '573100026003'
       `;
-      return rows[0] ?? null;
-    }, "el lead no persistió mientras fallaba la notificación");
+      return rows[0]?.assigned_member_id ? rows[0] : null;
+    }, "el fallo de notificación impidió asignar al derivar");
   } finally {
     if (notificationTableRenamed) {
       await sql`alter table notification_unavailable rename to notification`;

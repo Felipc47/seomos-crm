@@ -20,6 +20,7 @@ import {
   quoteAppearsInInbound,
 } from "@/server/ai/schedule-confirm";
 import { refreshLeadProfile } from "@/server/ai/lead-profile";
+import { assignLeadOnHumanHandoff } from "@/server/services/ai-routing";
 import { armFollowUp } from "@/server/ai/follow-up";
 import {
   buildAgentSystemPrompt,
@@ -1010,6 +1011,23 @@ export async function applyHandoff(
       conversation: { id: conversationId, handoffReason: reason },
     },
   });
+
+  // La derivación es el momento en que se marca al comercial responsable
+  // (nunca antes). El sandbox del Laboratorio queda fuera, y un fallo aquí
+  // jamás revierte el handoff: el chat ya quedó en manos humanas.
+  if (!updated[0].isTest) {
+    try {
+      await assignLeadOnHumanHandoff({
+        organizationId,
+        contactId: updated[0].contactId,
+      });
+    } catch (err) {
+      console.error(
+        `[handoff] no se pudo asignar el comercial de ${conversationId}:`,
+        err
+      );
+    }
+  }
 }
 
 async function moveLeadToStage(

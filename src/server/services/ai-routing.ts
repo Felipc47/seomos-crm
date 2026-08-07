@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { publish } from "@/server/events/bus";
 import { notifyUser } from "@/server/notifications";
@@ -23,13 +23,119 @@ export async function listServiceRoutingOptions(
 }
 
 /**
+ * Asigna el comercial del servicio del lead cuando la conversación real ya
+ * está DERIVADA a atención humana. Es la única puerta de asignación
+ * automática: mientras la IA atiende sola, el lead queda sin responsable.
+ *
+ * - Solo actúa con handoff activo en la conversación real (nunca sandbox).
+ * - Solo completa leads sin responsable: una transferencia humana previa o
+ *   concurrente siempre gana (UPDATE con `IS NULL`).
+ * - El miembro se re-valida dentro del tenant antes de asignar.
+ * - La notificación es secundaria y jamás revierte la asignación.
+ */
+export async function assignLeadOnHumanHandoff(input: {
+  organizationId: string;
+  contactId: string;
+}): Promise<{ assigned: boolean }> {
+  const db = getDb();
+  const rows = await db
+    .select({
+      leadId: schema.lead.id,
+      serviceName: schema.service.name,
+      serviceMemberId: schema.service.assignedMemberId,
+      memberOrganizationId: schema.member.organizationId,
+      memberRole: schema.member.role,
+      assignedUserId: schema.member.userId,
+      contactName: schema.contact.name,
+      conversationId: schema.conversation.id,
+    })
+    .from(schema.lead)
+    .innerJoin(
+      schema.service,
+      and(
+        eq(schema.service.id, schema.lead.serviceId),
+        eq(schema.service.organizationId, input.organizationId)
+      )
+    )
+    .innerJoin(
+      schema.member,
+      eq(schema.member.id, schema.service.assignedMemberId)
+    )
+    .innerJoin(schema.contact, eq(schema.contact.id, schema.lead.contactId))
+    .innerJoin(
+      schema.conversation,
+      and(
+        eq(schema.conversation.organizationId, input.organizationId),
+        eq(schema.conversation.contactId, schema.lead.contactId),
+        eq(schema.conversation.isTest, false)
+      )
+    )
+    .where(
+      and(
+        eq(schema.lead.organizationId, input.organizationId),
+        eq(schema.lead.contactId, input.contactId),
+        isNull(schema.lead.assignedMemberId),
+        isNotNull(schema.conversation.handoffAt)
+      )
+    )
+    .limit(1);
+  const row = rows[0];
+  if (!row || !row.serviceMemberId) return { assigned: false };
+  if (
+    !isEligibleServiceAssignee(
+      { organizationId: row.memberOrganizationId, role: row.memberRole },
+      input.organizationId
+    )
+  ) {
+    return { assigned: false };
+  }
+
+  const updated = await db
+    .update(schema.lead)
+    .set({ assignedMemberId: row.serviceMemberId, updatedAt: new Date() })
+    .where(
+      and(
+        eq(schema.lead.organizationId, input.organizationId),
+        eq(schema.lead.id, row.leadId),
+        isNull(schema.lead.assignedMemberId)
+      )
+    )
+    .returning({ id: schema.lead.id });
+  if (!updated[0]) return { assigned: false };
+
+  publish(input.organizationId, {
+    type: "conversation.updated",
+    data: { conversation: { id: row.conversationId } },
+  });
+
+  try {
+    await notifyUser({
+      userId: row.assignedUserId,
+      organizationId: input.organizationId,
+      type: "lead_assigned",
+      title: "Nuevo prospecto asignado",
+      body: `${row.contactName} · ${row.serviceName}`,
+      href: `/inbox?contact=${input.contactId}`,
+    });
+  } catch (err) {
+    console.error(
+      `[asignación] no se pudo notificar la derivación del contacto ${input.contactId}:`,
+      err
+    );
+  }
+
+  return { assigned: true };
+}
+
+/**
  * Aplica una clasificación de servicio producida por IA.
  *
  * - Solo completa leads que todavía no tienen servicio.
- * - El servicio y el miembro se vuelven a resolver dentro del tenant.
- * - La asignación del miembro usa un UPDATE separado con `IS NULL`: una
- *   transferencia humana concurrente o previa siempre gana.
- * - La notificación es secundaria y jamás revierte la clasificación.
+ * - El servicio se vuelve a resolver dentro del tenant.
+ * - NO asigna comercial: la asignación ocurre únicamente al derivar la
+ *   conversación a atención humana (assignLeadOnHumanHandoff). Si la
+ *   conversación YA estaba derivada cuando llega la clasificación, la
+ *   asignación se completa aquí mismo para mantener el invariante.
  */
 export async function routeUnclassifiedLeadByService(input: {
   organizationId: string;
@@ -45,16 +151,8 @@ export async function routeUnclassifiedLeadByService(input: {
     .select({
       id: schema.service.id,
       name: schema.service.name,
-      assignedMemberId: schema.service.assignedMemberId,
-      memberOrganizationId: schema.member.organizationId,
-      memberRole: schema.member.role,
-      assignedUserId: schema.member.userId,
     })
     .from(schema.service)
-    .leftJoin(
-      schema.member,
-      eq(schema.member.id, schema.service.assignedMemberId)
-    )
     .where(
       and(
         eq(schema.service.organizationId, input.organizationId),
@@ -89,68 +187,17 @@ export async function routeUnclassifiedLeadByService(input: {
   const lead = classified[0];
   if (!lead) return { applied: false, assigned: false };
 
-  let assigned = false;
-  if (
-    service.assignedMemberId &&
-    isEligibleServiceAssignee(
-      service.memberOrganizationId && service.memberRole
-        ? {
-            organizationId: service.memberOrganizationId,
-            role: service.memberRole,
-          }
-        : null,
-      input.organizationId
-    )
-  ) {
-    const assignedRows = await db
-      .update(schema.lead)
-      .set({
-        assignedMemberId: service.assignedMemberId,
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(schema.lead.organizationId, input.organizationId),
-          eq(schema.lead.id, lead.id),
-          isNull(schema.lead.assignedMemberId)
-        )
-      )
-      .returning({ id: schema.lead.id });
-    assigned = Boolean(assignedRows[0]);
-  }
+  // Conversación ya derivada y sin responsable: la clasificación tardía
+  // completa la asignación pendiente. Sin handoff, no asigna nada.
+  const { assigned } = await assignLeadOnHumanHandoff({
+    organizationId: input.organizationId,
+    contactId: input.contactId,
+  });
 
   publish(input.organizationId, {
     type: "conversation.updated",
     data: { conversation: { id: input.conversationId } },
   });
-
-  if (assigned && service.assignedUserId) {
-    try {
-      const contacts = await db
-        .select({ name: schema.contact.name })
-        .from(schema.contact)
-        .where(
-          and(
-            eq(schema.contact.organizationId, input.organizationId),
-            eq(schema.contact.id, input.contactId)
-          )
-        )
-        .limit(1);
-      await notifyUser({
-        userId: service.assignedUserId,
-        organizationId: input.organizationId,
-        type: "lead_assigned",
-        title: "Nuevo prospecto asignado",
-        body: `${contacts[0]?.name ?? "Prospecto"} · ${service.name}`,
-        href: `/inbox?contact=${input.contactId}`,
-      });
-    } catch (err) {
-      console.error(
-        `[servicio-ia] no se pudo notificar la asignación del contacto ${input.contactId}:`,
-        err
-      );
-    }
-  }
 
   return { applied: true, assigned };
 }

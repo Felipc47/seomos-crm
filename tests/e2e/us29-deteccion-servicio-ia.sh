@@ -1,5 +1,5 @@
 #!/bin/bash
-# Self-test de COMPORTAMIENTO — clasificación IA y enrutamiento por servicio.
+# Self-test de COMPORTAMIENTO — clasificación IA y asignación al derivar.
 set -euo pipefail
 
 BASE="${BASE_URL:-http://localhost:3000}"
@@ -11,7 +11,7 @@ PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d vocero -q \
   -c "DROP SCHEMA IF EXISTS public CASCADE; DROP SCHEMA IF EXISTS drizzle CASCADE; CREATE SCHEMA public;" >/dev/null 2>&1
 (cd "$REPO" && pnpm db:migrate >/dev/null 2>&1)
 
-echo "── WhatsApp directo + IA: clasificación, precedencia e idempotencia"
+echo "── WhatsApp directo + IA: clasificación, derivación e idempotencia"
 (
   cd "$REPO"
   E2E_BASE="$BASE" E2E_TS="$TS" node <<'JS'
@@ -96,6 +96,7 @@ async function conversationByPhone(api, phone) {
     invalid: "573110029003",
     notifyFailure: "573110029004",
     leadgen: "573110029005",
+    late: "573110029006",
   };
 
   const owner = await request.newContext({ baseURL });
@@ -210,23 +211,52 @@ async function conversationByPhone(api, phone) {
     "consulta genérica permanece sin servicio y sin responsable"
   );
 
-  // Con contexto suficiente, la misma conversación se clasifica y enruta.
+  // Con contexto suficiente se clasifica el SERVICIO, pero el comercial NO se
+  // marca todavía: la IA sigue atendiendo sola la conversación.
   await inbound(
     owner,
     phones.direct,
     "Cliente Directa",
     "Necesito una tienda virtual con catálogo y carrito de compras"
   );
+  const directClassified = await waitFor(async () => {
+    const contact = await contactByPhone(owner, phones.direct);
+    return contact?.service?.id === web.id ? contact : null;
+  }, "la IA no clasificó Desarrollo web");
+  assert(
+    directClassified.assignee === null,
+    "clasificar el servicio NO asigna comercial mientras atiende la IA"
+  );
+  const preHandoffNotifications = (await body(
+    await anaSession.get("/api/notifications")
+  )).notifications ?? [];
+  assert(
+    !preHandoffNotifications.some(
+      (item) => item.type === "lead_assigned"
+    ),
+    "sin derivación no hay notificación de asignación"
+  );
+
+  // La derivación a atención humana ES el momento de la asignación.
+  await inbound(
+    owner,
+    phones.direct,
+    "Cliente Directa",
+    "Quiero hablar con un asesor por favor"
+  );
   const directAssigned = await waitFor(async () => {
     const contact = await contactByPhone(owner, phones.direct);
-    return contact?.service?.id === web.id && contact?.assignee?.memberId === ana.id
-      ? contact
-      : null;
-  }, "la IA no asignó Desarrollo web a Ana");
+    return contact?.assignee?.memberId === ana.id ? contact : null;
+  }, "la derivación no asignó a Ana");
   assert(
     directAssigned.service.name === "Desarrollo web" &&
       directAssigned.assignee.name === "Ana Web",
-    "servicio y responsable visibles en la operación"
+    "al derivar quedan visibles servicio y responsable"
+  );
+  const handedOff = await conversationByPhone(owner, phones.direct);
+  assert(
+    Boolean(handedOff.handoffAt),
+    "la conversación quedó derivada a atención humana"
   );
   const directNotification = await waitFor(async () => {
     const notifications = (await body(
@@ -238,10 +268,10 @@ async function conversationByPhone(api, phone) {
         item.body?.includes("Cliente Directa") &&
         item.body?.includes("Desarrollo web")
     );
-  }, "Ana no recibió la asignación directa");
+  }, "Ana no recibió la asignación al derivar");
   assert(
     directNotification.href === `/inbox?contact=${directAssigned.id}`,
-    "notificación directa abre la conversación correcta"
+    "notificación de derivación abre la conversación correcta"
   );
 
   await inbound(owner, phones.direct, "Cliente Directa", "También quisiera hacerlo en Joomla");
@@ -256,7 +286,43 @@ async function conversationByPhone(api, phone) {
     "turnos posteriores no duplican la notificación"
   );
 
-  // La transferencia humana gana: IA completa servicio, no cambia a Ana.
+  // Orden inverso: primero deriva (sin servicio → nadie), la clasificación
+  // tardía completa la asignación pendiente.
+  await inbound(
+    owner,
+    phones.late,
+    "Cliente Tardío",
+    "Hola, quiero hablar con un asesor"
+  );
+  const lateConversation = await waitFor(async () => {
+    const conversation = await conversationByPhone(owner, phones.late);
+    return conversation?.handoffAt ? conversation : null;
+  }, "la petición de asesor no derivó la conversación tardía");
+  const lateBefore = await contactByPhone(owner, phones.late);
+  assert(
+    lateBefore.service === null && lateBefore.assignee === null,
+    "derivar sin servicio clasificado no asigna a nadie"
+  );
+  await inbound(
+    owner,
+    phones.late,
+    "Cliente Tardío",
+    "Necesito una tienda virtual con carrito de compras"
+  );
+  const lateAssigned = await waitFor(async () => {
+    const contact = await contactByPhone(owner, phones.late);
+    return contact?.service?.id === web.id &&
+      contact?.assignee?.memberId === ana.id
+      ? contact
+      : null;
+  }, "la clasificación tardía no completó la asignación derivada");
+  assert(
+    lateAssigned.assignee.name === "Ana Web",
+    "clasificación posterior a la derivación asigna al comercial del servicio"
+  );
+  assert(Boolean(lateConversation.id), "conversación tardía registrada");
+
+  // La transferencia humana gana: IA completa servicio, no cambia a Pedro.
   await inbound(owner, phones.transferred, "Cliente Transferida", "Hola, necesito orientación");
   const transferredConversation = await waitFor(
     () => conversationByPhone(owner, phones.transferred),
@@ -305,7 +371,23 @@ async function conversationByPhone(api, phone) {
     "ID inventado se rechaza y la conversación continúa"
   );
 
-  // La alerta es secundaria: al fallar, la atribución debe sobrevivir.
+  // La alerta es secundaria: al fallar durante la derivación, la asignación
+  // debe sobrevivir.
+  await inbound(
+    owner,
+    phones.notifyFailure,
+    "Cliente Sin Campana",
+    "Necesito una tienda virtual con pagos"
+  );
+  await waitFor(async () => {
+    const rows = await sql`
+      select l.service_id
+      from lead l
+      join contact c on c.id = l.contact_id
+      where c.phone = ${phones.notifyFailure}
+    `;
+    return rows[0]?.service_id === web.id ? rows[0] : null;
+  }, "el caso sin campana no se clasificó");
   let notificationRenamed = false;
   try {
     await sql`alter table notification rename to notification_unavailable`;
@@ -314,7 +396,7 @@ async function conversationByPhone(api, phone) {
       owner,
       phones.notifyFailure,
       "Cliente Sin Campana",
-      "Necesito una tienda virtual con pagos"
+      "Mejor quiero hablar con un asesor"
     );
     const routed = await waitFor(async () => {
       const rows = await sql`
@@ -323,10 +405,10 @@ async function conversationByPhone(api, phone) {
         join contact c on c.id = l.contact_id
         where c.phone = ${phones.notifyFailure}
       `;
-      return rows[0]?.service_id === web.id ? rows[0] : null;
-    }, "el fallo de notificación revirtió la clasificación");
+      return rows[0]?.assigned_member_id ? rows[0] : null;
+    }, "el fallo de notificación revirtió la asignación al derivar");
     assert(
-      routed.assigned_member_id === ana.id,
+      routed.assigned_member_id === ana.id && routed.service_id === web.id,
       "fallo de notificación conserva servicio y responsable"
     );
   } finally {
@@ -335,7 +417,8 @@ async function conversationByPhone(api, phone) {
     }
   }
 
-  // Regresión: el form sigue siendo determinista y prioritario.
+  // Regresión: el form clasifica el servicio de forma determinista, pero el
+  // comercial queda pendiente hasta la derivación.
   assert(
     (await owner.post(`/api/services/${seo.id}/forms`, {
       data: { formId: "form_seo_ai_29" },
@@ -357,8 +440,8 @@ async function conversationByPhone(api, phone) {
     return contact?.service?.id === seo.id ? contact : null;
   }, "Lead Ads perdió la clasificación por formulario");
   assert(
-    fromForm.assignee?.memberId === ana.id,
-    "Lead Ads conserva responsable determinista"
+    fromForm.assignee === null,
+    "Lead Ads clasifica el servicio sin marcar comercial hasta derivar"
   );
 
   // Evidencia observable en la Bandeja, no solo en SQL/API.
@@ -379,7 +462,7 @@ async function conversationByPhone(api, phone) {
   await row.getByText("Desarrollo web", { exact: true }).waitFor();
   await row.getByText("Ana Web", { exact: true }).waitFor();
   assert(browserErrors.length === 0, "Bandeja sin errores de navegador", browserErrors.join("\n"));
-  ok("Bandeja muestra la clasificación directa y su ejecutiva");
+  ok("Bandeja muestra la conversación derivada con su ejecutiva");
 
   await context.close();
   await browser.close();
@@ -394,3 +477,51 @@ async function conversationByPhone(api, phone) {
 });
 JS
 )
+
+echo "── Retroactividad: la migración 0021 corrige datos históricos"
+PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d vocero -q <<'SQL'
+-- Estado "regla vieja": org sintética con un lead asignado sin derivación
+-- (debe liberarse) y un lead derivado sin responsable (debe asignarse).
+INSERT INTO organization (id, name, slug, created_at)
+VALUES ('org_retro29', 'Retro 29', 'retro-29', now());
+INSERT INTO "user" (id, name, email, email_verified, created_at, updated_at)
+VALUES ('user_retro29', 'Comercial Retro', 'retro29@test.local', true, now(), now());
+INSERT INTO member (id, organization_id, user_id, role, created_at)
+VALUES ('member_retro29', 'org_retro29', 'user_retro29', 'commercial', now());
+INSERT INTO pipeline_stage (id, organization_id, name, kind, position)
+VALUES ('stage_retro29', 'org_retro29', 'Nuevo', 'open', 0);
+INSERT INTO service (id, organization_id, name, assigned_member_id)
+VALUES ('svc_retro29', 'org_retro29', 'Retro Servicio', 'member_retro29');
+INSERT INTO contact (id, organization_id, name, phone)
+VALUES
+  ('ct_retro29_premature', 'org_retro29', 'Prematuro', '573900000001'),
+  ('ct_retro29_derived', 'org_retro29', 'Derivado', '573900000002');
+INSERT INTO conversation (id, organization_id, contact_id, is_test, handoff_at, handoff_reason)
+VALUES
+  ('cv_retro29_premature', 'org_retro29', 'ct_retro29_premature', false, NULL, NULL),
+  ('cv_retro29_derived', 'org_retro29', 'ct_retro29_derived', false, now(), 'cliente');
+INSERT INTO lead (id, organization_id, contact_id, stage_id, service_id, assigned_member_id, position)
+VALUES
+  ('ld_retro29_premature', 'org_retro29', 'ct_retro29_premature', 'stage_retro29', 'svc_retro29', 'member_retro29', 0),
+  ('ld_retro29_derived', 'org_retro29', 'ct_retro29_derived', 'stage_retro29', 'svc_retro29', NULL, 1);
+SQL
+
+PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d vocero -q \
+  -f "$REPO/drizzle/0021_asignacion-al-derivar.sql" >/dev/null
+
+RETRO_RESULT=$(PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d vocero -tA <<'SQL'
+SELECT
+  (SELECT assigned_member_id IS NULL FROM lead WHERE id = 'ld_retro29_premature')
+  AND
+  (SELECT assigned_member_id = 'member_retro29' FROM lead WHERE id = 'ld_retro29_derived');
+SQL
+)
+if [ "$RETRO_RESULT" = "t" ]; then
+  echo "  ✅ retroactivo: libera la asignación prematura y asigna la derivada"
+else
+  echo "  ❌ retroactivo falló (resultado: $RETRO_RESULT)"
+  exit 1
+fi
+
+PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d vocero -q \
+  -c "DELETE FROM organization WHERE id = 'org_retro29'; DELETE FROM \"user\" WHERE id = 'user_retro29';" >/dev/null

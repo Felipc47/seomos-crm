@@ -148,6 +148,13 @@
       "when": 1786052713947,
       "tag": "0020_omniscient_shocker",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1786140239094,
+      "tag": "0021_asignacion-al-derivar",
+      "breakpoints": true
     }
   ]
 }
