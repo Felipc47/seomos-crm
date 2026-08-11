@@ -22,9 +22,26 @@ export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ id: string }> };
 
+const variableSchema = z.object({
+  source: z.enum([
+    "first_name",
+    "name",
+    "phone",
+    "email",
+    "notes",
+    "service",
+    "stage",
+    "fixed",
+  ]),
+  value: z.string().trim().max(500).nullish(),
+  fallback: z.string().trim().max(500).nullish(),
+});
+
 const updateSchema = z.object({
   body: z.string().trim().min(1).max(1024),
   category: z.enum(["UTILITY", "MARKETING"]),
+  /** Mapeo de variables (018); ausente = conservar el guardado. */
+  variables: z.array(variableSchema).max(5).optional(),
 });
 
 /** Edita cuerpo/categoría en Meta; la plantilla vuelve a revisión (pending).

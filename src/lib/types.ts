@@ -61,6 +61,36 @@ export type MessageDto = {
   mediaFilename: string | null;
 };
 
+/** Fuente de una variable de plantilla (018). */
+export type TemplateVariableSourceDto =
+  | "first_name"
+  | "name"
+  | "phone"
+  | "email"
+  | "notes"
+  | "service"
+  | "stage"
+  | "fixed";
+
+export type TemplateVariableDto = {
+  source: TemplateVariableSourceDto;
+  value?: string | null;
+  fallback?: string | null;
+};
+
+/** Etiquetas en español de las fuentes (compartidas por las UIs). */
+export const TEMPLATE_VARIABLE_LABELS: Record<TemplateVariableSourceDto, string> =
+  {
+    first_name: "Primer nombre",
+    name: "Nombre completo",
+    phone: "Teléfono",
+    email: "Correo",
+    notes: "Notas del contacto",
+    service: "Servicio del lead",
+    stage: "Etapa del prospecto",
+    fixed: "Valor fijo",
+  };
+
 export type TemplateDto = {
   id: string;
   name: string;
@@ -72,6 +102,8 @@ export type TemplateDto = {
   /** Encabezado multimedia (016): null = plantilla solo de texto. */
   headerKind: "image" | "document" | null;
   headerFilename: string | null;
+  /** Mapeo de variables (018): null = plantilla legacy (≤1 variable). */
+  variables: TemplateVariableDto[] | null;
 };
 
 /** Kinds de etapa: las cuatro distintas de `open` son anclas del sistema. */

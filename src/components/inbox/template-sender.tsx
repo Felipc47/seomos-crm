@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { TemplateDto } from "@/lib/types";
+import { TEMPLATE_VARIABLE_LABELS, type TemplateDto } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,7 +59,10 @@ export function TemplateSender({
   }
 
   const selected = templates.find((t) => t.id === selectedId) ?? null;
-  const needsVariable = selected ? /\{\{\s*1\s*\}\}/.test(selected.body) : false;
+  // Plantilla mapeada (018): el servidor personaliza solo — sin input manual.
+  const isMapped = (selected?.variables?.length ?? 0) > 0;
+  const needsVariable =
+    !isMapped && selected ? /\{\{\s*1\s*\}\}/.test(selected.body) : false;
 
   async function send() {
     if (!selected || sending) return;
@@ -110,6 +113,21 @@ export function TemplateSender({
       {selected && (
         <p className="rounded-md bg-secondary/60 p-2.5 text-xs text-muted-foreground">
           {selected.body}
+        </p>
+      )}
+      {isMapped && selected?.variables && (
+        <p className="text-xs text-muted-foreground">
+          Se personaliza sola con los datos del contacto:{" "}
+          {selected.variables
+            .map(
+              (v, i) =>
+                `{{${i + 1}}} = ${
+                  v.source === "fixed"
+                    ? `«${v.value ?? ""}»`
+                    : TEMPLATE_VARIABLE_LABELS[v.source].toLowerCase()
+                }`
+            )
+            .join(" · ")}
         </p>
       )}
       {needsVariable && (

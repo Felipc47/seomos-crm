@@ -79,7 +79,11 @@ export async function createCampaign(
     );
   }
 
-  const needsVariable = countVariables(template.body) === 1;
+  // Plantilla con mapeo (018): las variables se resuelven solas por
+  // destinatario dentro de sendTemplate — no aplica el modo de variable.
+  const mapped =
+    Array.isArray(template.variables) && template.variables.length > 0;
+  const needsVariable = !mapped && countVariables(template.body) === 1;
   if (needsVariable && input.variableMode === "none") {
     throw new CampaignError(
       "invalid",

@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { FileText, ImageIcon, Pencil, RefreshCw, Trash2 } from "lucide-react";
-import type { TemplateDto } from "@/lib/types";
+import {
+  TEMPLATE_VARIABLE_LABELS,
+  type TemplateDto,
+  type TemplateVariableDto,
+  type TemplateVariableSourceDto,
+} from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +38,124 @@ function validateHeaderFile(
     return `El archivo supera el máximo (${HEADER_MAX_MB[kind]} MB)`;
   }
   return null;
+}
+
+/** Índices distintos {{n}} del cuerpo (espejo del servidor). */
+function distinctVars(body: string): number[] {
+  const seen = new Set<number>();
+  for (const m of body.matchAll(/\{\{\s*(\d+)\s*\}\}/g)) seen.add(Number(m[1]));
+  return [...seen].sort((a, b) => a - b);
+}
+
+const DEFAULT_VARIABLE: TemplateVariableDto = { source: "first_name" };
+
+/** Ajusta el mapeo al número de variables del cuerpo sin perder lo elegido. */
+function fitMapping(
+  current: TemplateVariableDto[],
+  count: number
+): TemplateVariableDto[] {
+  return Array.from(
+    { length: count },
+    (_, i) => current[i] ?? { ...DEFAULT_VARIABLE }
+  );
+}
+
+/**
+ * Editor del mapeo (018): una fila por {{n}} con su fuente de datos, el
+ * texto si es fija y un respaldo opcional para cuando el dato falte.
+ */
+function VariableMappingEditor({
+  idPrefix,
+  mapping,
+  onChange,
+}: {
+  idPrefix: string;
+  mapping: TemplateVariableDto[];
+  onChange: (next: TemplateVariableDto[]) => void;
+}) {
+  if (mapping.length === 0) return null;
+
+  function update(i: number, patch: Partial<TemplateVariableDto>) {
+    onChange(mapping.map((entry, j) => (j === i ? { ...entry, ...patch } : entry)));
+  }
+
+  return (
+    <div className="space-y-2 rounded-md border border-input bg-secondary/30 p-3">
+      <p className="text-xs font-semibold">
+        Personalización: qué dato llena cada variable en CADA envío
+      </p>
+      {mapping.map((entry, i) => (
+        <div key={i} className="grid gap-2 md:grid-cols-3">
+          <div className="space-y-1">
+            <Label htmlFor={`${idPrefix}-src-${i}`}>{`{{${i + 1}}}`}</Label>
+            <select
+              id={`${idPrefix}-src-${i}`}
+              value={entry.source}
+              onChange={(e) =>
+                update(i, {
+                  source: e.target.value as TemplateVariableSourceDto,
+                })
+              }
+              className="flex h-9 w-full rounded-md border border-input bg-card px-3 text-sm"
+            >
+              {(
+                Object.keys(TEMPLATE_VARIABLE_LABELS) as TemplateVariableSourceDto[]
+              ).map((source) => (
+                <option key={source} value={source}>
+                  {TEMPLATE_VARIABLE_LABELS[source]}
+                </option>
+              ))}
+            </select>
+          </div>
+          {entry.source === "fixed" ? (
+            <div className="space-y-1">
+              <Label htmlFor={`${idPrefix}-val-${i}`}>Texto fijo</Label>
+              <Input
+                id={`${idPrefix}-val-${i}`}
+                value={entry.value ?? ""}
+                onChange={(e) => update(i, { value: e.target.value })}
+                placeholder="20% de descuento"
+              />
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <Label htmlFor={`${idPrefix}-fb-${i}`}>
+                Respaldo si falta el dato
+              </Label>
+              <Input
+                id={`${idPrefix}-fb-${i}`}
+                value={entry.fallback ?? ""}
+                onChange={(e) => update(i, { fallback: e.target.value })}
+                placeholder={
+                  entry.source === "first_name" || entry.source === "name"
+                    ? "Hola"
+                    : "opcional"
+                }
+              />
+            </div>
+          )}
+        </div>
+      ))}
+      <p className="text-[11.5px] text-muted-foreground">
+        Sin respaldo, el contacto al que le falte el dato no recibirá el
+        mensaje (en campañas queda marcado como fallido).
+      </p>
+    </div>
+  );
+}
+
+/** Resumen legible del mapeo para la ficha y otras vistas. */
+function mappingSummary(variables: TemplateVariableDto[]): string {
+  return variables
+    .map(
+      (v, i) =>
+        `{{${i + 1}}} = ${
+          v.source === "fixed"
+            ? `«${v.value ?? ""}»`
+            : TEMPLATE_VARIABLE_LABELS[v.source].toLowerCase()
+        }`
+    )
+    .join(" · ");
 }
 
 const STATUS_BADGE: Record<
@@ -220,11 +343,17 @@ function TemplateCard({
   );
   // 016: reemplazo opcional del archivo del encabezado (mismo tipo).
   const [replaceFile, setReplaceFile] = useState<File | null>(null);
+  // 018: mapeo editable; arranca con el guardado.
+  const [varMap, setVarMap] = useState<TemplateVariableDto[]>(
+    t.variables ?? []
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const marketing = t.category?.toUpperCase() === "MARKETING";
+  const editVarCount = distinctVars(body).length;
+  const editMapping = fitMapping(varMap, editVarCount);
 
   async function save() {
     if (replaceFile && t.headerKind) {
@@ -233,6 +362,13 @@ function TemplateCard({
         setError(fileError);
         return;
       }
+    }
+    const emptyFixed = editMapping.findIndex(
+      (v) => v.source === "fixed" && !v.value?.trim()
+    );
+    if (emptyFixed >= 0) {
+      setError(`Escribe el valor fijo de {{${emptyFixed + 1}}}`);
+      return;
     }
     setBusy(true);
     setError(null);
@@ -243,6 +379,7 @@ function TemplateCard({
       form.set("category", category);
       form.set("headerKind", t.headerKind);
       form.set("headerFile", replaceFile);
+      form.set("variables", JSON.stringify(editMapping));
       res = await fetch(`/api/templates/${t.id}`, {
         method: "PATCH",
         body: form,
@@ -251,7 +388,7 @@ function TemplateCard({
       res = await fetch(`/api/templates/${t.id}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ body, category }),
+        body: JSON.stringify({ body, category, variables: editMapping }),
       }).catch(() => null);
     }
     setBusy(false);
@@ -365,6 +502,11 @@ function TemplateCard({
               onChange={(e) => setBody(e.target.value)}
             />
           </div>
+          <VariableMappingEditor
+            idPrefix={`edit-${t.id}`}
+            mapping={editMapping}
+            onChange={setVarMap}
+          />
           <div className="space-y-1.5">
             <Label htmlFor={`edit-cat-${t.id}`}>Categoría</Label>
             <select
@@ -414,6 +556,7 @@ function TemplateCard({
                 setEditing(false);
                 setBody(t.body);
                 setReplaceFile(null);
+                setVarMap(t.variables ?? []);
                 setError(null);
               }}
             >
@@ -424,6 +567,12 @@ function TemplateCard({
       ) : (
         <>
           <p className="mt-2 text-sm text-muted-foreground">{t.body}</p>
+          {t.variables && t.variables.length > 0 && (
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              <span className="font-semibold">Se personaliza sola:</span>{" "}
+              {mappingSummary(t.variables)}
+            </p>
+          )}
           {t.status === "rejected" && t.rejectionReason && (
             <p className="mt-2 text-xs text-destructive">
               Razón del rechazo: {t.rejectionReason}
@@ -522,8 +671,13 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
   // 016: encabezado multimedia opcional, fijado al crear.
   const [headerKind, setHeaderKind] = useState<"" | "image" | "document">("");
   const [headerFile, setHeaderFile] = useState<File | null>(null);
+  // 018: mapeo de variables, una fila por {{n}} del cuerpo.
+  const [varMap, setVarMap] = useState<TemplateVariableDto[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const varCount = distinctVars(body).length;
+  const mapping = fitMapping(varMap, varCount);
 
   async function create() {
     if (headerKind && !headerFile) {
@@ -537,6 +691,13 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
         return;
       }
     }
+    const emptyFixed = mapping.findIndex(
+      (v) => v.source === "fixed" && !v.value?.trim()
+    );
+    if (emptyFixed >= 0) {
+      setError(`Escribe el valor fijo de {{${emptyFixed + 1}}}`);
+      return;
+    }
     setSaving(true);
     setError(null);
     let res: Response | null;
@@ -548,6 +709,7 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
       form.set("body", body);
       form.set("headerKind", headerKind);
       form.set("headerFile", headerFile);
+      if (mapping.length > 0) form.set("variables", JSON.stringify(mapping));
       res = await fetch("/api/templates", { method: "POST", body: form }).catch(
         () => null
       );
@@ -555,7 +717,13 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
       res = await fetch("/api/templates", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, language, category, body }),
+        body: JSON.stringify({
+          name,
+          language,
+          category,
+          body,
+          ...(mapping.length > 0 ? { variables: mapping } : {}),
+        }),
       }).catch(() => null);
     }
     setSaving(false);
@@ -570,6 +738,7 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
     setBody("");
     setHeaderKind("");
     setHeaderFile(null);
+    setVarMap([]);
     onCreated();
   }
 
@@ -578,8 +747,9 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
       <CardHeader>
         <CardTitle>Nueva plantilla</CardTitle>
         <CardDescription>
-          Cuerpo con máximo UNA variable <code>{"{{1}}"}</code> (v1). Se envía a
-          aprobación de Meta al crearla.
+          Hasta 5 variables <code>{"{{1}}"}</code>…<code>{"{{5}}"}</code> que se
+          personalizan solas con datos del contacto. Se envía a aprobación de
+          Meta al crearla.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -628,11 +798,20 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
           <Textarea
             id="tpl-body"
             rows={3}
-            placeholder="Hola {{1}}, seguimos disponibles. ¿Retomamos tu cotización?"
+            placeholder="Hola {{1}}, vimos tu interés en {{2}}. ¿Retomamos tu cotización?"
             value={body}
             onChange={(e) => setBody(e.target.value)}
           />
+          <p className="text-xs text-muted-foreground">
+            Usa variables {"{{1}}"}…{"{{5}}"} consecutivas: cada una se llena
+            sola con datos del contacto en cada envío.
+          </p>
         </div>
+        <VariableMappingEditor
+          idPrefix="tpl-new"
+          mapping={mapping}
+          onChange={setVarMap}
+        />
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="tpl-header">Encabezado (opcional)</Label>

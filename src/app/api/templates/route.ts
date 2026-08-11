@@ -31,11 +31,28 @@ export const GET = withAuth(async (session) => {
   return Response.json({ templates: templates.map(serializeTemplate) });
 });
 
+const variableSchema = z.object({
+  source: z.enum([
+    "first_name",
+    "name",
+    "phone",
+    "email",
+    "notes",
+    "service",
+    "stage",
+    "fixed",
+  ]),
+  value: z.string().trim().max(500).nullish(),
+  fallback: z.string().trim().max(500).nullish(),
+});
+
 const createSchema = z.object({
   name: z.string().trim().min(1).max(60),
   language: z.string().trim().min(2).max(10),
   category: z.enum(["UTILITY", "MARKETING"]),
   body: z.string().trim().min(1).max(1024),
+  /** Mapeo de variables (018); ausente = plantilla legacy. */
+  variables: z.array(variableSchema).max(5).optional(),
 });
 
 export const POST = withAuth(async (session, req: Request) => {

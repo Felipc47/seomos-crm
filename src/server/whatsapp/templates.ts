@@ -10,6 +10,13 @@ import {
   normalizeRecipient,
 } from "@/lib/meta/client";
 import { formatBytes, WA_MEDIA_MAX_BYTES } from "@/lib/wa-media";
+import {
+  exampleValues,
+  parseStoredVariables,
+  resolveTemplateVariables,
+  validateTemplateVariables,
+  type TemplateVariable,
+} from "@/server/whatsapp/template-vars";
 import { scoped } from "@/lib/db/tenant";
 import { publish } from "@/server/events/bus";
 import {
@@ -71,7 +78,12 @@ export function validateBodyVariables(body: string): string | null {
   return null;
 }
 
-export function renderBody(body: string, variable?: string): string {
+/** Sustituye variables: string único (legacy, todas iguales) o array
+ * posicional ({{n}} → values[n-1], del mapeo 018). */
+export function renderBody(body: string, variable?: string | string[]): string {
+  if (Array.isArray(variable)) {
+    return body.replace(VARIABLE_REGEX, (_, n) => variable[Number(n) - 1] ?? "");
+  }
   return body.replace(VARIABLE_REGEX, variable ?? "");
 }
 
@@ -88,6 +100,7 @@ export function serializeTemplate(t: TemplateRow) {
     rejectionReason: t.rejectionReason,
     headerKind: t.headerKind,
     headerFilename: t.headerFilename,
+    variables: parseStoredVariables(t.variables),
   };
 }
 
@@ -273,10 +286,14 @@ export async function createTemplate(
     category: string;
     body: string;
     header?: TemplateHeaderInput | null;
+    /** Mapeo de variables (018); null/vacío = plantilla legacy. */
+    variables?: TemplateVariable[] | null;
   },
   opts: { requiresApproval?: boolean; requestedById?: string | null } = {}
 ): Promise<TemplateRow> {
-  const variableError = validateBodyVariables(input.body);
+  const mapping =
+    input.variables && input.variables.length > 0 ? input.variables : null;
+  const variableError = validateTemplateVariables(input.body, mapping);
   if (variableError) throw new TemplateError("invalid", variableError);
   if (input.header) {
     const headerError = validateTemplateHeader({
@@ -306,6 +323,7 @@ export async function createTemplate(
       language: input.language,
       category: input.category,
       body: input.body,
+      examples: bodyExamples(input.body, mapping),
       ...(input.header && headerHandle
         ? { header: { kind: input.header.kind, handle: headerHandle } }
         : {}),
@@ -329,6 +347,7 @@ export async function createTemplate(
       headerKind: input.header?.kind ?? null,
       headerFilename: input.header?.filename ?? null,
       headerMime: input.header?.mime ?? null,
+      variables: mapping,
     })
     .onConflictDoUpdate({
       target: [
@@ -349,6 +368,7 @@ export async function createTemplate(
         // Archivo nuevo (o sin encabezado): el media de envío anterior ya no vale.
         headerMediaId: null,
         headerMediaUploadedAt: null,
+        variables: mapping,
         updatedAt: new Date(),
       },
     })
@@ -387,9 +407,10 @@ async function pushCreateToMeta(
     category: string;
     body: string;
     header?: { kind: "image" | "document"; handle: string };
+    /** Un valor de ejemplo por variable (Meta lo exige en la revisión). */
+    examples?: string[];
   }
 ): Promise<string | null> {
-  const hasVariable = countVariables(tpl.body) === 1;
   try {
     const res = await graphRequest<{ id?: string; status?: string }>(
       `${creds.wabaId}/message_templates`,
@@ -407,7 +428,9 @@ async function pushCreateToMeta(
             {
               type: "BODY",
               text: tpl.body,
-              ...(hasVariable ? { example: { body_text: [["ejemplo"]] } } : {}),
+              ...(tpl.examples && tpl.examples.length > 0
+                ? { example: { body_text: [tpl.examples] } }
+                : {}),
             },
           ],
         },
@@ -418,6 +441,16 @@ async function pushCreateToMeta(
     await toTemplateError(organizationId, err);
     return null; // inalcanzable: toTemplateError siempre lanza
   }
+}
+
+/** Ejemplos de `body_text` para el alta/edición: del mapeo si existe; una
+ * plantilla legacy con {{1}} conserva el "ejemplo" genérico. */
+function bodyExamples(
+  body: string,
+  mapping: TemplateVariable[] | null
+): string[] {
+  if (mapping && mapping.length > 0) return exampleValues(mapping);
+  return countVariables(body) >= 1 ? ["ejemplo"] : [];
 }
 
 /** Localiza una plantilla de la organización o lanza `not_found`. */
@@ -517,13 +550,22 @@ export async function updateTemplate(
     category: string;
     /** Reemplazo del archivo del encabezado (mismo tipo que el actual). */
     headerFile?: Omit<TemplateHeaderInput, "kind"> | null;
+    /** Mapeo de variables (018). `undefined` = conservar el guardado. */
+    variables?: TemplateVariable[] | null;
   },
   opts: { requiresApproval?: boolean; requestedById?: string | null } = {}
 ): Promise<TemplateRow> {
-  const variableError = validateBodyVariables(input.body);
+  const template = await requireTemplate(organizationId, templateId);
+
+  const mapping =
+    input.variables === undefined
+      ? parseStoredVariables(template.variables)
+      : input.variables && input.variables.length > 0
+        ? input.variables
+        : null;
+  const variableError = validateTemplateVariables(input.body, mapping);
   if (variableError) throw new TemplateError("invalid", variableError);
 
-  const template = await requireTemplate(organizationId, templateId);
   const db = getDb();
 
   if (input.headerFile) {
@@ -561,6 +603,7 @@ export async function updateTemplate(
         status: "awaiting_approval",
         rejectionReason: null,
         requestedById: opts.requestedById ?? null,
+        variables: mapping,
         ...headerFileSet,
         updatedAt: new Date(),
       })
@@ -588,11 +631,13 @@ export async function updateTemplate(
     header = { kind: template.headerKind, handle };
   }
 
+  const examples = bodyExamples(input.body, mapping);
   if (template.waTemplateId) {
     await pushEditToMeta(organizationId, creds, template.waTemplateId, {
       body: input.body,
       category: input.category,
       header,
+      examples,
     });
   } else {
     // Nunca llegó a Meta (nació esperando aprobación): se crea allá ahora.
@@ -602,6 +647,7 @@ export async function updateTemplate(
       category: input.category,
       body: input.body,
       header,
+      examples,
     });
     await db
       .update(schema.template)
@@ -616,6 +662,7 @@ export async function updateTemplate(
       category: input.category,
       status: "pending",
       rejectionReason: null,
+      variables: mapping,
       ...headerFileSet,
       updatedAt: new Date(),
     })
@@ -636,9 +683,9 @@ async function pushEditToMeta(
     body: string;
     category: string;
     header?: { kind: "image" | "document"; handle: string };
+    examples?: string[];
   }
 ): Promise<void> {
-  const hasVariable = countVariables(input.body) === 1;
   try {
     await graphRequest(`${waTemplateId}`, {
       method: "POST",
@@ -654,7 +701,9 @@ async function pushEditToMeta(
           {
             type: "BODY",
             text: input.body,
-            ...(hasVariable ? { example: { body_text: [["ejemplo"]] } } : {}),
+            ...(input.examples && input.examples.length > 0
+              ? { example: { body_text: [input.examples] } }
+              : {}),
           },
         ],
       },
@@ -692,12 +741,17 @@ export async function submitTemplate(
   }
 
   const db = getDb();
+  const examples = bodyExamples(
+    template.body,
+    parseStoredVariables(template.variables)
+  );
   let waTemplateId = template.waTemplateId;
   if (waTemplateId) {
     await pushEditToMeta(organizationId, creds, waTemplateId, {
       body: template.body,
       category: template.category,
       header,
+      examples,
     });
   } else {
     waTemplateId = await pushCreateToMeta(organizationId, creds, {
@@ -706,6 +760,7 @@ export async function submitTemplate(
       category: template.category,
       body: template.body,
       header,
+      examples,
     });
   }
 
@@ -854,6 +909,48 @@ export async function applyTemplateStatusEvent(
     );
 }
 
+/** Contexto de personalización del destinatario: contacto + su lead (el
+ * lead es 1:1 con el contacto) con nombres de servicio y etapa. */
+async function loadVariableContext(
+  organizationId: string,
+  contact: typeof schema.contact.$inferSelect
+): Promise<{
+  contactName: string;
+  phone: string;
+  email: string | null;
+  notes: string | null;
+  serviceName: string | null;
+  stageName: string | null;
+}> {
+  const rows = await getDb()
+    .select({
+      serviceName: schema.service.name,
+      stageName: schema.pipelineStage.name,
+    })
+    .from(schema.lead)
+    .leftJoin(schema.service, eq(schema.service.id, schema.lead.serviceId))
+    .leftJoin(
+      schema.pipelineStage,
+      eq(schema.pipelineStage.id, schema.lead.stageId)
+    )
+    .where(
+      scoped(
+        schema.lead.organizationId,
+        organizationId,
+        eq(schema.lead.contactId, contact.id)
+      )
+    )
+    .limit(1);
+  return {
+    contactName: contact.name,
+    phone: contact.phone,
+    email: contact.email,
+    notes: contact.notes,
+    serviceName: rows[0]?.serviceName ?? null,
+    stageName: rows[0]?.stageName ?? null,
+  };
+}
+
 /** Envía una plantilla APROBADA a una conversación (ventana cerrada, FR-051). */
 export async function sendTemplate(input: {
   organizationId: string;
@@ -879,7 +976,10 @@ export async function sendTemplate(input: {
   if (template.status !== "approved") {
     throw new TemplateError("invalid", "Solo se pueden enviar plantillas aprobadas");
   }
-  const needsVariable = countVariables(template.body) === 1;
+  // Mapeo 018: las variables se resuelven solas con datos del destinatario
+  // (el `variable` legacy se ignora). Sin mapeo, rige la regla v1.
+  const mapping = parseStoredVariables(template.variables);
+  const needsVariable = !mapping && countVariables(template.body) === 1;
   if (needsVariable && !input.variable?.trim()) {
     throw new TemplateError("invalid", "La plantilla requiere el valor de {{1}}");
   }
@@ -921,6 +1021,21 @@ export async function sendTemplate(input: {
     throw new TemplateError("reconnect_required", "Reconecta el número");
   }
 
+  // Resolución del mapeo por destinatario (018): dato → respaldo → error
+  // claro. En campañas esto marca fallido SOLO a este destinatario.
+  let bodyValues: string[] | undefined;
+  if (mapping) {
+    const ctx = await loadVariableContext(input.organizationId, row.contact);
+    const resolved = resolveTemplateVariables(mapping, ctx);
+    if (!resolved.ok) {
+      throw new TemplateError(
+        "invalid",
+        `Falta el dato de ${resolved.missing} para este contacto: complétalo o define un valor de respaldo en la plantilla`
+      );
+    }
+    bodyValues = resolved.values;
+  }
+
   // Encabezado multimedia (016): media_id vigente — una campaña entera
   // reutiliza el mismo; solo se re-sube si caducó. Va DESPUÉS de los guards:
   // una conversación de prueba jamás debe disparar esta subida real.
@@ -947,7 +1062,12 @@ export async function sendTemplate(input: {
       ],
     });
   }
-  if (needsVariable) {
+  if (bodyValues) {
+    components.push({
+      type: "body",
+      parameters: bodyValues.map((text) => ({ type: "text", text })),
+    });
+  } else if (needsVariable) {
     components.push({
       type: "body",
       parameters: [{ type: "text", text: input.variable!.trim() }],
@@ -974,7 +1094,7 @@ export async function sendTemplate(input: {
       waMessageId,
       direction: "out",
       type: "template",
-      text: renderBody(template.body, input.variable?.trim()),
+      text: renderBody(template.body, bodyValues ?? input.variable?.trim()),
       // El hilo muestra el encabezado como adjunto descargable bajo demanda.
       mediaId: headerMediaId,
       mediaMime: template.headerKind ? template.headerMime : null,

@@ -535,6 +535,10 @@ export const template = pgTable(
      * renueva re-subiendo los bytes guardados. */
     headerMediaId: text("header_media_id"),
     headerMediaUploadedAt: timestamp("header_media_uploaded_at"),
+    /** Mapeo de variables (018): array posicional `[{source, value?,
+     * fallback?}]` — cada {{n}} se resuelve con datos del contacto/lead en
+     * cada envío. NULL = plantilla legacy (≤1 variable, valor manual). */
+    variables: jsonb("variables"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

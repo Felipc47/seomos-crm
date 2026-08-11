@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pause, Play, RotateCcw, Send, Users } from "lucide-react";
-import type {
-  AudienceFilterDto,
-  CampaignDto,
-  CampaignRecipientDto,
-  ContactDto,
-  StageDto,
-  TemplateDto,
+import {
+  TEMPLATE_VARIABLE_LABELS,
+  type AudienceFilterDto,
+  type CampaignDto,
+  type CampaignRecipientDto,
+  type ContactDto,
+  type StageDto,
+  type TemplateDto,
 } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -99,9 +100,12 @@ export function CampaignsClient() {
     [templates]
   );
   const selectedTemplate = approved.find((t) => t.id === templateId);
-  const needsVariable = selectedTemplate
-    ? /\{\{\s*1\s*\}\}/.test(selectedTemplate.body)
-    : false;
+  // Plantilla mapeada (018): se personaliza sola por contacto — sin selector.
+  const isMapped = (selectedTemplate?.variables?.length ?? 0) > 0;
+  const needsVariable =
+    !isMapped && selectedTemplate
+      ? /\{\{\s*1\s*\}\}/.test(selectedTemplate.body)
+      : false;
 
   const refetch = useCallback(async () => {
     const res = await fetch("/api/campaigns").catch(() => null);
@@ -297,6 +301,24 @@ export function CampaignsClient() {
           {selectedTemplate && (
             <p className="whitespace-pre-wrap rounded-xl border border-border bg-surface-2 px-3.5 py-3 text-[13px] text-text-2">
               {selectedTemplate.body}
+            </p>
+          )}
+
+          {isMapped && selectedTemplate?.variables && (
+            <p className="rounded-xl border border-border bg-surface-2 px-3.5 py-3 text-[12.5px] text-text-2">
+              <span className="font-bold text-foreground">
+                Se personaliza por contacto:
+              </span>{" "}
+              {selectedTemplate.variables
+                .map(
+                  (v, i) =>
+                    `{{${i + 1}}} = ${
+                      v.source === "fixed"
+                        ? `«${v.value ?? ""}»`
+                        : TEMPLATE_VARIABLE_LABELS[v.source].toLowerCase()
+                    }`
+                )
+                .join(" · ")}
             </p>
           )}
 

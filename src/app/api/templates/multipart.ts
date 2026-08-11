@@ -29,9 +29,17 @@ export async function parseTemplateMultipart<T>(
   const form = await req.formData().catch(() => null);
   if (!form) return { ok: false, message: "No se pudo leer el formulario" };
 
-  const scalars: Record<string, string> = {};
+  const scalars: Record<string, unknown> = {};
   for (const [key, value] of form.entries()) {
     if (typeof value === "string") scalars[key] = value;
+  }
+  // El mapeo de variables (018) viaja como JSON string en el form-data.
+  if (typeof scalars.variables === "string") {
+    try {
+      scalars.variables = JSON.parse(scalars.variables);
+    } catch {
+      return { ok: false, message: "Mapeo de variables ilegible" };
+    }
   }
   const parsed = schema.safeParse(scalars);
   if (!parsed.success) {
