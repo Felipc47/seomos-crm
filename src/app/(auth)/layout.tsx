@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { DEFAULT_BRANDING } from "@/lib/branding";
 import { getBranding } from "@/server/branding";
 
@@ -24,6 +25,11 @@ export default async function AuthLayout({
           </div>
         </div>
         {children}
+        <nav className="mt-6 flex items-center justify-center gap-4 text-xs font-bold text-mute" aria-label="Información legal">
+          <Link href="/" className="hover:text-foreground hover:underline">Inicio</Link>
+          <Link href="/privacy" className="hover:text-foreground hover:underline">Privacidad</Link>
+          <Link href="/terms" className="hover:text-foreground hover:underline">Términos</Link>
+        </nav>
       </div>
     </main>
   );

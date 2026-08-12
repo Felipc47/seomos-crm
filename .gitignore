@@ -38,6 +38,7 @@ Thumbs.db
 # proyecto compartida con el equipo). La config local de la sesión, no:
 .claude/settings.local.json
 .playwright-mcp/
+.artifacts/
 .tmp-seed-demo.mjs
 
 # Recursos fuente de marca (los assets usados viven en public/brand/)

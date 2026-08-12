@@ -187,3 +187,30 @@
     animation-duration: 0.01ms !important;
   }
 }
+
+@layer components {
+  .legal-content section + section {
+    @apply mt-11 border-t border-border pt-11;
+  }
+
+  .legal-content h2 {
+    @apply font-display text-2xl font-extrabold tracking-[-0.025em] md:text-[28px];
+  }
+
+  .legal-content h3 {
+    @apply mt-7 font-display text-lg font-extrabold;
+  }
+
+  .legal-content p {
+    @apply mt-4 text-[16px] leading-7 text-text-2;
+  }
+
+  .legal-content ul {
+    @apply mt-4 space-y-2.5 pl-6 text-[16px] leading-7 text-text-2;
+    list-style: disc;
+  }
+
+  .legal-content a {
+    @apply font-bold text-brand-text underline decoration-brand-soft underline-offset-4 hover:decoration-brand;
+  }
+}
