@@ -17,7 +17,7 @@
 - [x] T007 Añadir guion E2E de navegación anónima, divulgaciones y 404
 - [x] T008 Ejecutar `pnpm typecheck && pnpm lint && pnpm build && pnpm test`
 - [x] T009 Ejecutar E2E local en Chrome y revisar visualmente escritorio/móvil
-- [ ] T010 Desplegar y verificar `/`, `/privacy` y `/terms` en `https://crm.seomos.cloud`
+- [x] T010 Desplegar y verificar `/`, `/privacy` y `/terms` en `https://crm.seomos.cloud`
 
 ## Dependencies
 
