@@ -38,6 +38,12 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_OAUTH_BASE_URL: z.string().url().default("https://oauth2.googleapis.com"),
   GOOGLE_API_BASE_URL: z.string().url().default("https://www.googleapis.com"),
+  // Correo transaccional (020, constitución 1.4.0): Resend es opcional. La
+  // base URL configurable permite el mock interno del self-test.
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_FROM_EMAIL: z.string().email().optional(),
+  RESEND_FROM_NAME: z.string().trim().min(1).max(80).default("Seomos CRM"),
+  RESEND_BASE_URL: z.string().url().default("https://api.resend.com"),
   ALLOW_SIGNUP: z.string().optional(),
   AGENT_COALESCE_MS: z.coerce.number().int().min(0).default(6000),
   // Secreto del barrido de recuperación (/api/cron/sweep). Sin él, el
@@ -112,5 +118,17 @@ export function isGoogleConfigured(): boolean {
     id.trim().length > 0 &&
     typeof secret === "string" &&
     secret.trim().length > 0
+  );
+}
+
+/** true solo cuando Resend tiene key y remitente válidos. */
+export function isEmailConfigured(): boolean {
+  const key = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL;
+  return (
+    typeof key === "string" &&
+    key.trim().length > 0 &&
+    typeof from === "string" &&
+    z.string().email().safeParse(from.trim()).success
   );
 }

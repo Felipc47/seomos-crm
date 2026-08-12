@@ -264,6 +264,46 @@ export const lead = pgTable(
   ]
 );
 
+/** Reserva idempotente y auditoría mínima de correo transaccional. El cuerpo
+ * del email no se persiste: solo estado, referencias y error sanitizado. */
+export const emailDelivery = pgTable(
+  "email_delivery",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    recipientUserId: text("recipient_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    kind: text("kind", {
+      enum: ["new_lead", "weekly_assignee", "weekly_admin"],
+    }).notNull(),
+    leadId: text("lead_id").references(() => lead.id, {
+      onDelete: "cascade",
+    }),
+    periodStart: timestamp("period_start"),
+    idempotencyKey: text("idempotency_key").notNull(),
+    status: text("status", {
+      enum: ["pending", "sent", "failed"],
+    })
+      .notNull()
+      .default("pending"),
+    providerMessageId: text("provider_message_id"),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    sentAt: timestamp("sent_at"),
+  },
+  (t) => [
+    uniqueIndex("email_delivery_idempotency_uq").on(t.idempotencyKey),
+    index("email_delivery_org_created_idx").on(
+      t.organizationId,
+      t.createdAt
+    ),
+  ]
+);
+
 export const conversation = pgTable(
   "conversation",
   {

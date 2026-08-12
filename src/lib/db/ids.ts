@@ -23,6 +23,7 @@ const prefixes = {
   campaign: "cmp",
   campaignRecipient: "crp",
   notification: "ntf",
+  emailDelivery: "eml",
   contactReport: "crpt",
 } as const;
 

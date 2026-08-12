@@ -46,10 +46,12 @@ producción.
 
 Ver [.specify/memory/constitution.md](.specify/memory/constitution.md).
 
-- **Soberanía (II, enmienda 1.3.0)**: dependencias de runtime SOLO WhatsApp
+- **Soberanía (II, enmienda 1.4.0)**: dependencias de runtime SOLO WhatsApp
   Cloud API + proveedor LLM OpenRouter-compatible opcional + Google Calendar
   API opcional (únicamente agendamiento, adaptador en `src/lib/google/`, OAuth
-  por usuario con token cifrado). PROHIBIDO en v1 introducir S3/R2, email,
+  por usuario con token cifrado) + Resend opcional (únicamente avisos de nuevos
+  leads y resúmenes operativos, adaptador dedicado, secreto en runtime y fallo
+  tolerante). PROHIBIDO en v1 introducir S3/R2, otros proveedores de email,
   Stripe u otros servicios de Google distintos de Calendar. Auth y BD
   self-hosted.
 - **Seguridad (I)**: secretos cifrados en reposo (AES-256-GCM, `lib/crypto`);
@@ -131,5 +133,5 @@ repo ya registra. Los subagentes con `memory: project` usan
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/015-asignacion-chats/plan.md
+at specs/020-email-notifications/plan.md
 <!-- SPECKIT END -->

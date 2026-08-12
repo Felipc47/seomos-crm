@@ -1,6 +1,7 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
+import { notifyNewLeadByEmailSafely } from "@/server/email/new-lead";
 
 /**
  * Actividad de lead al recibir un mensaje (US2): si el contacto no tiene lead,
@@ -73,7 +74,13 @@ export async function onLeadActivity(
     })
     .onConflictDoNothing({ target: [schema.lead.contactId] })
     .returning({ id: schema.lead.id });
-  if (inserted[0]) return inserted[0].id;
+  if (inserted[0]) {
+    await notifyNewLeadByEmailSafely({
+      organizationId,
+      leadId: inserted[0].id,
+    });
+    return inserted[0].id;
+  }
 
   // Otra ingesta pudo crear el lead entre la lectura y el INSERT.
   const concurrent = await db

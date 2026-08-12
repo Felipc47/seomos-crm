@@ -1,25 +1,25 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Versión: 1.2.0 → 1.3.0
+Versión: 1.3.0 → 1.4.0
 
 Cambios:
   - Principio II "Soberanía / Self-Hosted" → ENMIENDA aprobada por el dueño
-    (2026-07-17, feature 004): se agrega Google Calendar API como TERCERA
-    dependencia externa opcional de runtime, exclusivamente para agendamiento
-    de reuniones con prospectos, tras adaptador dedicado y con OAuth por
-    usuario (tokens cifrados en reposo). La prohibición de "servicios de
-    Google" pasa a "otros servicios de Google distintos de Calendar".
+    (2026-08-12, feature 020): se agrega Resend como CUARTA dependencia externa
+    opcional de runtime, exclusivamente para correo transaccional de avisos de
+    nuevos leads y resúmenes operativos. Se exige adaptador dedicado, secreto
+    solo en runtime y degradación segura cuando no esté configurado o falle.
   - Resto de principios: íntegros (sin cambio semántico).
 
-Bump: MINOR (1.2.0 → 1.3.0) — expansión material del Principio II (nueva
-dependencia permitida); sin eliminaciones ni redefiniciones incompatibles.
+Bump: MINOR (1.3.0 → 1.4.0) — expansión material del Principio II con una nueva
+dependencia externa permitida; sin eliminaciones ni redefiniciones incompatibles.
 
 Plantillas dependientes:
   - .specify/templates/plan-template.md — ✅ compatible.
   - .specify/templates/spec-template.md — ✅ compatible.
   - .specify/templates/tasks-template.md — ✅ compatible.
-  - CLAUDE.md — ⚠ actualizar la regla "Soberanía (II)" al implementar la 004.
+  - AGENTS.md — ✅ actualizado.
+  - CLAUDE.md — ✅ actualizado.
 
 TODOs diferidos: ninguno.
 -->
@@ -68,9 +68,16 @@ dependencias externas en runtime es CERRADA:
      refresh token se cifra en reposo (Principio I). Sin conexión configurada, el
      producto funciona completo sin agendamiento; su fallo degrada sin colgar
      ninguna otra función.
-- **PROHIBIDO en v1**: almacenamiento de objetos externo (S3/R2), servicios de
-  email, Stripe u otro billing, y otros servicios de Google distintos de Calendar.
-  Cualquier feature que los requiera queda fuera del alcance de v1.
+  4. **Resend**, opcional (enmienda 1.4.0, aprobada por el dueño 2026-08-12),
+     EXCLUSIVAMENTE para correo transaccional de avisos de nuevos leads y
+     resúmenes operativos del CRM: accedido tras un adaptador dedicado, con API
+     key solo en variables de runtime y entregas idempotentes. Sin configuración
+     o ante un fallo del proveedor, el CRM conserva el lead y las notificaciones
+     internas y continúa sin colgar el flujo principal.
+- **PROHIBIDO en v1**: almacenamiento de objetos externo (S3/R2), proveedores de
+  email distintos de Resend, Stripe u otro billing, y otros servicios de Google
+  distintos de Calendar. Cualquier feature que los requiera queda fuera del
+  alcance de v1.
 - El instalador solo necesita: un VPS con Coolify o Docker, un dominio, credenciales
   de Meta y (opcional) un token de OpenRouter. Nada más.
 - Las funciones core —autenticación y base de datos— corren self-hosted (Better
@@ -260,4 +267,4 @@ práctica, convención o preferencia; ante un conflicto, gana la constitución.
 - **Propagación**: al enmendar la constitución se revisan y, si procede, se actualizan
   las plantillas dependientes (plan, spec, tasks).
 
-**Version**: 1.3.0 | **Ratified**: 2026-07-09 | **Last Amended**: 2026-07-17
+**Version**: 1.4.0 | **Ratified**: 2026-07-09 | **Last Amended**: 2026-08-12

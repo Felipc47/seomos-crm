@@ -2,6 +2,7 @@ import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { publish } from "@/server/events/bus";
 import { notifyUser } from "@/server/notifications";
+import { notifyNewLeadByEmailSafely } from "@/server/email/new-lead";
 import {
   hasExplicitServiceIntent,
   isEligibleServiceAssignee,
@@ -123,6 +124,11 @@ export async function assignLeadOnHumanHandoff(input: {
       err
     );
   }
+
+  await notifyNewLeadByEmailSafely({
+    organizationId: input.organizationId,
+    leadId: row.leadId,
+  });
 
   return { assigned: true };
 }

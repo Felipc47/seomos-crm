@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { getEnv, isMockEnabled } from "@/lib/env";
 import { sweepPendingConversations } from "@/server/ai/sweep";
 import { sweepFollowUps } from "@/server/ai/follow-up";
+import { sendWeeklyLeadDigests } from "@/server/email/weekly-digest";
 
 /**
  * Endpoint del barrido de recuperación, pensado para un cron externo
@@ -36,7 +37,8 @@ async function handle(req: Request): Promise<Response> {
   }
   const result = await sweepPendingConversations(now);
   const followUps = await sweepFollowUps(now);
-  return Response.json({ ok: true, ...result, followUps });
+  const weeklyEmail = await sendWeeklyLeadDigests(now);
+  return Response.json({ ok: true, ...result, followUps, weeklyEmail });
 }
 
 export const POST = handle;

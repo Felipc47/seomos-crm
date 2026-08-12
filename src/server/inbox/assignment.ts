@@ -8,6 +8,7 @@ import type {
 } from "@/lib/types";
 import { publish } from "@/server/events/bus";
 import { notifyUser } from "@/server/notifications";
+import { notifyNewLeadByEmailSafely } from "@/server/email/new-lead";
 import { onLeadActivity } from "@/server/inbox/lead-activity";
 import {
   getConversation,
@@ -270,6 +271,12 @@ export async function transferConversationAssignee(input: {
       contactId: context.contact.id,
       contactName: context.contact.name,
     });
+    if (target) {
+      await notifyNewLeadByEmailSafely({
+        organizationId: input.organizationId,
+        leadId,
+      });
+    }
   }
 
   return { changed, conversation };
