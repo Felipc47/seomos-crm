@@ -3,6 +3,7 @@ import { getDb, schema } from "@/lib/db";
 import { getEnv } from "@/lib/env";
 import { scoped } from "@/lib/db/tenant";
 import { deliverEmail, type EmailDeliveryResult } from "./delivery";
+import { getNotificationSettings } from "@/server/org-settings";
 
 export function escapeEmailHtml(value: string): string {
   return value
@@ -46,6 +47,11 @@ export async function notifyNewLeadByEmail(input: {
   organizationId: string;
   leadId: string;
 }): Promise<EmailDeliveryResult[]> {
+  const settings = await getNotificationSettings(input.organizationId);
+  if (!settings.enabled || !settings.newLeadEmailsEnabled) {
+    return [];
+  }
+
   const db = getDb();
   const contextRows = await db
     .select({

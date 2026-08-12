@@ -6,7 +6,7 @@ import {
   dateInTimezone,
   validDashboardTimezone,
 } from "@/server/dashboard/range";
-import { getCalendarSettings } from "@/server/org-settings";
+import { getCalendarSettings, getNotificationSettings } from "@/server/org-settings";
 import { deliverEmail } from "./delivery";
 import { escapeEmailHtml } from "./new-lead";
 
@@ -183,6 +183,11 @@ export async function sendWeeklyLeadDigests(
 
   for (const organization of organizations) {
     try {
+      const notifications = await getNotificationSettings(organization.id);
+      if (!notifications.enabled || !notifications.weeklyDigestEnabled) {
+        continue;
+      }
+
       const settings = await getCalendarSettings(organization.id);
       const period = previousCompletedWeek(now, settings.timezone);
       const periodStart = new Date(`${period.from}T00:00:00.000Z`);

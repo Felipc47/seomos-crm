@@ -10,6 +10,8 @@ import { getDb, schema } from "@/lib/db";
  *   toda reunión agendada.
  * - `leadgen`: plantilla de saludo que se envía automáticamente a los leads
  *   que llegan de Meta Lead Ads.
+ * - `notifications`: notificaciones por email para avisos de lead y digest
+ *   semanal, con switch maestro global.
  */
 
 const calendarSettingsSchema = z.object({
@@ -48,6 +50,16 @@ const followUpSettingsSchema = z.object({
   templateId: z.string().trim().min(1).nullable().default(null),
 });
 export type FollowUpSettings = z.infer<typeof followUpSettingsSchema>;
+
+const notificationSettingsSchema = z.object({
+  /** Habilita o deshabilita toda notificación por email de la empresa. */
+  enabled: z.boolean().default(true),
+  /** Controla avisos inmediatos cuando llega un lead nuevo. */
+  newLeadEmailsEnabled: z.boolean().default(true),
+  /** Controla el resumen semanal de prospectos. */
+  weeklyDigestEnabled: z.boolean().default(true),
+});
+export type NotificationSettings = z.infer<typeof notificationSettingsSchema>;
 
 function parseMetadata(metadata: string | null): Record<string, unknown> {
   if (!metadata) return {};
@@ -133,5 +145,24 @@ export async function saveFollowUpSettings(
 ): Promise<void> {
   await writeMetadata(organizationId, {
     followUp: followUpSettingsSchema.parse(settings),
+  });
+}
+
+export async function getNotificationSettings(
+  organizationId: string
+): Promise<NotificationSettings> {
+  const meta = await readMetadata(organizationId);
+  const parsed = notificationSettingsSchema.safeParse(meta.notifications ?? {});
+  return parsed.success
+    ? parsed.data
+    : notificationSettingsSchema.parse({});
+}
+
+export async function saveNotificationSettings(
+  organizationId: string,
+  settings: NotificationSettings
+): Promise<void> {
+  await writeMetadata(organizationId, {
+    notifications: notificationSettingsSchema.parse(settings),
   });
 }

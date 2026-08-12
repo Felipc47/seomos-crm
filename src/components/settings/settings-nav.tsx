@@ -8,6 +8,7 @@ const TABS = [
   { href: "/settings/profile", label: "Perfil", adminOnly: false },
   { href: "/settings/whatsapp", label: "WhatsApp", adminOnly: true },
   { href: "/settings/calendar", label: "Calendario", adminOnly: true },
+  { href: "/settings/notifications", label: "Notificaciones", adminOnly: true },
   { href: "/settings/branding", label: "Marca", adminOnly: true },
   { href: "/settings/team", label: "Equipo", adminOnly: true },
 ] as const;
