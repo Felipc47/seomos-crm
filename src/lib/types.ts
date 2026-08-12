@@ -121,6 +121,54 @@ export type StageDto = {
   kind: StageKind;
 };
 
+export type DashboardRangePreset =
+  | "today"
+  | "7d"
+  | "30d"
+  | "90d"
+  | "custom";
+
+export type DashboardBreakdownDto = {
+  id: string | null;
+  name: string;
+  count: number;
+  wonCount: number;
+  percentage: number;
+};
+
+export type DashboardMetricsDto = {
+  range: {
+    preset: DashboardRangePreset;
+    from: string;
+    to: string;
+    timezone: string;
+  };
+  summary: {
+    newLeads: number;
+    activeOpportunities: number;
+    meetings: number;
+    wonLeads: number;
+    conversionRate: number;
+    unassignedLeads: number;
+  };
+  funnel: Array<{
+    id: string;
+    name: string;
+    position: number;
+    kind: StageKind;
+    count: number;
+    percentage: number;
+  }>;
+  trend: Array<{
+    date: string;
+    leads: number;
+    meetings: number;
+  }>;
+  services: DashboardBreakdownDto[];
+  assignees: DashboardBreakdownDto[];
+  generatedAt: string;
+};
+
 export type ContactDto = {
   id: string;
   name: string;

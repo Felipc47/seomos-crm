@@ -10,6 +10,7 @@ import {
   FileText,
   Inbox,
   Kanban,
+  LayoutDashboard,
   LogOut,
   Megaphone,
   Moon,
@@ -28,6 +29,7 @@ import { NotificationsBell } from "@/components/notifications-bell";
 
 /** Cada item declara qué roles lo ven (ver src/lib/permissions.ts). */
 const NAV = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["owner", "commercial", "marketing"] },
   { href: "/inbox", label: "Bandeja", icon: Inbox, badge: true, roles: ["owner", "agent_editor", "commercial", "marketing"] },
   { href: "/pipeline", label: "Etapas del prospecto", icon: Kanban, roles: ["owner", "commercial", "marketing"] },
   { href: "/contacts", label: "Contactos", icon: Users, roles: ["owner", "commercial", "marketing"] },
@@ -158,7 +160,7 @@ export function AppNav({
 
       {/* Mobile: tab bar inferior. Va en el flujo (order-1 la manda al final
           del layout en columna) para no tapar contenido. */}
-      <nav className="order-1 flex shrink-0 items-stretch border-t bg-sidebar pb-[env(safe-area-inset-bottom)] md:hidden">
+      <nav className="order-1 flex shrink-0 items-stretch overflow-x-auto border-t bg-sidebar pb-[env(safe-area-inset-bottom)] md:hidden">
         {mobileNav.map((item) => {
           const active = isActive(item.href);
           return (
@@ -166,7 +168,7 @@ export function AppNav({
               key={item.href}
               href={item.href}
               className={cn(
-                "flex min-w-0 flex-1 flex-col items-center gap-0.5 py-2 pt-2.5 text-[10px] font-bold transition-colors",
+                "flex min-w-[76px] flex-1 flex-col items-center gap-0.5 py-2 pt-2.5 text-[10px] font-bold transition-colors",
                 active ? "text-brand" : "text-mute hover:text-foreground"
               )}
             >

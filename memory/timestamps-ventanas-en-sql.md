@@ -19,3 +19,11 @@ de la propia BD, p. ej.
 timestamps round-trip (escribir Date → leer Date, como
 `conversation.meetingScheduledFor`) sí es consistente porque usa el mismo
 driver en ambas direcciones.
+
+Para cortes por **fecha calendario del negocio** (Dashboard, 2026-08-12), las
+columnas `timestamp without time zone` requieren dos pasos en PostgreSQL:
+interpretar el valor en la zona de sesión y luego proyectarlo a la zona del
+negocio antes de aplicar `::date`, por ejemplo
+`timezone($business_tz, created_at at time zone current_setting('TimeZone'))::date`.
+Aplicar `created_at::date` directamente vuelve los límites de Hoy/7d distintos
+entre el contenedor UTC y una instalación local con otra zona.

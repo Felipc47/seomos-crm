@@ -53,6 +53,18 @@ export function canEditAgent(role: string): boolean {
   return r === "owner" || r === "agent_editor";
 }
 
+/** Analítica comercial global de la organización. El editor del agente no
+ * necesita acceso a cifras de ventas ni distribución del equipo. */
+export function canViewDashboard(role: string): boolean {
+  return (
+    role === "owner" ||
+    role === "admin" ||
+    role === "commercial" ||
+    role === "member" ||
+    role === "marketing"
+  );
+}
+
 /** Plantillas: comercial y marketing pueden crear/editar, pero pasan por
  * aprobación del admin antes de enviarse a Meta. Borrar (toca Meta) es del
  * admin. */
