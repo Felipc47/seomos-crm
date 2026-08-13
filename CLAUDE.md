@@ -133,5 +133,5 @@ repo ya registra. Los subagentes con `memory: project` usan
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/020-email-notifications/plan.md
+at specs/022-wordpress-forms/plan.md
 <!-- SPECKIT END -->

@@ -182,7 +182,13 @@ export type ContactDto = {
   /** Cumplimiento de la política de Meta (006). */
   optedOutAt?: string | null;
   optedOutReason?: string | null;
-  consentSource?: "meta_lead_ads" | "inbound_message" | "manual" | "imported" | null;
+  consentSource?:
+    | "meta_lead_ads"
+    | "inbound_message"
+    | "manual"
+    | "imported"
+    | "web_form"
+    | null;
   consentGrantedAt?: string | null;
   /** Etapa del lead del contacto (solo lectura; listado de Contactos). */
   stage?: {
@@ -202,6 +208,20 @@ export type LeadProfileDto = {
   budget?: string | null;
   timeline?: string | null;
   summary?: string | null;
+};
+
+export type WebFormIntegrationDto = {
+  id: string;
+  name: string;
+  serviceId: string | null;
+  serviceName: string | null;
+  enabled: boolean;
+  secretLast4: string;
+  endpoint: string;
+  lastUsedAt: string | null;
+  lastStatus: "success" | "duplicate" | "failed" | null;
+  lastError: string | null;
+  createdAt: string;
 };
 
 /** Envío masivo (005). */

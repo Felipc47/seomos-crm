@@ -25,6 +25,8 @@ const prefixes = {
   notification: "ntf",
   emailDelivery: "eml",
   contactReport: "crpt",
+  webFormIntegration: "wfi",
+  webFormSubmission: "wfs",
 } as const;
 
 export type IdKind = keyof typeof prefixes;

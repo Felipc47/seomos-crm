@@ -13,6 +13,19 @@ export async function onLeadActivity(
   contactId: string,
   at: Date
 ): Promise<string | null> {
+  return (
+    await ensureLeadActivity(organizationId, contactId, at, {
+      notifyByEmail: true,
+    })
+  ).leadId;
+}
+
+export async function ensureLeadActivity(
+  organizationId: string,
+  contactId: string,
+  at: Date,
+  options: { notifyByEmail: boolean }
+): Promise<{ leadId: string | null; created: boolean }> {
   const db = getDb();
 
   const existing = await db
@@ -36,7 +49,7 @@ export async function onLeadActivity(
           eq(schema.lead.id, existing[0].id)
         )
       );
-    return existing[0].id;
+    return { leadId: existing[0].id, created: false };
   }
 
   const firstStage = await db
@@ -50,7 +63,7 @@ export async function onLeadActivity(
     )
     .orderBy(asc(schema.pipelineStage.position))
     .limit(1);
-  if (!firstStage[0]) return null; // pipeline sin etapas abiertas: no hay dónde crear
+  if (!firstStage[0]) return { leadId: null, created: false };
 
   const maxPos = await db
     .select({ max: sql<number>`coalesce(max(${schema.lead.position}), -1)` })
@@ -75,11 +88,13 @@ export async function onLeadActivity(
     .onConflictDoNothing({ target: [schema.lead.contactId] })
     .returning({ id: schema.lead.id });
   if (inserted[0]) {
-    await notifyNewLeadByEmailSafely({
-      organizationId,
-      leadId: inserted[0].id,
-    });
-    return inserted[0].id;
+    if (options.notifyByEmail) {
+      await notifyNewLeadByEmailSafely({
+        organizationId,
+        leadId: inserted[0].id,
+      });
+    }
+    return { leadId: inserted[0].id, created: true };
   }
 
   // Otra ingesta pudo crear el lead entre la lectura y el INSERT.
@@ -93,5 +108,5 @@ export async function onLeadActivity(
       )
     )
     .limit(1);
-  return concurrent[0]?.id ?? null;
+  return { leadId: concurrent[0]?.id ?? null, created: false };
 }

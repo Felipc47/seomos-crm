@@ -169,6 +169,13 @@
       "when": 1786553113688,
       "tag": "0023_safe_shape",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1786648233312,
+      "tag": "0024_fat_tyrannus",
+      "breakpoints": true
     }
   ]
 }

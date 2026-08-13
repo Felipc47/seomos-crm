@@ -30,7 +30,8 @@ export async function getOrCreateContact(
   name?: string | null,
   /** Origen del consentimiento cuando el contacto se crea aquí (006). Por
    * defecto `inbound_message`: llegó porque ESCRIBIÓ al negocio. */
-  consentSource: "meta_lead_ads" | "inbound_message" = "inbound_message"
+  consentSource: "meta_lead_ads" | "inbound_message" | "web_form" =
+    "inbound_message"
 ) {
   const db = getDb();
   const inserted = await db

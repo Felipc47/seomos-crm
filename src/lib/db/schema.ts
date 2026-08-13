@@ -169,7 +169,13 @@ export const contact = pgTable(
      * para mensajes de MARKETING (Lead Ads y entrantes sí; alta manual e
      * importación no, hasta que el operador lo confirme). */
     consentSource: text("consent_source", {
-      enum: ["meta_lead_ads", "inbound_message", "manual", "imported"],
+      enum: [
+        "meta_lead_ads",
+        "inbound_message",
+        "manual",
+        "imported",
+        "web_form",
+      ],
     }),
     /** Consentimiento confirmado a mano por el operador (el ~5% que llega por
      * otros medios y sí dio permiso). */
@@ -497,6 +503,84 @@ export const leadgenEvent = pgTable(
   (t) => [
     uniqueIndex("leadgen_event_id_uq").on(t.leadgenId),
     index("leadgen_event_org_idx").on(t.organizationId),
+  ]
+);
+
+/** Conexión de un formulario web externo. El secreto sigue el mismo patrón
+ * AES-GCM de las demás credenciales y nunca se devuelve después del alta. */
+export const webFormIntegration = pgTable(
+  "web_form_integration",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    serviceId: text("service_id").references(() => service.id, {
+      onDelete: "set null",
+    }),
+    secretCipher: text("secret_cipher").notNull(),
+    secretIv: text("secret_iv").notNull(),
+    secretTag: text("secret_tag").notNull(),
+    secretLast4: text("secret_last4").notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    lastUsedAt: timestamp("last_used_at"),
+    lastStatus: text("last_status", {
+      enum: ["success", "duplicate", "failed"],
+    }),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("web_form_integration_org_created_idx").on(
+      t.organizationId,
+      t.createdAt
+    ),
+  ]
+);
+
+/** Ledger idempotente de formularios. Conserva relaciones y estado, nunca el
+ * payload recibido. El external_id solo es único dentro de su integración. */
+export const webFormSubmission = pgTable(
+  "web_form_submission",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    integrationId: text("integration_id")
+      .notNull()
+      .references(() => webFormIntegration.id, { onDelete: "cascade" }),
+    externalId: text("external_id").notNull(),
+    contactId: text("contact_id").references(() => contact.id, {
+      onDelete: "set null",
+    }),
+    leadId: text("lead_id").references(() => lead.id, {
+      onDelete: "set null",
+    }),
+    status: text("status", {
+      enum: ["processing", "processed", "failed"],
+    })
+      .notNull()
+      .default("processing"),
+    greetingAttemptedAt: timestamp("greeting_attempted_at"),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    processedAt: timestamp("processed_at"),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("web_form_submission_org_external_uq").on(
+      t.organizationId,
+      t.integrationId,
+      t.externalId
+    ),
+    index("web_form_submission_org_integration_idx").on(
+      t.organizationId,
+      t.integrationId,
+      t.createdAt
+    ),
   ]
 );
 

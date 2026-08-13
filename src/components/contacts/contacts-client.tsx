@@ -712,6 +712,7 @@ const CONSENT_SOURCE_LABEL: Record<string, string> = {
   inbound_message: "Escribió por WhatsApp",
   manual: "Alta manual",
   imported: "Lista importada",
+  web_form: "Formulario web",
 };
 
 function ContactDetailPanel({
