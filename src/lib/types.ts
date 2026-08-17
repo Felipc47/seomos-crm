@@ -1,5 +1,7 @@
 /** DTOs que viajan por la API interna (lado cliente). */
 
+import type { PhoneCountry } from "@/lib/phone-country";
+
 export type LeadAssignmentDto = {
   service: { id: string; name: string } | null;
   assignee: { memberId: string; name: string } | null;
@@ -18,6 +20,7 @@ export type ConversationDto = {
     id: string;
     name: string;
     phone: string;
+    country: PhoneCountry | null;
     blockedAt: string | null;
     blockSyncStatus: "synced" | "failed" | null;
     reportedAt: string | null;

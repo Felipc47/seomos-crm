@@ -20,3 +20,6 @@ Gotchas del E2E en dev:
 - El botón "Cargar datos de demostración" solo aparece tras el estado
   "Cargando…" de la bandeja; esperar el empty state antes de buscarlo.
 - El Laboratorio corre completo contra el ai-mock (~1 min, reporte con score).
+- No ejecutar `next build` mientras `next dev` sigue vivo: ambos comparten `.next`
+  y el servidor dev puede responder 500 en rutas compiladas después. Detener dev
+  antes del build y reiniciarlo antes del E2E.

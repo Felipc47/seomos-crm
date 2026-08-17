@@ -6,6 +6,7 @@ import type {
   ConversationDto,
   LeadAssignmentDto,
 } from "@/lib/types";
+import { countryFromPhone } from "@/lib/phone-country";
 import { isWindowOpen, windowRemainingMs } from "@/server/inbox/window";
 
 export type { ConversationDto } from "@/lib/types";
@@ -231,6 +232,7 @@ export function serializeConversation(
       id: contact.id,
       name: contact.name,
       phone: contact.phone,
+      country: countryFromPhone(contact.phone),
       blockedAt: contact.blockedAt?.toISOString() ?? null,
       blockSyncStatus: contact.blockSyncStatus,
       reportedAt,

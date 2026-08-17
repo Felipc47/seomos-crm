@@ -8,7 +8,7 @@ import {
   ChevronRight,
   ShieldBan,
 } from "lucide-react";
-import { ContactAvatar } from "@/components/avatar";
+import { InboxContactAvatar } from "./inbox-contact-avatar";
 import { cn } from "@/lib/utils";
 import type {
   ConversationDto,
@@ -569,10 +569,11 @@ export function InboxClient() {
               >
                 <ChevronLeft className="h-[21px] w-[21px]" strokeWidth={2.2} />
               </button>
-              <ContactAvatar
+              <InboxContactAvatar
                 name={selected.contact.name}
                 seed={selected.contact.id}
                 size="md"
+                country={selected.contact.country}
               />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-display text-base font-semibold leading-tight">

@@ -11,7 +11,7 @@ import {
 } from "@/lib/lead-closure";
 import { cn, formatPhone } from "@/lib/utils";
 import { stageColor, stageTint } from "@/lib/stage-colors";
-import { ContactAvatar } from "@/components/avatar";
+import { InboxContactAvatar } from "./inbox-contact-avatar";
 import { LeadAssignmentBadges } from "@/components/lead-assignment-badges";
 import { ProspectEditorDialog } from "@/components/contacts/prospect-editor-dialog";
 import { ScheduleDialog } from "@/components/schedule-dialog";
@@ -190,10 +190,11 @@ export function ContactPanel({
     <div className="flex h-full flex-col">
       {/* Header del mock: avatar + nombre + teléfono + cerrar */}
       <header className="flex items-center gap-3 border-b px-[22px] py-5">
-        <ContactAvatar
+        <InboxContactAvatar
           name={conversation.contact.name}
           seed={conversation.contact.id}
           size="lg"
+          country={conversation.contact.country}
         />
         <div className="min-w-0 flex-1">
           <p className="truncate font-display text-lg font-semibold">

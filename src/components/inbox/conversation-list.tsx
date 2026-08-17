@@ -26,7 +26,7 @@ import {
 import type { ConversationDto, InboxAssigneeOptionDto } from "@/lib/types";
 import { ROLE_LABELS, type Role } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
-import { ContactAvatar } from "@/components/avatar";
+import { InboxContactAvatar } from "./inbox-contact-avatar";
 import { LeadAssignmentBadges } from "@/components/lead-assignment-badges";
 import { Button } from "@/components/ui/button";
 import { StageTag } from "@/components/ui/stage-tag";
@@ -636,10 +636,11 @@ export function ConversationList({
                           <Square className="h-6 w-6 text-mute" strokeWidth={2} />
                         )
                       ) : (
-                        <ContactAvatar
+                        <InboxContactAvatar
                           name={c.contact.name}
                           seed={c.contact.id}
                           size="lg"
+                          country={c.contact.country}
                         />
                       )}
                       <span
