@@ -23,8 +23,24 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata(): Promise<Metadata> {
   const branding = await getBranding().catch(() => DEFAULT_BRANDING);
   return {
-    title: `${branding.name} — CRM de WhatsApp`,
-    description: "CRM de WhatsApp con agente de IA",
+    metadataBase: new URL("https://seomos.cloud"),
+    applicationName: "SEOMOS AI CRM",
+    title: {
+      default: `${branding.name} — CRM de WhatsApp con IA`,
+      template: `%s | ${branding.name}`,
+    },
+    description:
+      "Centraliza conversaciones de WhatsApp, prospectos, equipo, pipeline e IA supervisable en una sola operación comercial.",
+    authors: [{ name: "SEOMOS", url: "https://www.seomos.com/" }],
+    creator: "SEOMOS",
+    publisher: "SEOMOS",
+    category: "business software",
+    referrer: "origin-when-cross-origin",
+    formatDetection: {
+      email: false,
+      address: false,
+      telephone: false,
+    },
   };
 }
 
@@ -40,7 +56,7 @@ export default async function RootLayout({
   // que globals.css maneje el matiz de acento en claro y oscuro.
   const customAccent = branding.accent !== DEFAULT_BRANDING.accent;
   return (
-    <html lang="es" className={`${poppins.variable} ${nunito.variable}`}>
+    <html lang="es" className={`${poppins.variable} ${nunito.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         {customAccent && (

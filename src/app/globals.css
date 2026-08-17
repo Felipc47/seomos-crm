@@ -189,6 +189,14 @@
 }
 
 @layer components {
+  .public-hero-grid {
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+    background-size: 64px 64px;
+    background-position: center top;
+  }
+
   .legal-content section + section {
     @apply mt-11 border-t border-border pt-11;
   }

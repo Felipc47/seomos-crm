@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import { LegalPage } from "@/components/public/public-shell";
 
 export const metadata: Metadata = {
-  title: "Términos del servicio — Seomos CRM",
+  title: "Términos del servicio",
   description: "Condiciones aplicables al acceso y uso de Seomos CRM y sus integraciones opcionales.",
+  alternates: { canonical: "https://seomos.cloud/terms" },
 };
 
 export default function TermsPage() {
@@ -16,10 +17,10 @@ export default function TermsPage() {
       <section>
         <h2>1. Aceptación y operador</h2>
         <p>
-          Al acceder o utilizar una instancia de Seomos CRM aceptas estos términos y la Política de privacidad. Seomos CRM es operado por Seomos; puedes contactarnos en <a href="mailto:ceo@seomos.com">ceo@seomos.com</a>.
+          Al acceder o utilizar Seomos CRM aceptas estos términos y la Política de privacidad. Seomos CRM es un servicio gestionado por Seomos; puedes contactarnos en <a href="mailto:info@seomos.com">info@seomos.com</a>.
         </p>
         <p>
-          Una empresa puede administrar su propia instancia y establecer condiciones adicionales para sus miembros. En caso de conflicto, estas condiciones regulan el software y los servicios prestados por Seomos, mientras que la empresa conserva la responsabilidad sobre su operación, usuarios y datos comerciales.
+          Una empresa puede administrar su espacio de trabajo y establecer condiciones adicionales para sus miembros. En caso de conflicto, estas condiciones regulan el servicio prestado por Seomos, mientras que la empresa conserva la responsabilidad sobre sus usuarios y datos comerciales.
         </p>
       </section>
 
@@ -29,7 +30,7 @@ export default function TermsPage() {
           Seomos CRM permite gestionar conversaciones de WhatsApp, contactos, prospectos, equipos, pipeline, automatizaciones, notificaciones y, cuando se habilita, funciones de inteligencia artificial y agendamiento con Google Calendar.
         </p>
         <p>
-          Algunas funciones dependen de servicios de terceros y de credenciales configuradas por el operador de la instancia. La indisponibilidad o modificación de esos terceros puede limitar temporalmente la función relacionada sin afectar necesariamente el resto del CRM.
+          Algunas funciones dependen de servicios de terceros y de credenciales configuradas por Seomos o por administradores autorizados. La indisponibilidad o modificación de esos terceros puede limitar temporalmente la función relacionada sin afectar necesariamente el resto del CRM.
         </p>
       </section>
 
@@ -58,7 +59,7 @@ export default function TermsPage() {
       <section>
         <h2>5. Datos, privacidad y cumplimiento</h2>
         <p>
-          La empresa que administra una instancia decide qué datos comerciales incorpora y debe contar con las bases, avisos y autorizaciones necesarias para tratar contactos, conversaciones y datos de sus clientes. Seomos trata la información conforme a la Política de privacidad y a las instrucciones legítimas aplicables a la instancia.
+          La empresa que administra un espacio de trabajo decide qué datos comerciales incorpora y debe contar con las bases, avisos y autorizaciones necesarias para tratar contactos, conversaciones y datos de sus clientes. Seomos trata la información conforme a la Política de privacidad y a las instrucciones legítimas aplicables al servicio.
         </p>
         <p>
           Al conectar una integración confirmas que tienes autoridad para autorizarla. Puedes desconectar Google Calendar desde Seomos CRM o revocar su acceso desde tu Cuenta de Google.
@@ -82,14 +83,14 @@ export default function TermsPage() {
       <section>
         <h2>8. Propiedad intelectual</h2>
         <p>
-          Seomos CRM se distribuye como software de código abierto bajo licencia MIT. La licencia del código no concede derechos sobre marcas, logotipos, datos de clientes ni contenidos de terceros. Cada organización conserva los derechos que le correspondan sobre la información que incorpora al sistema.
+          El servicio, su diseño y la marca SEOMOS están protegidos por la normativa aplicable. Los componentes de código abierto conservan sus respectivas licencias, que no conceden derechos sobre marcas, logotipos, datos de clientes ni contenidos de terceros. Cada organización conserva los derechos que le correspondan sobre la información que incorpora al sistema.
         </p>
       </section>
 
       <section>
         <h2>9. Disponibilidad y limitación</h2>
         <p>
-          Trabajamos para mantener el servicio seguro y disponible, pero no garantizamos funcionamiento ininterrumpido ni ausencia total de errores. En la medida permitida por la ley aplicable, Seomos no será responsable por pérdidas indirectas, decisiones tomadas únicamente a partir de contenido generado por IA o fallos atribuibles a infraestructura e integraciones administradas por terceros o por el operador de la instancia.
+          Trabajamos para mantener el servicio seguro y disponible, pero no garantizamos funcionamiento ininterrumpido ni ausencia total de errores. En la medida permitida por la ley aplicable, Seomos no será responsable por pérdidas indirectas, decisiones tomadas únicamente a partir de contenido generado por IA o fallos atribuibles a integraciones administradas por terceros.
         </p>
       </section>
 
@@ -103,7 +104,7 @@ export default function TermsPage() {
       <section>
         <h2>11. Cambios y contacto</h2>
         <p>
-          Podemos actualizar estos términos para reflejar cambios del producto o requisitos aplicables. La versión vigente se publicará en esta URL con su fecha de actualización. Para preguntas escribe a <a href="mailto:ceo@seomos.com">ceo@seomos.com</a>.
+          Podemos actualizar estos términos para reflejar cambios del producto o requisitos aplicables. La versión vigente se publicará en esta URL con su fecha de actualización. Para preguntas escribe a <a href="mailto:info@seomos.com">info@seomos.com</a>.
         </p>
       </section>
     </LegalPage>

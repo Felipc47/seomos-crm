@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import { LegalPage } from "@/components/public/public-shell";
 
 export const metadata: Metadata = {
-  title: "Política de privacidad — Seomos CRM",
+  title: "Política de privacidad",
   description: "Cómo Seomos CRM accede, usa, almacena y protege los datos, incluidos los datos de Google Calendar.",
+  alternates: { canonical: "https://seomos.cloud/privacy" },
 };
 
 export default function PrivacyPage() {
@@ -16,10 +17,10 @@ export default function PrivacyPage() {
       <section>
         <h2>1. Responsable y alcance</h2>
         <p>
-          Seomos CRM es operado por Seomos. Esta política aplica al sitio público y a las instancias de Seomos CRM administradas por Seomos. Para preguntas o solicitudes de privacidad puedes escribir a <a href="mailto:ceo@seomos.com">ceo@seomos.com</a>.
+          Seomos CRM es un servicio gestionado por Seomos. Esta política aplica al sitio público y a los espacios de trabajo de Seomos CRM administrados por Seomos. Para preguntas o solicitudes de privacidad puedes escribir a <a href="mailto:info@seomos.com">info@seomos.com</a>.
         </p>
         <p>
-          Cuando una empresa usa su propia instancia de Seomos CRM, esa empresa también determina qué información de sus clientes y miembros incorpora al sistema y es responsable de informarles y obtener las autorizaciones que correspondan.
+          Cuando una empresa utiliza Seomos CRM, esa empresa determina qué información de sus clientes y miembros incorpora al sistema y es responsable de informarles y obtener las autorizaciones que correspondan.
         </p>
       </section>
 
@@ -75,7 +76,7 @@ export default function PrivacyPage() {
       <section>
         <h2>5. Almacenamiento y seguridad</h2>
         <p>
-          Seomos CRM es una aplicación self-hosted: los datos de la instancia se almacenan en la infraestructura controlada por su operador. Aplicamos aislamiento por organización, controles de acceso por rol y cifrado AES-256-GCM para credenciales sensibles como los tokens de Google. Los secretos no se entregan al navegador ni se incluyen intencionalmente en logs.
+          Seomos gestiona la plataforma y su infraestructura tecnológica. Aplicamos aislamiento por organización, controles de acceso por rol y cifrado AES-256-GCM para credenciales sensibles como los tokens de Google. Los secretos no se entregan al navegador ni se incluyen intencionalmente en logs.
         </p>
         <p>
           Ningún sistema puede garantizar seguridad absoluta. Mantenemos medidas razonables para reducir el acceso, alteración o divulgación no autorizados y revisamos los incidentes que puedan afectar los datos.
@@ -95,13 +96,13 @@ export default function PrivacyPage() {
       <section>
         <h2>7. Conservación y eliminación</h2>
         <p>
-          Conservamos los datos mientras la cuenta o instancia permanezca activa y durante el tiempo necesario para operar el servicio, cumplir obligaciones aplicables o resolver disputas. Los períodos concretos pueden depender de la empresa que administra la instancia.
+          Conservamos los datos mientras la cuenta o el espacio de trabajo permanezca activo y durante el tiempo necesario para operar el servicio, cumplir obligaciones aplicables o resolver disputas. Los períodos concretos pueden depender de la empresa responsable de los datos comerciales.
         </p>
         <p>
           Al desconectar Google Calendar eliminamos de Seomos CRM las credenciales OAuth asociadas. Los eventos ya creados permanecen en el calendario de Google hasta que su propietario los modifique o elimine. También puedes revocar el acceso desde la sección de conexiones de terceros de tu Cuenta de Google.
         </p>
         <p>
-          Para solicitar acceso, corrección o eliminación de datos administrados por Seomos, escribe desde el correo asociado a tu cuenta a <a href="mailto:ceo@seomos.com?subject=Solicitud%20de%20privacidad%20-%20Seomos%20CRM">ceo@seomos.com</a>. Si tu cuenta pertenece a una empresa cliente, podremos dirigir la solicitud al administrador responsable de esa instancia.
+          Para solicitar acceso, corrección o eliminación de datos administrados por Seomos, escribe desde el correo asociado a tu cuenta a <a href="mailto:info@seomos.com?subject=Solicitud%20de%20privacidad%20-%20Seomos%20CRM">info@seomos.com</a>. Si tu cuenta pertenece a una empresa cliente, podremos dirigir la solicitud al administrador responsable de ese espacio de trabajo.
         </p>
       </section>
 

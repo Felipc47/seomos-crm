@@ -21,7 +21,7 @@ export default async function SettingsLayout({
             <nav className="mt-10 flex flex-wrap gap-4 border-t border-border pt-5 text-xs font-bold text-mute" aria-label="Información legal">
               <Link href="/privacy" className="hover:text-foreground hover:underline">Política de privacidad</Link>
               <Link href="/terms" className="hover:text-foreground hover:underline">Términos del servicio</Link>
-              <a href="mailto:ceo@seomos.com" className="hover:text-foreground hover:underline">Contacto</a>
+              <a href="mailto:info@seomos.com" className="hover:text-foreground hover:underline">Contacto</a>
             </nav>
           </div>
         </div>
