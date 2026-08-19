@@ -8,8 +8,8 @@ import { scoped } from "@/lib/db/tenant";
  * Resolución de audiencia del envío masivo (005).
  *
  * Cuatro modos, todos con las mismas dos garantías: solo contactos de la
- * organización (scoped) y NUNCA archivados — los contactos sintéticos del
- * Laboratorio nacen archivados, así que quedan fuera por construcción, además
+ * organización (scoped) y NUNCA archivados — los contactos sintéticos de
+ * pruebas históricas nacen archivados, así que quedan fuera por construcción, además
  * del guardrail duro de `sendTemplate`.
  */
 

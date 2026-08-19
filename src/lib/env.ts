@@ -25,6 +25,7 @@ const envSchema = z.object({
   OPENROUTER_API_TOKEN: z.string().optional(),
   OPENROUTER_BASE_URL: z.string().url().default("https://openrouter.ai/api"),
   OPENROUTER_MODEL: z.string().optional(),
+  /** Nombre heredado: modelo económico opcional para tareas de perfilado. */
   OPENROUTER_JUDGE_MODEL: z.string().optional(),
   /** Modelo que TRANSCRIBE las notas de voz (007). Sin él no se transcribe:
    * el agente sabrá que llegó un audio, pero no su contenido. */

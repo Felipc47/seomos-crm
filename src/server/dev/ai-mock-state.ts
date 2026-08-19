@@ -4,6 +4,9 @@
  */
 
 type AiMockState = {
+  /** Contadores observables para probar que un guard evita al proveedor. */
+  chatCalls: number;
+  transcriptionCalls: number;
   /** Turnos de chat que deben fallar antes de volver a funcionar. */
   failNextChat: number;
   /** Transcripciones que deben fallar antes de volver a funcionar. */
@@ -19,6 +22,8 @@ const globalForAiMock = globalThis as unknown as {
 export function getAiMockState(): AiMockState {
   if (!globalForAiMock.__aiMockState) {
     globalForAiMock.__aiMockState = {
+      chatCalls: 0,
+      transcriptionCalls: 0,
       failNextChat: 0,
       failNextTranscriptions: 0,
       failNextVision: 0,

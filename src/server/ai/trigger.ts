@@ -3,8 +3,8 @@ import { isAiConfigured } from "@/lib/env";
 
 /**
  * Punto de enganche del turno del agente tras la ingesta de un mensaje
- * entrante REAL (las conversaciones del Laboratorio invocan el pipeline
- * directamente, sin debounce).
+ * entrante REAL. Las conversaciones históricas marcadas como prueba no pasan
+ * por este disparador.
  */
 export async function maybeRunAgentTurn(
   conversationId: string

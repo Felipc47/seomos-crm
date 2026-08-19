@@ -8,9 +8,13 @@ import { applyStatusUpdate } from "@/server/inbox/status";
 import { onLeadActivity } from "@/server/inbox/lead-activity";
 import { cancelFollowUpOnInbound } from "@/server/ai/follow-up";
 import { detectOptOut } from "@/server/inbox/opt-out";
-import { transcribeInboundAudio } from "@/server/ai/media";
+import {
+  canTranscribeInboundAudio,
+  transcribeInboundAudio,
+} from "@/server/ai/media";
 import { translateStoredError } from "@/server/whatsapp/delivery-errors";
 import { maybeRunAgentTurn } from "@/server/ai/trigger";
+import { reserveAgentIntervention } from "@/server/ai/pipeline";
 
 /** Tipos de contenido soportados; el resto se ignora sin error. */
 const SUPPORTED_TYPES = new Set([
@@ -200,22 +204,29 @@ export async function ingestInboundMessage(input: {
   let message = inserted[0];
   if (!message) return; // duplicado
 
-  // Notas de voz (007): se transcriben ANTES de seguir, para que la bandeja,
-  // la detección de bajas y el turno del agente vean el contenido real. Si no
-  // hay transcripción configurada o el proveedor falla, se sigue igual.
-  if (input.type === "audio" && input.mediaId) {
-    const transcript = await transcribeInboundAudio({
-      organizationId,
-      mediaId: input.mediaId,
-      mime: input.mediaMime ?? null,
-    });
-    if (transcript) {
-      const updated = await db
-        .update(schema.message)
-        .set({ text: transcript })
-        .where(eq(schema.message.id, message.id))
-        .returning();
-      message = updated[0] ?? message;
+  // Notas de voz (007): se transcriben ANTES de seguir, pero solo tras reservar
+  // el crédito de la intervención. El pipeline reutiliza la misma referencia,
+  // por lo que audio + respuesta + perfilado siguen costando UNA unidad.
+  if (
+    input.type === "audio" &&
+    input.mediaId &&
+    canTranscribeInboundAudio()
+  ) {
+    const reserved = await reserveAgentIntervention(conversation.id);
+    if (reserved) {
+      const transcript = await transcribeInboundAudio({
+        organizationId,
+        mediaId: input.mediaId,
+        mime: input.mediaMime ?? null,
+      });
+      if (transcript) {
+        const updated = await db
+          .update(schema.message)
+          .set({ text: transcript })
+          .where(eq(schema.message.id, message.id))
+          .returning();
+        message = updated[0] ?? message;
+      }
     }
   }
 

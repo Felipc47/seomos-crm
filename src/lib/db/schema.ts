@@ -1,5 +1,6 @@
 import {
   boolean,
+  check,
   customType,
   index,
   integer,
@@ -113,6 +114,68 @@ export const invitation = pgTable("invitation", {
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
 });
+
+/** Billetera comercial de IA: una cuenta aislada por organización. */
+export const aiCreditAccount = pgTable(
+  "ai_credit_account",
+  {
+    organizationId: text("organization_id")
+      .primaryKey()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    balance: integer("balance").notNull().default(0),
+    totalGranted: integer("total_granted").notNull().default(0),
+    totalUsed: integer("total_used").notNull().default(0),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    check("ai_credit_account_balance_nonnegative", sql`${t.balance} >= 0`),
+    check(
+      "ai_credit_account_total_granted_nonnegative",
+      sql`${t.totalGranted} >= 0`
+    ),
+    check(
+      "ai_credit_account_total_used_nonnegative",
+      sql`${t.totalUsed} >= 0`
+    ),
+  ]
+);
+
+/** Libro append-only: la referencia única hace idempotente cada consumo. */
+export const aiCreditEntry = pgTable(
+  "ai_credit_entry",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    delta: integer("delta").notNull(),
+    kind: text("kind", {
+      enum: [
+        "admin_grant",
+        "initial_grant",
+        "migration_grant",
+        "agent_turn",
+        "follow_up",
+      ],
+    }).notNull(),
+    referenceKey: text("reference_key").notNull(),
+    actorUserId: text("actor_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    check("ai_credit_entry_delta_nonzero", sql`${t.delta} <> 0`),
+    uniqueIndex("ai_credit_entry_org_reference_uq").on(
+      t.organizationId,
+      t.referenceKey
+    ),
+    index("ai_credit_entry_org_created_idx").on(
+      t.organizationId,
+      t.createdAt
+    ),
+  ]
+);
 
 /** Notificaciones in-app (campana): p. ej. plantillas por aprobar. El
  * destinatario es un usuario concreto; `organizationId` es la empresa de
@@ -320,12 +383,12 @@ export const conversation = pgTable(
     contactId: text("contact_id")
       .notNull()
       .references(() => contact.id, { onDelete: "cascade" }),
-    /** Conversación del Laboratorio: jamás toca la API de WhatsApp. */
+    /** Conversación de prueba histórica: jamás toca la API de WhatsApp. */
     isTest: boolean("is_test").notNull().default(false),
     aiEnabled: boolean("ai_enabled").notNull().default(true),
     handoffAt: timestamp("handoff_at"),
     handoffReason: text("handoff_reason", {
-      enum: ["cliente", "modelo", "error", "ventana"],
+      enum: ["cliente", "modelo", "error", "ventana", "creditos"],
     }),
     lastInboundAt: timestamp("last_inbound_at"),
     lastMessageAt: timestamp("last_message_at"),

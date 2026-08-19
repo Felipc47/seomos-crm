@@ -7,7 +7,7 @@ import { newId } from "@/lib/db/ids";
  * Negocio de demostración "Ferretería El Martillo" (FR-075).
  * Idempotente: borra los datos demo previos de la organización (scoped por
  * los teléfonos demo) y reinserta. El KB queda lleno EXCEPTO garantías y
- * devoluciones — hueco INTENCIONAL para que el Laboratorio encuentre algo
+ * devoluciones — hueco INTENCIONAL para que el equipo lo complete
  * real en la primera corrida.
  */
 
@@ -127,7 +127,7 @@ const DEMO_KB: { kind: "qa" | "block"; question?: string; answer?: string; conte
   { kind: "qa", question: "¿Dan factura?", answer: "Sí, facturamos el mismo día. Envíanos tu constancia de situación fiscal y el ticket de compra." },
   { kind: "qa", question: "¿Tienen precios de mayoreo?", answer: "Sí: en cemento, mortero y varilla hay precio especial a partir de 10 unidades; en pintura a partir de 5 cubetas. Pide tu cotización por WhatsApp." },
   { kind: "qa", question: "¿Qué marcas de herramienta manejan?", answer: "Truper, Pretul, DeWalt, Makita y Ryobi en eléctrica; Volteck y Condulac en material eléctrico; Comex y Berel en pintura." },
-  // HUECO INTENCIONAL: nada sobre garantías ni devoluciones (lo encuentra el Laboratorio).
+  // HUECO INTENCIONAL: nada sobre garantías ni devoluciones.
 ];
 
 export async function seedDemo(
@@ -263,109 +263,6 @@ export async function seedDemo(
       updatedAt: new Date(),
     })
     .where(eq(schema.agentProfile.organizationId, organizationId));
-
-  // --- Corrida de Laboratorio de ejemplo (guardada, con el hueco encontrado) ---
-  const runId = newId("testRun");
-  await db.insert(schema.agentTestRun).values({
-    id: runId,
-    organizationId,
-    status: "done",
-    score: 83,
-    startedAt: new Date(now - 24 * HOURS),
-    finishedAt: new Date(now - 24 * HOURS + 3 * 60 * 1000),
-  });
-  const exampleCases: {
-    persona: string;
-    veredicto: "verde" | "amarillo" | "rojo";
-    hallazgos: unknown[];
-    transcript: { role: string; text: string }[];
-  }[] = [
-    {
-      persona: "comprador_decidido",
-      veredicto: "verde",
-      hallazgos: [],
-      transcript: [
-        { role: "cliente", text: "¿Tienen taladros inalámbricos disponibles?" },
-        { role: "agente", text: "¡Sí! Truper 20V en $1,899 MXN y DeWalt 20V MAX en $3,450 MXN." },
-        { role: "cliente", text: "Me convence, lo compro. ¿Cómo pago?" },
-        { role: "agente", text: "Aceptamos efectivo, tarjeta, SPEI o contra entrega. Te lo aparto ahora mismo." },
-      ],
-    },
-    {
-      persona: "pregunton_precios",
-      veredicto: "verde",
-      hallazgos: [],
-      transcript: [
-        { role: "cliente", text: "¿Qué precio tiene el martillo?" },
-        { role: "agente", text: "Tenemos varios; el más pedido es el Truper de uña. ¿Te confirmo precio y existencia con el equipo?" },
-      ],
-    },
-    {
-      persona: "cliente_enojado",
-      veredicto: "amarillo",
-      hallazgos: [
-        {
-          tipo: "tono",
-          evidencia:
-            "El agente respondió correcto pero algo frío ante 'es una porquería'; faltó empatizar antes de escalar.",
-        },
-      ],
-      transcript: [
-        { role: "cliente", text: "Compré una lijadora la semana pasada y ya no prende, es una porquería" },
-        { role: "agente", text: "Lamento el problema. Paso tu caso a un compañero del equipo para resolverlo." },
-      ],
-    },
-    {
-      persona: "fuera_de_kb",
-      veredicto: "rojo",
-      hallazgos: [
-        {
-          tipo: "fuera_de_kb",
-          evidencia:
-            "El cliente preguntó por garantías y devoluciones y el conocimiento no lo cubre.",
-          sugerencia: {
-            pregunta: "¿Cuál es la política de garantías y devoluciones?",
-            respuesta:
-              "Aceptamos devoluciones dentro de los 30 días con ticket de compra; la garantía depende del fabricante.",
-          },
-        },
-      ],
-      transcript: [
-        { role: "cliente", text: "¿Cuál es su política de garantías y devoluciones?" },
-        { role: "agente", text: "Déjame confirmarlo con el equipo y te digo en un momento." },
-      ],
-    },
-    {
-      persona: "pide_humano",
-      veredicto: "verde",
-      hallazgos: [],
-      transcript: [
-        { role: "cliente", text: "Prefiero que me atienda una persona, quiero hablar con un humano" },
-        { role: "agente", text: "(handoff: la conversación pasó a atención humana)" },
-      ],
-    },
-    {
-      persona: "errores_modismos",
-      veredicto: "verde",
-      hallazgos: [],
-      transcript: [
-        { role: "cliente", text: "ke onda, si benden pintura?" },
-        { role: "agente", text: "¡Claro! Manejamos Comex y Berel. ¿Qué necesitas pintar?" },
-      ],
-    },
-  ];
-  for (const c of exampleCases) {
-    await db.insert(schema.agentTestCase).values({
-      id: newId("testCase"),
-      organizationId,
-      runId,
-      persona: c.persona,
-      status: "done",
-      veredicto: c.veredicto,
-      hallazgos: c.hallazgos,
-      transcript: c.transcript,
-    });
-  }
 
   return { contacts: DEMO_CONTACTS.length, kbEntries: DEMO_KB.length };
 }

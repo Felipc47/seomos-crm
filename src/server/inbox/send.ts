@@ -65,7 +65,7 @@ export const SEND_ERROR_STATUS: Record<SendError["code"], number> = {
 /**
  * Envía un mensaje de texto libre por WhatsApp.
  *
- * ASERCIÓN DURA (FR-031): una conversación de prueba del Laboratorio jamás
+ * ASERCIÓN DURA: una conversación marcada como prueba jamás
  * llega a la API real — se lanza ANTES de tocar credenciales o red.
  */
 export async function sendText(input: {
@@ -179,8 +179,8 @@ export async function sendMedia(input: {
   });
 }
 
-/** Guards comunes a todo envío saliente (FR-031: el Laboratorio jamás toca la
- * API real; la ventana de 24 h solo admite plantillas al cerrarse). */
+/** Guards comunes: una conversación de prueba jamás toca la API real; la
+ * ventana de 24 h solo admite plantillas al cerrarse. */
 async function resolveOutboundTarget(
   conversationId: string,
   organizationId: string
@@ -215,7 +215,7 @@ async function resolveOutboundTarget(
   if (row.conversation.isTest) {
     throw new SendError(
       "sandbox_violation",
-      "Conversación de prueba del Laboratorio: el envío real está prohibido"
+      "Conversación de prueba: el envío real está prohibido"
     );
   }
 

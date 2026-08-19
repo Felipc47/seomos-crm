@@ -7,6 +7,7 @@ import {
   CalendarClock,
   Check,
   ChevronDown,
+  Coins,
   FileText,
   Hand,
   ListChecks,
@@ -47,6 +48,12 @@ type Profile = {
   greeting: string | null;
 };
 
+type AiCredits = {
+  balance: number;
+  agentTurnCost: number;
+  followUpCost: number;
+};
+
 /** Icono por sección de entrenamiento (solo presentación). */
 const SECTION_ICONS: Record<InstructionSectionKey, LucideIcon> = {
   presentacion: Hand,
@@ -69,6 +76,7 @@ export function AgentClient() {
   const toast = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [aiConfigured, setAiConfigured] = useState(true);
+  const [credits, setCredits] = useState<AiCredits | null>(null);
   const [entries, setEntries] = useState<KbEntry[]>([]);
   const [kbSize, setKbSize] = useState<{ chars: number; warnAt: number; warning: boolean } | null>(null);
   const [saved, setSaved] = useState(false);
@@ -82,6 +90,7 @@ export function AgentClient() {
     if (p) {
       setProfile(p.profile);
       setAiConfigured(p.aiConfigured);
+      setCredits(p.credits);
     }
     if (kb) setEntries(kb.entries);
     if (size) setKbSize(size);
@@ -156,7 +165,49 @@ export function AgentClient() {
         </div>
       )}
 
-      <div className="grid gap-6 p-6 lg:grid-cols-2">
+      {credits && (
+        <section
+          aria-label="Saldo de créditos de IA"
+          className={cn(
+            "mx-6 mt-6 flex flex-col gap-3 rounded-xl border px-4 py-3.5 sm:flex-row sm:items-center",
+            credits.balance === 0
+              ? "border-warning-border bg-warning-bg"
+              : "bg-surface"
+          )}
+        >
+          <span
+            className={cn(
+              "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+              credits.balance === 0
+                ? "bg-warning/15 text-warning"
+                : "bg-brand-tint text-brand"
+            )}
+          >
+            <Coins className="h-5 w-5" strokeWidth={2} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-baseline gap-x-2">
+              <h3 className="font-display text-[15px] font-bold">
+                Créditos de IA
+              </h3>
+              <span className="text-[15px] font-extrabold tabular-nums">
+                {credits.balance.toLocaleString("es-CO")} disponibles
+              </span>
+            </div>
+            <p className="mt-0.5 text-[12px] leading-relaxed text-text-3">
+              1 por intervención completa · 1 por seguimiento con IA
+            </p>
+          </div>
+          {credits.balance === 0 && (
+            <p className="max-w-xs text-[12px] font-semibold leading-relaxed text-warning-fg">
+              El agente entregará los chats a una persona hasta que el
+              superadministrador recargue el saldo.
+            </p>
+          )}
+        </section>
+      )}
+
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-6 p-6 lg:grid-cols-2">
         <ProfileSection profile={profile} onSave={saveProfile} />
         <KbSection entries={entries} kbSize={kbSize} onChanged={() => void refetch()} />
         <div className="lg:col-span-2">

@@ -156,8 +156,8 @@ export async function refreshLeadProfile(input: {
     { role: "user", content: `Conversación:\n${transcript}` },
   ];
 
-  // `judge: true` usa el modelo barato si hay uno configurado.
-  const result = await chatJson(LeadEnrichment, messages, { judge: true });
+  // Las tareas secundarias usan el modelo económico si hay uno configurado.
+  const result = await chatJson(LeadEnrichment, messages, { background: true });
   if (!result.ok) {
     console.warn(`[ficha-lead] no se pudo extraer: ${result.error}`);
     return null;

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * FR-031 / FR-082: una conversación de prueba del Laboratorio JAMÁS alcanza
+ * Compatibilidad histórica: una conversación marcada is_test JAMÁS alcanza
  * la API de WhatsApp — sendText lanza antes de cualquier llamada Graph.
  */
 
@@ -35,7 +35,7 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-describe("sandbox del Laboratorio en el sender", () => {
+describe("guardarraíl de conversaciones de prueba en el sender", () => {
   beforeEach(() => {
     graphRequest.mockReset();
     selectRows.length = 0;

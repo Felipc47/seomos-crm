@@ -5,6 +5,7 @@ import {
   ArchiveRestore,
   Building2,
   Check,
+  Coins,
   Copy,
   Plus,
   RefreshCw,
@@ -26,6 +27,11 @@ type CompanyDto = {
   adminEmail: string | null;
   deletedAt: string | null;
   purgeAt: string | null;
+  aiCredits: {
+    balance: number;
+    totalGranted: number;
+    totalUsed: number;
+  };
 };
 
 function randomPassword(): string {
@@ -294,6 +300,132 @@ function TeamDialog({
   );
 }
 
+function CreditsDialog({
+  company,
+  onClose,
+  onGranted,
+}: {
+  company: CompanyDto;
+  onClose: () => void;
+  onGranted: () => void;
+}) {
+  const [amount, setAmount] = useState("500");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const parsed = Number(amount);
+  const valid = Number.isInteger(parsed) && parsed >= 1 && parsed <= 100_000;
+
+  async function grant() {
+    if (!valid || busy) return;
+    setBusy(true);
+    setError(null);
+    const res = await fetch(`/api/admin/companies/${company.id}/credits`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ amount: parsed }),
+    }).catch(() => null);
+    setBusy(false);
+    if (!res?.ok) {
+      const data = (await res?.json().catch(() => null)) as {
+        error?: { message?: string };
+      } | null;
+      setError(data?.error?.message ?? "No se pudo recargar el saldo");
+      return;
+    }
+    onGranted();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Recargar créditos de ${company.name}`}
+        onClick={(event) => event.stopPropagation()}
+        className="w-full max-w-md rounded-2xl border bg-surface p-6 shadow-xl"
+      >
+        <div className="mb-5 flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand">
+            <Coins className="h-5 w-5" strokeWidth={2} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="font-display text-lg font-bold">
+              Recargar créditos
+            </h2>
+            <p className="text-[12.5px] leading-snug text-text-3">
+              {company.name} · saldo actual{" "}
+              {company.aiCredits.balance.toLocaleString("es-CO")}
+            </p>
+          </div>
+          <button
+            aria-label="Cerrar"
+            onClick={onClose}
+            className="rounded-md p-1.5 text-mute transition-colors hover:bg-subtle hover:text-foreground"
+          >
+            <X className="h-4 w-4" strokeWidth={2.2} />
+          </button>
+        </div>
+
+        <label className="block">
+          <span className="mb-1.5 block text-[12.5px] font-bold text-text-2">
+            Créditos que vas a agregar
+          </span>
+          <input
+            autoFocus
+            type="number"
+            min={1}
+            max={100000}
+            step={1}
+            inputMode="numeric"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+            className="w-full rounded-[11px] border bg-surface-2 px-3.5 py-[10px] text-[15px] font-bold tabular-nums outline-none transition-colors focus:border-brand focus:bg-background focus:ring-[3px] focus:ring-brand-soft"
+          />
+        </label>
+        <div className="mt-2 flex gap-2" aria-label="Recargas rápidas">
+          {[100, 500, 1000].map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setAmount(String(value))}
+              className="min-h-9 rounded-lg border bg-surface-2 px-3 text-xs font-bold tabular-nums text-text-2 transition-colors hover:border-brand/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-soft"
+            >
+              +{value.toLocaleString("es-CO")}
+            </button>
+          ))}
+        </div>
+
+        <div className="my-5 flex items-baseline justify-between rounded-xl bg-surface-2 px-4 py-3">
+          <span className="text-[12.5px] font-semibold text-text-2">
+            Nuevo saldo
+          </span>
+          <span className="font-display text-xl font-bold tabular-nums">
+            {(company.aiCredits.balance + (valid ? parsed : 0)).toLocaleString(
+              "es-CO"
+            )}
+          </span>
+        </div>
+        <p className="mb-4 text-[12px] leading-relaxed text-text-3">
+          1 crédito cubre una intervención completa del agente. El saldo no
+          vence ni se renueva automáticamente.
+        </p>
+        {error && <p className="mb-3 text-xs text-destructive">{error}</p>}
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button disabled={!valid || busy} onClick={() => void grant()}>
+            {busy ? "Recargando…" : "Agregar créditos"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Segunda confirmación de borrado: exige escribir el nombre exacto de la
  * empresa. Explica que el respaldo dura 30 días y se puede restaurar.
@@ -434,6 +566,7 @@ export function CompaniesClient() {
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<CompanyDto | null>(null);
   const [teamOf, setTeamOf] = useState<CompanyDto | null>(null);
+  const [creditsOf, setCreditsOf] = useState<CompanyDto | null>(null);
   const [created, setCreated] = useState<{
     name: string;
     email: string;
@@ -499,7 +632,7 @@ export function CompaniesClient() {
               <li
                 key={c.id}
                 className={cn(
-                  "flex items-center gap-4 rounded-[15px] border bg-surface px-5 py-4",
+                  "flex flex-wrap items-center gap-3 rounded-[15px] border bg-surface px-5 py-4 sm:gap-4",
                   c.deletedAt && "opacity-80"
                 )}
               >
@@ -535,7 +668,7 @@ export function CompaniesClient() {
                   </span>
                 </span>
                 {c.deletedAt ? (
-                  <>
+                  <div className="ml-14 flex basis-full flex-wrap items-center gap-2 sm:ml-0 sm:basis-auto">
                     <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-[11px] font-extrabold text-destructive">
                       Eliminada
                     </span>
@@ -543,9 +676,18 @@ export function CompaniesClient() {
                       <ArchiveRestore className="h-4 w-4" strokeWidth={2} />
                       Restaurar
                     </Button>
-                  </>
+                  </div>
                 ) : (
-                  <>
+                  <div className="ml-14 flex basis-full flex-wrap items-center gap-2 sm:ml-0 sm:basis-auto sm:flex-nowrap">
+                    <button
+                      onClick={() => setCreditsOf(c)}
+                      title="Ver y recargar créditos de IA"
+                      className="flex min-h-9 items-center gap-1.5 rounded-[9px] border bg-surface-2 px-2.5 py-1.5 text-[12.5px] font-bold tabular-nums transition-colors hover:border-brand/35 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-soft"
+                    >
+                      <Coins className="h-4 w-4 text-brand" strokeWidth={2} />
+                      {c.aiCredits.balance.toLocaleString("es-CO")}
+                      <span className="font-semibold text-mute">créditos</span>
+                    </button>
                     <button
                       onClick={() => setTeamOf(c)}
                       title="Ver y asignar roles del equipo"
@@ -577,7 +719,7 @@ export function CompaniesClient() {
                         <Trash2 className="h-4 w-4" strokeWidth={2} />
                       </button>
                     )}
-                  </>
+                  </div>
                 )}
               </li>
             ))}
@@ -597,6 +739,18 @@ export function CompaniesClient() {
       )}
 
       {teamOf && <TeamDialog company={teamOf} onClose={() => setTeamOf(null)} />}
+
+      {creditsOf && (
+        <CreditsDialog
+          company={creditsOf}
+          onClose={() => setCreditsOf(null)}
+          onGranted={() => {
+            toast(`Créditos agregados a «${creditsOf.name}»`);
+            setCreditsOf(null);
+            void refetch();
+          }}
+        />
+      )}
 
       {deleting && (
         <DeleteCompanyDialog

@@ -20,6 +20,11 @@ import {
   quoteAppearsInInbound,
 } from "@/server/ai/schedule-confirm";
 import { refreshLeadProfile } from "@/server/ai/lead-profile";
+import {
+  AGENT_TURN_CREDIT_COST,
+  AiCreditsExhaustedError,
+  consumeAiCredits,
+} from "@/server/ai/credits";
 import { assignLeadOnHumanHandoff } from "@/server/services/ai-routing";
 import { armFollowUp } from "@/server/ai/follow-up";
 import {
@@ -266,16 +271,19 @@ async function executeTurn(conversationId: string): Promise<void> {
   if (!entry || entry.running) return;
   entry.running = true;
   try {
-    await runAgentTurn(conversationId);
-  } catch (err) {
-    console.error("[agente] turno falló:", err);
-  }
-  try {
-    // Ficha del lead SIEMPRE, aunque el agente esté apagado o haya handoff:
-    // el comercial que atiende a mano también necesita el contexto.
-    await refreshProfileForConversation(conversationId);
-  } catch (err) {
-    console.error("[ficha-lead] refresco falló:", err);
+    const reserved = await reserveAgentIntervention(conversationId);
+    if (!reserved) return;
+    try {
+      await runAgentTurn(conversationId);
+    } catch (err) {
+      console.error("[agente] turno falló:", err);
+    }
+    try {
+      // El perfilado queda incluido en el MISMO crédito de la intervención.
+      await refreshProfileForConversation(conversationId);
+    } catch (err) {
+      console.error("[ficha-lead] refresco falló:", err);
+    }
   } finally {
     entry.running = false;
     if (entry.pending) {
@@ -288,9 +296,104 @@ async function executeTurn(conversationId: string): Promise<void> {
 }
 
 /**
+ * Revalida el turno justo antes del proveedor y reserva su unidad comercial.
+ * Así un barrido duplicado no cobra dos veces y saldo 0 no cruza al LLM.
+ */
+export async function reserveAgentIntervention(
+  conversationId: string
+): Promise<boolean> {
+  if (!isAiConfigured()) return false;
+  const db = getDb();
+  const [conversationRows, profileRows, lastRows] = await Promise.all([
+    db
+      .select({
+        organizationId: schema.conversation.organizationId,
+        isTest: schema.conversation.isTest,
+        aiEnabled: schema.conversation.aiEnabled,
+        handoffAt: schema.conversation.handoffAt,
+        blockedAt: schema.contact.blockedAt,
+      })
+      .from(schema.conversation)
+      .innerJoin(
+        schema.contact,
+        eq(schema.conversation.contactId, schema.contact.id)
+      )
+      .where(eq(schema.conversation.id, conversationId))
+      .limit(1),
+    db
+      .select({
+        organizationId: schema.agentProfile.organizationId,
+        enabled: schema.agentProfile.enabled,
+      })
+      .from(schema.agentProfile)
+      .innerJoin(
+        schema.conversation,
+        eq(
+          schema.agentProfile.organizationId,
+          schema.conversation.organizationId
+        )
+      )
+      .where(eq(schema.conversation.id, conversationId))
+      .limit(1),
+    db
+      .select({ id: schema.message.id, direction: schema.message.direction })
+      .from(schema.message)
+      .where(eq(schema.message.conversationId, conversationId))
+      .orderBy(desc(schema.message.createdAt))
+      .limit(20),
+  ]);
+
+  const conversation = conversationRows[0];
+  const profile = profileRows[0];
+  const last = lastRows[0];
+  if (!conversation) return false;
+  if (conversation.isTest) return true;
+  if (
+    !conversation.aiEnabled ||
+    conversation.handoffAt ||
+    conversation.blockedAt ||
+    !profile?.enabled ||
+    last?.direction !== "in"
+  ) {
+    return false;
+  }
+
+  // Todos los entrantes consecutivos desde la última salida forman la misma
+  // intervención comercial. Usar el primero mantiene estable la referencia
+  // mientras corre la ventana de coalescencia (incluido audio + texto).
+  const pendingInbound = [] as typeof lastRows;
+  for (const message of lastRows) {
+    if (message.direction === "out") break;
+    pendingInbound.push(message);
+  }
+  const referenceMessage = pendingInbound[pendingInbound.length - 1];
+  if (!referenceMessage) return false;
+
+  try {
+    await consumeAiCredits({
+      organizationId: conversation.organizationId,
+      amount: AGENT_TURN_CREDIT_COST,
+      kind: "agent_turn",
+      referenceKey: `agent-turn:${conversationId}:${referenceMessage.id}`,
+    });
+    return true;
+  } catch (err) {
+    if (err instanceof AiCreditsExhaustedError) {
+      await applyHandoff(
+        conversationId,
+        conversation.organizationId,
+        "creditos"
+      );
+      return false;
+    }
+    throw err;
+  }
+}
+
+/**
  * Carga la conversación y su historial y recalcula la ficha del lead.
- * El sandbox del Laboratorio queda fuera: una evaluación no debe reescribir
- * la ficha de un contacto real ni gastar tokens del proveedor.
+ * Las conversaciones de prueba históricas quedan fuera: no deben reescribir
+ * fichas ni gastar tokens del proveedor.
  */
 async function refreshProfileForConversation(
   conversationId: string
@@ -334,8 +437,7 @@ async function refreshProfileForConversation(
 }
 
 /**
- * Ejecuta UN turno del agente ahora (el Laboratorio lo llama directo, con
- * debounce 0 y sin pasar por el coalesce).
+ * Ejecuta UN turno del agente ahora.
  */
 export async function runAgentTurn(conversationId: string): Promise<void> {
   if (!isAiConfigured()) return;
@@ -368,8 +470,8 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
     .limit(1);
   const profile = profileRows[0];
   if (!profile) return;
-  // El toggle global aplica a conversaciones reales; el Laboratorio evalúa el
-  // comportamiento configurado aunque el agente aún no esté encendido.
+  // Datos de prueba históricos conservan su comportamiento previo; el toggle
+  // global aplica a conversaciones reales.
   if (!conversation.isTest && !profile.enabled) return;
 
   const history = await db
@@ -418,7 +520,7 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
   const services = await listServiceRoutingOptions(organizationId);
 
   // 004: la acción schedule_meeting solo se ofrece con Calendar conectado y
-  // NUNCA en el sandbox del Laboratorio (una evaluación no crea eventos).
+  // NUNCA en conversaciones de prueba históricas.
   let calendarAvailable = false;
   let scheduling: SchedulingContext | undefined;
   let calSettings: CalendarSettings | undefined;
@@ -886,8 +988,8 @@ type Conversation = typeof schema.conversation.$inferSelect;
 /**
  * 008: el cliente pidió ser contactado más tarde. Se despide y arma la rutina
  * de seguimiento (lead → «En calificación», intento en 12h o cuando pidió el
- * cliente). En el sandbox del Laboratorio solo se despide: una evaluación no
- * arma rutinas reales.
+ * cliente). En conversaciones de prueba históricas solo se despide y no arma
+ * rutinas reales.
  */
 async function executeFollowUpLater(
   conversation: Conversation,
@@ -996,7 +1098,7 @@ async function persistTestOutbound(
 export async function applyHandoff(
   conversationId: string,
   organizationId: string,
-  reason: "cliente" | "modelo" | "error" | "ventana"
+  reason: "cliente" | "modelo" | "error" | "ventana" | "creditos"
 ): Promise<void> {
   const db = getDb();
   const updated = await db
@@ -1013,7 +1115,7 @@ export async function applyHandoff(
   });
 
   // La derivación es el momento en que se marca al comercial responsable
-  // (nunca antes). El sandbox del Laboratorio queda fuera, y un fallo aquí
+  // (nunca antes). Las conversaciones de prueba quedan fuera, y un fallo aquí
   // jamás revierte el handoff: el chat ya quedó en manos humanas.
   if (!updated[0].isTest) {
     try {

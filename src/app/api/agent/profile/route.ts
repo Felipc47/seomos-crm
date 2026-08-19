@@ -11,6 +11,11 @@ import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { isAiConfigured } from "@/lib/env";
 import { canEditAgent } from "@/lib/permissions";
+import {
+  AGENT_TURN_CREDIT_COST,
+  FOLLOW_UP_CREDIT_COST,
+  getAiCreditSummary,
+} from "@/server/ai/credits";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +31,7 @@ export const GET = withAuth(async (session) => {
     .limit(1);
   const p = rows[0];
   if (!p) return apiError(404, "not_found", "Perfil del agente no encontrado");
+  const credits = await getAiCreditSummary(session.organizationId);
   return Response.json({
     profile: {
       enabled: p.enabled,
@@ -38,6 +44,11 @@ export const GET = withAuth(async (session) => {
       greeting: p.greeting,
     },
     aiConfigured: isAiConfigured(),
+    credits: {
+      balance: credits.balance,
+      agentTurnCost: AGENT_TURN_CREDIT_COST,
+      followUpCost: FOLLOW_UP_CREDIT_COST,
+    },
   });
 });
 

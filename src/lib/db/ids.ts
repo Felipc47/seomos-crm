@@ -14,6 +14,7 @@ const prefixes = {
   googleCredentials: "gcred",
   leadgenEvent: "lg",
   agentProfile: "agp",
+  aiCreditEntry: "aic",
   kbEntry: "kb",
   template: "tpl",
   testRun: "run",

@@ -15,8 +15,13 @@ export async function POST(req: Request) {
     chat?: number;
     transcriptions?: number;
     vision?: number;
+    resetCounters?: boolean;
   };
   const state = getAiMockState();
+  if (body.resetCounters) {
+    state.chatCalls = 0;
+    state.transcriptionCalls = 0;
+  }
   if (typeof body.chat === "number") {
     state.failNextChat = Math.max(0, Math.trunc(body.chat));
   }

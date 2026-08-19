@@ -16,6 +16,7 @@ export async function POST(req: Request) {
   // 007: simula un modelo que NO acepta imágenes — el turno del agente debe
   // continuar igualmente, sin la imagen.
   const state = getAiMockState();
+  state.chatCalls += 1;
   if (state.failNextChat > 0) {
     state.failNextChat -= 1;
     return Response.json(

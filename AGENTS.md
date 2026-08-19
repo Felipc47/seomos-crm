@@ -1,7 +1,7 @@
 # Seomos CRM — Guía para Codex
 
-Seomos es un CRM de WhatsApp open source (MIT), self-hosted, con agente de IA y
-Laboratorio de auto-evaluación. Una instancia aloja VARIAS empresas
+Seomos es un CRM de WhatsApp open source (MIT), self-hosted, con agente de IA.
+Una instancia aloja VARIAS empresas
 (organizaciones) con espacios aislados: el superadmin (primer usuario) las crea
 en /companies con su admin; el registro público permanece cerrado. Este archivo guía a
 Codex (u otro asistente) para operar y **modificar** este repositorio —
@@ -20,7 +20,7 @@ conducidos con Playwright · Docker multi-stage (standalone, healthcheck
 
 Tiempo real por **SSE** (`/api/events`): heartbeat `: ping` ~25s, headers
 anti-buffering, catch-up por refetch con `since=`. Sin WebSockets, sin colas
-externas: el trabajo en segundo plano (agente, Laboratorio) es in-process.
+externas: el trabajo en segundo plano del agente es in-process.
 
 ## Mapa del código (fronteras de modificación)
 
@@ -30,7 +30,6 @@ externas: el trabajo en segundo plano (agente, Laboratorio) es in-process.
 | Audio/imagen del cliente | `src/server/ai/media.ts` (transcribe + visión) + `src/server/whatsapp/media.ts` (descarga) |
 | El comportamiento/prompt del agente | `src/server/ai/prompts.ts` |
 | Las acciones que puede tomar el agente | `src/server/ai/actions.ts` + ejecución en `src/server/ai/pipeline.ts` |
-| Las personas o el juez del Laboratorio | `src/server/lab/personas.ts` · `src/server/lab/judge.ts` |
 | El canal WhatsApp (Graph API) | `src/lib/meta/` (cliente único) + `src/server/whatsapp/` |
 | Campos/tablas | `src/lib/db/schema.ts` → `pnpm db:generate` → migración nueva en `drizzle/` |
 | La ingesta/envío de mensajes | `src/server/inbox/` (ingest idempotente, send con guard de sandbox, ventana 24h) |
@@ -60,8 +59,9 @@ Ver [.specify/memory/constitution.md](.specify/memory/constitution.md).
   toda query pasa por `scoped()` de `src/lib/db/tenant.ts`.
 - **Idempotencia (IV)**: webhooks dedup por `wa_message_id` UNIQUE; estados
   monotónicos; seeds y migraciones re-ejecutables.
-- **Sandbox del Laboratorio**: las conversaciones `is_test` JAMÁS tocan la API
-  real — el sender lanza excepción (no lo "arregles": es un guardrail).
+- **Datos de prueba heredados**: las conversaciones históricas con `is_test`
+  JAMÁS tocan la API real — el sender lanza excepción (no lo "arregles": es
+  un guardrail). El Laboratorio fue retirado y `/api/lab/*` no debe existir.
 
 ## Variables de entorno
 
@@ -73,7 +73,6 @@ Ver `.env.example` (cada una con guía inline). Las claves: `APP_BASE_URL`,
 ```bash
 OPENROUTER_API_TOKEN=sk-or-...
 OPENROUTER_MODEL=anthropic/Codex-sonnet-4.5
-OPENROUTER_JUDGE_MODEL=anthropic/Codex-haiku-4.5   # opcional: juez más barato
 ```
 
 Para el self-test local existe además el modo de pruebas interno (mocks) —

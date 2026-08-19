@@ -10,6 +10,11 @@ import {
   localMinutesOfDay,
 } from "@/lib/business-days";
 import { publish } from "@/server/events/bus";
+import {
+  AiCreditsExhaustedError,
+  consumeAiCredits,
+  FOLLOW_UP_CREDIT_COST,
+} from "@/server/ai/credits";
 import { isWindowOpen } from "@/server/inbox/window";
 import { SendError, sendText } from "@/server/inbox/send";
 import { sendTemplate, TemplateError } from "@/server/whatsapp/templates";
@@ -339,6 +344,19 @@ async function sendAttempt(input: {
   // La ventana se evalúa con el `now` del barrido (no el reloj real): así el
   // viaje en el tiempo de los self-tests simula exactamente la producción.
   if (isWindowOpen(conversation.lastInboundAt, input.now)) {
+    try {
+      await consumeAiCredits({
+        organizationId: lead.organizationId,
+        amount: FOLLOW_UP_CREDIT_COST,
+        kind: "follow_up",
+        referenceKey: `follow-up:${lead.leadId}:${attemptNo}`,
+      });
+    } catch (err) {
+      if (err instanceof AiCreditsExhaustedError) {
+        return `Seguimiento ${attemptNo}: omitido — créditos de IA agotados (requiere ${err.required}, disponible ${err.available}).`;
+      }
+      throw err;
+    }
     const text = await composeFollowUpText(lead.organizationId, conversation.id);
     try {
       await sendText({

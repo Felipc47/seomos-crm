@@ -1005,7 +1005,7 @@ export async function sendTemplate(input: {
     // Aserción dura del sandbox (FR-031)
     throw new SendError(
       "sandbox_violation",
-      "Conversación de prueba del Laboratorio: el envío real está prohibido"
+      "Conversación de prueba: el envío real está prohibido"
     );
   }
   if (row.contact.blockedAt) {

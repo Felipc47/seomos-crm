@@ -33,7 +33,7 @@ const RETRY_DELAY_MS = 500;
 export async function chatJson<T>(
   schema: z.ZodType<T>,
   messages: ChatMessage[],
-  opts?: { model?: string; judge?: boolean; timeoutMs?: number }
+  opts?: { model?: string; background?: boolean; timeoutMs?: number }
 ): Promise<ChatJsonResult<T>> {
   if (!isAiConfigured()) {
     return {
@@ -51,7 +51,7 @@ export async function chatJson<T>(
   );
   const model =
     opts?.model ??
-    (opts?.judge
+    (opts?.background
       ? (env.OPENROUTER_JUDGE_MODEL ?? env.OPENROUTER_MODEL)
       : hasImages
         ? (env.OPENROUTER_VISION_MODEL ?? env.OPENROUTER_MODEL)

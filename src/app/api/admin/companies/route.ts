@@ -33,33 +33,45 @@ export const GET = withAuth(async (session) => {
     .from(schema.organization)
     .orderBy(schema.organization.createdAt);
 
-  const [memberCounts, contactCounts, creds, owners] = await Promise.all([
-    db
-      .select({ orgId: schema.member.organizationId, n: count() })
-      .from(schema.member)
-      .groupBy(schema.member.organizationId),
-    db
-      .select({ orgId: schema.contact.organizationId, n: count() })
-      .from(schema.contact)
-      .groupBy(schema.contact.organizationId),
-    db
-      .select({ orgId: schema.metaCredentials.organizationId })
-      .from(schema.metaCredentials),
-    db
-      .select({
-        orgId: schema.member.organizationId,
-        email: schema.user.email,
-        createdAt: schema.member.createdAt,
-      })
-      .from(schema.member)
-      .innerJoin(schema.user, eq(schema.member.userId, schema.user.id))
-      .where(eq(schema.member.role, "owner"))
-      .orderBy(schema.member.createdAt),
-  ]);
+  const [memberCounts, contactCounts, metaCreds, owners, creditAccounts] =
+    await Promise.all([
+      db
+        .select({ orgId: schema.member.organizationId, n: count() })
+        .from(schema.member)
+        .groupBy(schema.member.organizationId),
+      db
+        .select({ orgId: schema.contact.organizationId, n: count() })
+        .from(schema.contact)
+        .groupBy(schema.contact.organizationId),
+      db
+        .select({ orgId: schema.metaCredentials.organizationId })
+        .from(schema.metaCredentials),
+      db
+        .select({
+          orgId: schema.member.organizationId,
+          email: schema.user.email,
+          createdAt: schema.member.createdAt,
+        })
+        .from(schema.member)
+        .innerJoin(schema.user, eq(schema.member.userId, schema.user.id))
+        .where(eq(schema.member.role, "owner"))
+        .orderBy(schema.member.createdAt),
+      db.select().from(schema.aiCreditAccount),
+    ]);
 
   const membersBy = new Map(memberCounts.map((r) => [r.orgId, r.n]));
   const contactsBy = new Map(contactCounts.map((r) => [r.orgId, r.n]));
-  const connected = new Set(creds.map((r) => r.orgId));
+  const connected = new Set(metaCreds.map((r) => r.orgId));
+  const creditsBy = new Map(
+    creditAccounts.map((r) => [
+      r.organizationId,
+      {
+        balance: r.balance,
+        totalGranted: r.totalGranted,
+        totalUsed: r.totalUsed,
+      },
+    ])
+  );
   const adminBy = new Map<string, string>();
   for (const o of owners) if (!adminBy.has(o.orgId)) adminBy.set(o.orgId, o.email);
 
@@ -75,6 +87,11 @@ export const GET = withAuth(async (session) => {
       adminEmail: adminBy.get(o.id) ?? null,
       deletedAt: o.deletedAt?.toISOString() ?? null,
       purgeAt: o.deletedAt ? purgeDate(o.deletedAt).toISOString() : null,
+      aiCredits: creditsBy.get(o.id) ?? {
+        balance: 0,
+        totalGranted: 0,
+        totalUsed: 0,
+      },
     })),
   });
 });

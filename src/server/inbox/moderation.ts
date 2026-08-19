@@ -106,7 +106,7 @@ async function loadConversations(
   if (rows.some((row) => row.isTest)) {
     throw new ModerationError(
       "invalid",
-      "Las conversaciones del Laboratorio no admiten esta acción"
+      "Las conversaciones de prueba no admiten esta acción"
     );
   }
   return rows;

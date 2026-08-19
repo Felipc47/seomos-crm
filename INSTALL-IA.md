@@ -19,7 +19,7 @@
    - **Dominio** donde vivirá el CRM (obligatorio, ej. `crm.sunegocio.com`).
      Debe apuntar ya a la IP del VPS (registro A).
    - **Token de OpenRouter** (opcional — sin él, el CRM funciona completo
-     excepto el agente de IA y el Laboratorio; se puede agregar después).
+     excepto el agente de IA; se puede agregar después).
    - **Ruta A o B**: A = el VPS tiene panel Coolify · B = el VPS solo tiene
      Docker.
 2. **Genera tú mismo todos los secretos** (no se los pidas):

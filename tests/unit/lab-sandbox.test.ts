@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * FR-031/FR-082: el turno del agente sobre una conversación is_test persiste
+ * Compatibilidad histórica: el turno sobre una conversación is_test persiste
  * la respuesta en BD y JAMÁS invoca el cliente Graph (spy sobre lib/meta).
  */
 
@@ -75,7 +75,7 @@ vi.mock("@/lib/db", () => ({
   ),
 }));
 
-describe("sandbox del Laboratorio en el pipeline del agente", () => {
+describe("guardarraíl de conversaciones de prueba en el pipeline", () => {
   beforeEach(() => {
     graphRequest.mockReset();
     selectQueue.length = 0;
@@ -85,9 +85,9 @@ describe("sandbox del Laboratorio en el pipeline del agente", () => {
 
   it("turno sobre conversación is_test → persiste la respuesta y NO llama a Graph", async () => {
     const testConversation = {
-      id: "cv_lab",
+      id: "cv_test",
       organizationId: "org_1",
-      contactId: "ct_lab",
+      contactId: "ct_test",
       isTest: true,
       aiEnabled: true,
       handoffAt: null,
@@ -110,7 +110,7 @@ describe("sandbox del Laboratorio en el pipeline del agente", () => {
     );
 
     const { runAgentTurn } = await import("@/server/ai/pipeline");
-    await runAgentTurn("cv_lab");
+    await runAgentTurn("cv_test");
 
     expect(graphRequest).not.toHaveBeenCalled();
     // la respuesta quedó persistida como mensaje saliente ai_generated

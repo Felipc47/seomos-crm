@@ -48,7 +48,7 @@ export async function onUserCreated(userId: string, userName: string) {
       userId,
       role: "owner",
     });
-    await seedOrganizationDefaults(tx, orgId);
+    await seedOrganizationDefaults(tx, orgId, { initialCredits: 1000 });
     // El fundador de la instancia es el superadmin: podrá crear más empresas.
     await tx
       .update(schema.user)
@@ -59,8 +59,13 @@ export async function onUserCreated(userId: string, userName: string) {
 
 type Tx = Parameters<Parameters<ReturnType<typeof getDb>["transaction"]>[0]>[0];
 
-/** Siembra lo mínimo con lo que arranca toda empresa: pipeline + agente. */
-export async function seedOrganizationDefaults(tx: Tx, organizationId: string) {
+/** Siembra lo mínimo con lo que arranca toda empresa: pipeline, agente y saldo 0. */
+export async function seedOrganizationDefaults(
+  tx: Tx,
+  organizationId: string,
+  options: { initialCredits?: number } = {}
+) {
+  const initialCredits = options.initialCredits ?? 0;
   await tx.insert(schema.pipelineStage).values(
     SEED_STAGES.map((s, i) => ({
       id: newId("stage"),
@@ -74,6 +79,32 @@ export async function seedOrganizationDefaults(tx: Tx, organizationId: string) {
     id: newId("agentProfile"),
     organizationId,
   });
+  await tx
+    .insert(schema.aiCreditAccount)
+    .values({
+      organizationId,
+      balance: initialCredits,
+      totalGranted: initialCredits,
+    })
+    .onConflictDoNothing();
+  if (initialCredits > 0) {
+    const entryId = newId("aiCreditEntry");
+    await tx
+      .insert(schema.aiCreditEntry)
+      .values({
+        id: entryId,
+        organizationId,
+        delta: initialCredits,
+        kind: "initial_grant",
+        referenceKey: "initial-grant:founder",
+      })
+      .onConflictDoNothing({
+        target: [
+          schema.aiCreditEntry.organizationId,
+          schema.aiCreditEntry.referenceKey,
+        ],
+      });
+  }
 }
 
 /** Organización activa de un usuario (su primera membresía). */

@@ -13,6 +13,10 @@ import { fetchMedia, toDataUri } from "@/server/whatsapp/media";
 /** Marcador que ve el agente (y el operador) cuando no se pudo transcribir. */
 export const AUDIO_SIN_TRANSCRIBIR = "[nota de voz — no se pudo transcribir]";
 
+export function canTranscribeInboundAudio(): boolean {
+  return isTranscriptionConfigured();
+}
+
 /**
  * Transcribe una nota de voz entrante. Devuelve el texto, el marcador de
  * fallo, o `null` si no hay nada que hacer (sin transcripción configurada).

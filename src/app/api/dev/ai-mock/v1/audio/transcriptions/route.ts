@@ -16,6 +16,7 @@ export async function POST(req: Request) {
   if (guard) return guard;
 
   const state = getAiMockState();
+  state.transcriptionCalls += 1;
   if (state.failNextTranscriptions > 0) {
     state.failNextTranscriptions -= 1;
     return Response.json(
