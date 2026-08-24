@@ -152,9 +152,11 @@ privado en producción.
 
 ## DV-VC-13 — Detección de token vencido
 
-Respuesta Graph con status 401 / `code: 190` / `type: OAuthException` → estado
-`reconnect_required` en `meta_credentials`; banner en Settings + envíos bloqueados con
-error tipado (no reintentos ciegos).
+Respuesta Graph con status 401 o `code: 190` → estado `reconnect_required` en
+`meta_credentials`; banner en Settings + envíos bloqueados con error tipado (no
+reintentos ciegos). `type: OAuthException` por sí solo NO prueba que el token haya
+muerto: Meta también lo usa para errores de parámetros (por ejemplo `code: 100`) y de
+permisos. Esos errores deben conservar la conexión y mostrar el mensaje real de Meta.
 
 ## DV-VC-14 — Versiones fijadas (stack)
 

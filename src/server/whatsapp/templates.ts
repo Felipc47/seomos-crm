@@ -836,7 +836,10 @@ export async function syncTemplates(organizationId: string): Promise<number> {
         await markReconnectRequired(organizationId);
         throw new TemplateError("reconnect_required", "El token expiró: reconecta el número");
       }
-      throw new TemplateError("meta_unavailable", "No se pudo consultar Meta");
+      if (err.status === 0 || err.status >= 500) {
+        throw new TemplateError("meta_unavailable", "No se pudo consultar Meta");
+      }
+      throw new TemplateError("meta_error", err.message);
     }
     throw err;
   }

@@ -49,7 +49,7 @@ US1, US2 (MVP gate) → US3, US4, US5, US8 (núcleo P1) → US6 (P2) → US7 (P3
 - [X] T015 Shell autenticado src/app/(app)/layout.tsx: nav lateral (Bandeja, Pipeline, Contactos, Agente, Laboratorio, Configuración), guard de sesión, tema oscuro
 - [X] T016 [P] src/lib/crypto/index.ts — AES-256-GCM (clave 32B desde ENCRYPTION_KEY base64, IV 12B, cipher/iv/tag separados) (DV-VC-05)
 - [X] T017 [P] tests/unit/crypto.test.ts — roundtrip, tag inválido lanza, clave mal formada lanza
-- [X] T018 [P] src/lib/meta/client.ts — graphRequest tipado sobre `META_GRAPH_BASE_URL`/versión, MetaApiError, detección 401/code 190/OAuthException → reconnect_required (DV-VC-13), normalizeRecipient MX 521→52 (DV-VC-12)
+- [X] T018 [P] src/lib/meta/client.ts — graphRequest tipado sobre `META_GRAPH_BASE_URL`/versión, MetaApiError, detección 401/code 190 → reconnect_required sin confundir otros OAuthException (DV-VC-13), normalizeRecipient MX 521→52 (DV-VC-12)
 - [X] T019 [P] tests/unit/meta-client.test.ts — normalizeRecipient (521..13díg → 52+10, otros intactos) y mapeo error 190
 - [X] T020 src/server/whatsapp/credentials.ts — guardar cifrado, getByPhoneNumberId, getByOrg, estado (connected / reconnect_required / none), last4
 - [X] T021 src/server/events/bus.ts (EventEmitter in-process por org, publish tras commit) + src/app/api/events/route.ts (SSE contrato sse.md: headers exactos, heartbeat 25s, force-dynamic) (DV-VC-01)
@@ -227,6 +227,7 @@ US1, US2 (MVP gate) → US3, US4, US5, US8 (núcleo P1) → US6 (P2) → US7 (P3
 - [X] T096 [P] Capturas para README en docs/screenshots/ (bandeja, kanban, Laboratorio-reporte, wizard) — DIFERIBLE
 - [X] T097 Lista "pendiente de verificación humana" + reporte final (verde con evidencia / diferido con instrucciones / roadmap) en el chat
 - [X] T098 Merge `001-seomos-core` → `main` (merge normal, conservar rama — OK explícito ya dado), validar con /speckit-git-validate, dejar `main` activa
+- [X] T099 Bugfix 2026-08-24 — OAuthException no-auth conserva la conexión, muestra el error real de plantillas y queda cubierto por unit + E2E de proveedor fallido
 
 ---
 

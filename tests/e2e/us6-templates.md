@@ -11,15 +11,20 @@
 
 ## Ciclo de aprobación
 
-1. En `/templates`: crear `seguimiento_cotizacion` (es_CO, UTILITY,
+1. El wa-mock responde a un alta con `type: OAuthException`, `code: 100` y
+   HTTP 400 (error de parámetros, no de autenticación).
+   ✅ La API devuelve 422 con el mensaje real de Meta, no menciona un token
+   expirado y `/api/settings/whatsapp` conserva `status: connected`.
+   ✅ Una plantilla válida creada inmediatamente después llega a Meta.
+2. En `/templates`: crear `seguimiento_cotizacion` (es_CO, UTILITY,
    cuerpo con `{{1}}`).
    ✅ Queda en estado "Pendiente de Meta" (el mock devuelve PENDING).
-2. Simular la aprobación: `POST /api/dev/wa-mock/template-status`
+3. Simular la aprobación: `POST /api/dev/wa-mock/template-status`
    `{ wabaId, name, language, event: "APPROVED" }`.
    ✅ El estado pasa a "Aprobada" (evento webhook enrutado por entry.id).
-3. Camino infeliz: crear `promo_rechazada` y simular `REJECTED` con razón.
+4. Camino infeliz: crear `promo_rechazada` y simular `REJECTED` con razón.
    ✅ Estado "Rechazada" mostrando la razón.
-4. `POST /api/templates/sync` → 200 (pull por Graph; cubre modo agencia).
+5. `POST /api/templates/sync` → 200 (pull por Graph; cubre modo agencia).
 
 ## Envío con ventana cerrada
 

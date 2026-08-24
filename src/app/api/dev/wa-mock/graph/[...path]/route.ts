@@ -282,6 +282,21 @@ export async function POST(req: Request, ctx: Params) {
 
   // POST {wabaId}/message_templates → alta de plantilla (queda PENDING)
   if (path.length === 2 && path[1] === "message_templates") {
+    // Meta usa OAuthException para errores que no son de autenticación. Este
+    // caso protege la regresión donde un code 100 marcaba el token como vencido.
+    if (String(body.name ?? "") === "oauth_non_auth_error") {
+      return Response.json(
+        {
+          error: {
+            message: "Invalid template parameter (mock)",
+            type: "OAuthException",
+            code: 100,
+            fbtrace_id: "mock-non-auth",
+          },
+        },
+        { status: 400 }
+      );
+    }
     const state = getWaMockState();
     const components = body.components as
       | {

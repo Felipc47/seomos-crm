@@ -26,9 +26,10 @@ export class MetaApiError extends Error {
 
   /** Token vencido/revocado → la conexión requiere re-autenticación. */
   get isAuthError(): boolean {
-    return (
-      this.status === 401 || this.code === 190 || this.type === "OAuthException"
-    );
+    // Meta usa `OAuthException` también para errores que NO invalidan el token
+    // (por ejemplo parámetros faltantes, code 100). Solo 401 o code 190 son
+    // evidencia suficiente para suspender la conexión y pedir reconexión.
+    return this.status === 401 || this.code === 190;
   }
 }
 

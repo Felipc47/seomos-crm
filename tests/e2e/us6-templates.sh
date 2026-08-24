@@ -37,7 +37,22 @@ CONN=$(curl -s -b "$JAR" -c "$JAR" -X PUT "$BASE/api/settings/whatsapp" \
 check "número conectado" \
   "$([ "$(echo "$CONN" | grep -c '"ok":true')" -gt 0 ] && echo true || echo false)" "$CONN"
 
-echo "── 1. Crear plantilla en es_CO (idioma nuevo por defecto)"
+echo "── 1. OAuthException code 100 no debe invalidar el token"
+NONAUTH=$(curl -s -w '\n%{http_code}' -b "$JAR" -X POST "$BASE/api/templates" \
+  -H 'content-type: application/json' \
+  -d '{"name":"oauth_non_auth_error","language":"es_CO","category":"UTILITY","body":"Hola"}')
+NONAUTH_CODE=$(echo "$NONAUTH" | tail -n 1)
+NONAUTH_BODY=$(echo "$NONAUTH" | sed '$d')
+check "el error real de Meta vuelve como 422" \
+  "$([ "$NONAUTH_CODE" = "422" ] && echo "$NONAUTH_BODY" | grep -q 'Invalid template parameter' && echo true || echo false)" \
+  "HTTP $NONAUTH_CODE | $NONAUTH_BODY"
+check "no se reporta falsamente que el token expiró" \
+  "$([ "$(echo "$NONAUTH_BODY" | grep -Eic 'expir|reconect')" -eq 0 ] && echo true || echo false)" "$NONAUTH_BODY"
+STATUS=$(curl -s -b "$JAR" "$BASE/api/settings/whatsapp")
+check "la conexión sigue activa después del OAuthException" \
+  "$([ "$(echo "$STATUS" | grep -c '"status":"connected"')" -gt 0 ] && echo true || echo false)" "$STATUS"
+
+echo "── 2. Crear plantilla en es_CO después del fallo no-auth"
 CREATE=$(curl -s -b "$JAR" -X POST "$BASE/api/templates" \
   -H 'content-type: application/json' \
   -d '{"name":"saludo_lead","language":"es_CO","category":"UTILITY","body":"Hola {{1}}, ¿retomamos tu cotización?"}')
@@ -47,12 +62,12 @@ check "creada con language es_CO" \
 check "queda pendiente de Meta" \
   "$([ "$(echo "$CREATE" | grep -c '"status":"pending"')" -gt 0 ] && echo true || echo false)" "$CREATE"
 
-echo "── 2. Categoría expuesta por la API (la UI la pinta como badge)"
+echo "── 3. Categoría expuesta por la API (la UI la pinta como badge)"
 LIST=$(curl -s -b "$JAR" "$BASE/api/templates")
 check "la lista trae category=UTILITY" \
   "$([ "$(echo "$LIST" | grep -c '"category":"UTILITY"')" -gt 0 ] && echo true || echo false)" "$LIST"
 
-echo "── 3. Meta aprueba y RECATEGORIZA a MARKETING; el sync debe reflejarlo"
+echo "── 4. Meta aprueba y RECATEGORIZA a MARKETING; el sync debe reflejarlo"
 curl -s -X POST "$BASE/api/dev/wa-mock/template-status" -H 'content-type: application/json' \
   -d "{\"wabaId\":\"$WABA\",\"name\":\"saludo_lead\",\"language\":\"es_CO\",\"event\":\"APPROVED\",\"category\":\"MARKETING\"}" > /dev/null
 SYNC=$(curl -s -b "$JAR" -X POST "$BASE/api/templates/sync")
@@ -62,14 +77,14 @@ check "tras sincronizar, la categoría real es MARKETING" \
 check "y queda aprobada" \
   "$([ "$(echo "$LIST" | grep -c '"status":"approved"')" -gt 0 ] && echo true || echo false)" "$SYNC | $LIST"
 
-echo "── 4. Elegirla como saludo automático de leads"
+echo "── 5. Elegirla como saludo automático de leads"
 curl -s -b "$JAR" -X PUT "$BASE/api/settings/leadgen" -H 'content-type: application/json' \
   -d "{\"greetingTemplateId\":\"$TPL_ID\"}" > /dev/null
 LG=$(curl -s -b "$JAR" "$BASE/api/settings/leadgen")
 check "saludo global apunta a la plantilla" \
   "$([ "$(echo "$LG" | grep -c "$TPL_ID")" -gt 0 ] && echo true || echo false)" "$LG"
 
-echo "── 5. EDITAR: cuerpo nuevo + volver a UTILITY"
+echo "── 6. EDITAR: cuerpo nuevo + volver a UTILITY"
 EDIT=$(curl -s -b "$JAR" -X PATCH "$BASE/api/templates/$TPL_ID" \
   -H 'content-type: application/json' \
   -d '{"body":"Hola {{1}}, seguimos disponibles para tu proyecto.","category":"UTILITY"}')
@@ -81,12 +96,12 @@ MOCK=$(curl -s "$BASE/api/dev/wa-mock/graph/$WABA/message_templates" -H "Authori
 check "el cambio llegó de verdad a Meta (wa-mock)" \
   "$([ "$(echo "$MOCK" | grep -c 'seguimos disponibles')" -gt 0 ] && echo true || echo false)" "$MOCK"
 
-echo "── 6. Camino infeliz: editar una plantilla inexistente"
+echo "── 7. Camino infeliz: editar una plantilla inexistente"
 NOPE=$(curl -s -o /dev/null -w "%{http_code}" -b "$JAR" -X PATCH "$BASE/api/templates/ct_noexiste" \
   -H 'content-type: application/json' -d '{"body":"x","category":"UTILITY"}')
 check "404 sin colgarse" "$([ "$NOPE" = "404" ] && echo true || echo false)" "HTTP $NOPE"
 
-echo "── 7. ELIMINAR: se va del CRM, de Meta y del saludo global"
+echo "── 8. ELIMINAR: se va del CRM, de Meta y del saludo global"
 DEL=$(curl -s -o /dev/null -w "%{http_code}" -b "$JAR" -X DELETE "$BASE/api/templates/$TPL_ID")
 check "borrado devuelve 200" "$([ "$DEL" = "200" ] && echo true || echo false)" "HTTP $DEL"
 LIST=$(curl -s -b "$JAR" "$BASE/api/templates")
@@ -99,11 +114,11 @@ LG=$(curl -s -b "$JAR" "$BASE/api/settings/leadgen")
 check "el saludo global quedó limpio (sin referencia rota)" \
   "$([ "$(echo "$LG" | grep -c 'null')" -gt 0 ] && echo true || echo false)" "$LG"
 
-echo "── 8. Camino infeliz: borrar dos veces"
+echo "── 9. Camino infeliz: borrar dos veces"
 DEL2=$(curl -s -o /dev/null -w "%{http_code}" -b "$JAR" -X DELETE "$BASE/api/templates/$TPL_ID")
 check "404 la segunda vez" "$([ "$DEL2" = "404" ] && echo true || echo false)" "HTTP $DEL2"
 
-echo "── 9. Borrado tolerante: plantilla que ya no está en Meta"
+echo "── 10. Borrado tolerante: plantilla que ya no está en Meta"
 C2=$(curl -s -b "$JAR" -X POST "$BASE/api/templates" -H 'content-type: application/json' \
   -d '{"name":"huerfana","language":"es_CO","category":"UTILITY","body":"Hola"}')
 ID2=$(echo "$C2" | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')
