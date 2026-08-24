@@ -228,6 +228,7 @@ US1, US2 (MVP gate) → US3, US4, US5, US8 (núcleo P1) → US6 (P2) → US7 (P3
 - [X] T097 Lista "pendiente de verificación humana" + reporte final (verde con evidencia / diferido con instrucciones / roadmap) en el chat
 - [X] T098 Merge `001-seomos-core` → `main` (merge normal, conservar rama — OK explícito ya dado), validar con /speckit-git-validate, dejar `main` activa
 - [X] T099 Bugfix 2026-08-24 — OAuthException no-auth conserva la conexión, muestra el error real de plantillas y queda cubierto por unit + E2E de proveedor fallido
+- [ ] T100 Bugfix 2026-08-24 — preservar `error_user_msg`/`error_data.details` para diagnosticar parámetros de plantilla sin registrar secretos; unit + E2E + verificación en vivo
 
 ---
 

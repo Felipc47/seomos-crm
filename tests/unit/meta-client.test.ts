@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { MetaApiError, normalizeRecipient } from "@/lib/meta/client";
+import {
+  describeMetaGraphError,
+  MetaApiError,
+  normalizeRecipient,
+} from "@/lib/meta/client";
 
 describe("normalizeRecipient", () => {
   it("México móvil legado: 521 + 10 dígitos → 52 + 10 dígitos", () => {
@@ -49,5 +53,41 @@ describe("MetaApiError.isAuthError", () => {
 
   it("un 500 cualquiera NO es error de auth", () => {
     expect(new MetaApiError("x", { status: 500 }).isAuthError).toBe(false);
+  });
+});
+
+describe("describeMetaGraphError", () => {
+  it("prioriza el detalle accionable sobre Invalid parameter", () => {
+    expect(
+      describeMetaGraphError(
+        {
+          message: "Invalid parameter",
+          error_data: { details: "El idioma enviado no está disponible" },
+        },
+        "Meta respondió 400"
+      )
+    ).toBe("Invalid parameter — El idioma enviado no está disponible");
+  });
+
+  it("incluye el título y mensaje pensados para el usuario", () => {
+    expect(
+      describeMetaGraphError(
+        {
+          message: "Invalid parameter",
+          error_user_title: "No se pudo crear la plantilla",
+          error_user_msg: "Revisa la categoría seleccionada.",
+        },
+        "fallback"
+      )
+    ).toBe(
+      "Invalid parameter — No se pudo crear la plantilla: Revisa la categoría seleccionada."
+    );
+  });
+
+  it("usa el mensaje base o el fallback si no hay detalle", () => {
+    expect(describeMetaGraphError({ message: "Permiso denegado" }, "fallback")).toBe(
+      "Permiso denegado"
+    );
+    expect(describeMetaGraphError(null, "fallback")).toBe("fallback");
   });
 });

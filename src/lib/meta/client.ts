@@ -33,6 +33,49 @@ export class MetaApiError extends Error {
   }
 }
 
+type MetaGraphErrorBody = {
+  message?: unknown;
+  error_user_title?: unknown;
+  error_user_msg?: unknown;
+  error_data?: { details?: unknown } | unknown;
+};
+
+function graphErrorString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed.slice(0, 1_000) : null;
+}
+
+/**
+ * Meta suele dejar `message` en un genérico ("Invalid parameter") y poner la
+ * causa accionable en `error_data.details` o `error_user_msg`. Conservamos ese
+ * detalle para el operador sin exponer tokens ni serializar el payload entero.
+ */
+export function describeMetaGraphError(
+  error: unknown,
+  fallback: string
+): string {
+  if (!error || typeof error !== "object") return fallback;
+  const body = error as MetaGraphErrorBody;
+  const data =
+    body.error_data && typeof body.error_data === "object"
+      ? (body.error_data as { details?: unknown })
+      : null;
+  const title = graphErrorString(body.error_user_title);
+  const detail =
+    graphErrorString(body.error_user_msg) ?? graphErrorString(data?.details);
+  const message = graphErrorString(body.message);
+
+  if (detail) {
+    const actionable = title ? `${title}: ${detail}` : detail;
+    if (message && message !== detail && !actionable.includes(message)) {
+      return `${message} — ${actionable}`;
+    }
+    return actionable;
+  }
+  return message ?? fallback;
+}
+
 export async function graphRequest<T>(
   path: string,
   opts: {
@@ -177,14 +220,20 @@ async function graphFetch<T>(
   }
 
   if (!res.ok) {
-    const err = (json as { error?: { message?: string; code?: number; type?: string } })
-      ?.error;
-    throw new MetaApiError(err?.message ?? `Meta respondió ${res.status}`, {
+    const err = (
+      json as {
+        error?: MetaGraphErrorBody & { code?: number; type?: string };
+      }
+    )?.error;
+    throw new MetaApiError(
+      describeMetaGraphError(err, `Meta respondió ${res.status}`),
+      {
       status: res.status,
       code: err?.code ?? null,
       type: err?.type ?? null,
       details: json ?? text,
-    });
+      }
+    );
   }
   return json as T;
 }

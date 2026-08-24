@@ -291,6 +291,9 @@ export async function POST(req: Request, ctx: Params) {
             message: "Invalid template parameter (mock)",
             type: "OAuthException",
             code: 100,
+            error_data: {
+              details: "El parámetro simulado no es válido",
+            },
             fbtrace_id: "mock-non-auth",
           },
         },

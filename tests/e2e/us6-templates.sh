@@ -44,7 +44,7 @@ NONAUTH=$(curl -s -w '\n%{http_code}' -b "$JAR" -X POST "$BASE/api/templates" \
 NONAUTH_CODE=$(echo "$NONAUTH" | tail -n 1)
 NONAUTH_BODY=$(echo "$NONAUTH" | sed '$d')
 check "el error real de Meta vuelve como 422" \
-  "$([ "$NONAUTH_CODE" = "422" ] && echo "$NONAUTH_BODY" | grep -q 'Invalid template parameter' && echo true || echo false)" \
+  "$([ "$NONAUTH_CODE" = "422" ] && echo "$NONAUTH_BODY" | grep -q 'El parámetro simulado no es válido' && echo true || echo false)" \
   "HTTP $NONAUTH_CODE | $NONAUTH_BODY"
 check "no se reporta falsamente que el token expiró" \
   "$([ "$(echo "$NONAUTH_BODY" | grep -Eic 'expir|reconect')" -eq 0 ] && echo true || echo false)" "$NONAUTH_BODY"

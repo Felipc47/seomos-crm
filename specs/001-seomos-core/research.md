@@ -157,6 +157,9 @@ Respuesta Graph con status 401 o `code: 190` → estado `reconnect_required` en
 reintentos ciegos). `type: OAuthException` por sí solo NO prueba que el token haya
 muerto: Meta también lo usa para errores de parámetros (por ejemplo `code: 100`) y de
 permisos. Esos errores deben conservar la conexión y mostrar el mensaje real de Meta.
+Cuando `message` sea genérico, la causa accionable se toma de
+`error_user_msg` o `error_data.details`; el payload completo nunca se registra porque
+puede contener datos del negocio.
 
 ## DV-VC-14 — Versiones fijadas (stack)
 
