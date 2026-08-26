@@ -39,8 +39,9 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_OAUTH_BASE_URL: z.string().url().default("https://oauth2.googleapis.com"),
   GOOGLE_API_BASE_URL: z.string().url().default("https://www.googleapis.com"),
-  // Correo transaccional (020, constitución 1.4.0): Resend es opcional. La
-  // base URL configurable permite el mock interno del self-test.
+  // Correo transaccional (020/026, constitución 1.5.0): Resend es opcional
+  // para avisos, resúmenes y restablecimiento de contraseña. La base URL
+  // configurable permite el mock interno del self-test.
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().email().optional(),
   RESEND_FROM_NAME: z.string().trim().min(1).max(80).default("Seomos CRM"),

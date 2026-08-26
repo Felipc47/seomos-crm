@@ -1,18 +1,18 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Versión: 1.3.0 → 1.4.0
+Versión: 1.4.0 → 1.5.0
 
 Cambios:
   - Principio II "Soberanía / Self-Hosted" → ENMIENDA aprobada por el dueño
-    (2026-08-12, feature 020): se agrega Resend como CUARTA dependencia externa
-    opcional de runtime, exclusivamente para correo transaccional de avisos de
-    nuevos leads y resúmenes operativos. Se exige adaptador dedicado, secreto
-    solo en runtime y degradación segura cuando no esté configurado o falle.
+    (2026-08-26, feature 026): se amplía el uso permitido de Resend a correos
+    transaccionales de restablecimiento de contraseña, además de avisos de
+    nuevos leads y resúmenes operativos. Se mantienen el adaptador dedicado,
+    el secreto solo en runtime y la degradación segura ante fallos.
   - Resto de principios: íntegros (sin cambio semántico).
 
-Bump: MINOR (1.3.0 → 1.4.0) — expansión material del Principio II con una nueva
-dependencia externa permitida; sin eliminaciones ni redefiniciones incompatibles.
+Bump: MINOR (1.4.0 → 1.5.0) — expansión material del uso permitido de una
+dependencia existente; sin agregar proveedores ni redefinir otros principios.
 
 Plantillas dependientes:
   - .specify/templates/plan-template.md — ✅ compatible.
@@ -68,12 +68,13 @@ dependencias externas en runtime es CERRADA:
      refresh token se cifra en reposo (Principio I). Sin conexión configurada, el
      producto funciona completo sin agendamiento; su fallo degrada sin colgar
      ninguna otra función.
-  4. **Resend**, opcional (enmienda 1.4.0, aprobada por el dueño 2026-08-12),
-     EXCLUSIVAMENTE para correo transaccional de avisos de nuevos leads y
-     resúmenes operativos del CRM: accedido tras un adaptador dedicado, con API
-     key solo en variables de runtime y entregas idempotentes. Sin configuración
-     o ante un fallo del proveedor, el CRM conserva el lead y las notificaciones
-     internas y continúa sin colgar el flujo principal.
+  4. **Resend**, opcional (enmiendas 1.4.0 y 1.5.0, aprobadas por el dueño el
+     2026-08-12 y 2026-08-26), EXCLUSIVAMENTE para correo transaccional de avisos
+     de nuevos leads, resúmenes operativos del CRM y enlaces de restablecimiento
+     de contraseña: accedido tras un adaptador dedicado, con API key solo en
+     variables de runtime y entregas idempotentes cuando corresponda. Sin
+     configuración o ante un fallo del proveedor, el CRM conserva sus datos y
+     credenciales y continúa sin colgar el flujo principal.
 - **PROHIBIDO en v1**: almacenamiento de objetos externo (S3/R2), proveedores de
   email distintos de Resend, Stripe u otro billing, y otros servicios de Google
   distintos de Calendar. Cualquier feature que los requiera queda fuera del
@@ -267,4 +268,4 @@ práctica, convención o preferencia; ante un conflicto, gana la constitución.
 - **Propagación**: al enmendar la constitución se revisan y, si procede, se actualizan
   las plantillas dependientes (plan, spec, tasks).
 
-**Version**: 1.4.0 | **Ratified**: 2026-07-09 | **Last Amended**: 2026-08-12
+**Version**: 1.5.0 | **Ratified**: 2026-07-09 | **Last Amended**: 2026-08-26

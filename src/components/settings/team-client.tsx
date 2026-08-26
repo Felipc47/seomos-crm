@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { UserPlus } from "lucide-react";
+import { KeyRound, Loader2, UserPlus } from "lucide-react";
 import { ContactAvatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +35,13 @@ export function TeamClient() {
   const [created, setCreated] = useState<{ email: string; password: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [resettingMemberId, setResettingMemberId] = useState<string | null>(
+    null
+  );
+  const [resetFeedback, setResetFeedback] = useState<{
+    kind: "success" | "error";
+    message: string;
+  } | null>(null);
 
   const refetch = useCallback(async () => {
     const res = await fetch("/api/settings/team").catch(() => null);
@@ -100,6 +107,32 @@ export function TeamClient() {
     setEmail("");
     setTempPassword("");
     void refetch();
+  }
+
+  async function resetPassword(member: Member) {
+    setResettingMemberId(member.id);
+    setResetFeedback(null);
+    const response = await fetch(
+      `/api/settings/team/${member.id}/password-reset`,
+      { method: "POST" }
+    ).catch(() => null);
+    setResettingMemberId(null);
+    if (!response?.ok) {
+      const data = (await response?.json().catch(() => null)) as {
+        error?: { message?: string };
+      } | null;
+      setResetFeedback({
+        kind: "error",
+        message:
+          data?.error?.message ??
+          "No se pudo enviar el enlace. Revisa tu conexión e inténtalo otra vez.",
+      });
+      return;
+    }
+    setResetFeedback({
+      kind: "success",
+      message: `Enlace de restablecimiento enviado a ${member.name}.`,
+    });
   }
 
   return (
@@ -188,45 +221,84 @@ export function TeamClient() {
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           Miembros{limit !== null ? ` · ${members.length}/${limit}` : ""}
         </p>
+        {resetFeedback && (
+          <p
+            className={
+              resetFeedback.kind === "success"
+                ? "rounded-lg border border-[color:var(--success-border)] bg-[color:var(--success-bg)] p-3 text-sm leading-5 text-[color:var(--success-fg)]"
+                : "rounded-lg border border-[color:var(--danger-border)] bg-[color:var(--danger-bg)] p-3 text-sm leading-5 text-[color:var(--danger-fg)]"
+            }
+            role={resetFeedback.kind === "error" ? "alert" : "status"}
+            aria-live="polite"
+          >
+            {resetFeedback.message}
+          </p>
+        )}
         {members.map((m) => (
           <div
             key={m.id}
-            className="flex items-center gap-3 rounded-lg border bg-card px-4 py-3"
+            data-testid={`team-member-${m.id}`}
+            className="flex flex-col gap-3 rounded-lg border bg-card px-4 py-3 sm:flex-row sm:items-center"
           >
-            <ContactAvatar name={m.name} seed={m.id} size="sm" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{m.name}</p>
-              <p className="text-xs text-muted-foreground">{m.email}</p>
-              {(m.role === "commercial" || m.role === "member") && (
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {m.services.length > 0 ? (
-                    m.services.map((service) => (
-                      <span
-                        key={service.id}
-                        className="rounded-full bg-brand-tint px-2 py-0.5 text-[11px] font-bold text-brand"
-                      >
-                        {service.name}
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+              <ContactAvatar name={m.name} seed={m.id} size="sm" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{m.name}</p>
+                <p className="break-all text-xs text-muted-foreground">
+                  {m.email}
+                </p>
+                {(m.role === "commercial" || m.role === "member") && (
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {m.services.length > 0 ? (
+                      m.services.map((service) => (
+                        <span
+                          key={service.id}
+                          className="rounded-full bg-brand-tint px-2 py-0.5 text-[11px] font-bold text-brand"
+                        >
+                          {service.name}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground">
+                        Sin servicios asignados
                       </span>
-                    ))
-                  ) : (
-                    <span className="text-[11px] text-muted-foreground">
-                      Sin servicios asignados
-                    </span>
-                  )}
-                </div>
-              )}
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-            <select
-              aria-label={`Rol de ${m.name}`}
-              value={m.role === "member" ? "commercial" : m.role}
-              onChange={(e) => void changeRole(m.id, e.target.value)}
-              className="rounded-md border bg-background px-2 py-1.5 text-xs font-semibold outline-none focus:border-brand"
-            >
-              <option value="owner">{ROLE_LABELS.owner}</option>
-              <option value="agent_editor">{ROLE_LABELS.agent_editor}</option>
-              <option value="commercial">{ROLE_LABELS.commercial}</option>
-              <option value="marketing">{ROLE_LABELS.marketing}</option>
-            </select>
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+              <select
+                aria-label={`Rol de ${m.name}`}
+                value={m.role === "member" ? "commercial" : m.role}
+                onChange={(e) => void changeRole(m.id, e.target.value)}
+                className="h-9 min-w-0 flex-1 rounded-lg border bg-background px-2 text-xs font-semibold outline-none focus:border-brand sm:flex-none"
+              >
+                <option value="owner">{ROLE_LABELS.owner}</option>
+                <option value="agent_editor">{ROLE_LABELS.agent_editor}</option>
+                <option value="commercial">{ROLE_LABELS.commercial}</option>
+                <option value="marketing">{ROLE_LABELS.marketing}</option>
+              </select>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="flex-1 sm:flex-none"
+                disabled={resettingMemberId !== null}
+                onClick={() => void resetPassword(m)}
+                aria-label={`Restablecer contraseña de ${m.name}`}
+              >
+                {resettingMemberId === m.id ? (
+                  <Loader2
+                    className="h-4 w-4 animate-spin"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <KeyRound className="h-4 w-4" aria-hidden="true" />
+                )}
+                {resettingMemberId === m.id ? "Enviando…" : "Restablecer"}
+              </Button>
+            </div>
           </div>
         ))}
       </div>

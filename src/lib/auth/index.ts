@@ -11,6 +11,12 @@ import {
   resolveActiveOrganizationId,
 } from "@/server/auth/on-signup";
 import { isPublicSignupAllowed } from "@/server/auth/registration";
+import { deliverPasswordResetEmail } from "@/server/email/password-reset";
+import type { PasswordResetDeliveryResult } from "@/server/email/password-reset";
+
+type InternalPasswordResetState = {
+  delivery?: Promise<PasswordResetDeliveryResult>;
+};
 
 /**
  * Contexto interno del proceso: permite que el alta de cuentas de equipo
@@ -19,6 +25,7 @@ import { isPublicSignupAllowed } from "@/server/auth/registration";
  */
 const globalForSignup = globalThis as unknown as {
   __seomosInternalSignup?: AsyncLocalStorage<boolean>;
+  __seomosInternalPasswordReset?: AsyncLocalStorage<InternalPasswordResetState>;
 };
 
 // En globalThis: los módulos pueden evaluarse más de una vez (una por ruta en
@@ -38,7 +45,44 @@ function isInternalSignup(): boolean {
   return internalSignupContext().getStore() === true;
 }
 
-const RATE_LIMITED_PATHS = new Set(["/sign-in/email", "/sign-up/email"]);
+function internalPasswordResetContext(): AsyncLocalStorage<InternalPasswordResetState> {
+  if (!globalForSignup.__seomosInternalPasswordReset) {
+    globalForSignup.__seomosInternalPasswordReset =
+      new AsyncLocalStorage<InternalPasswordResetState>();
+  }
+  return globalForSignup.__seomosInternalPasswordReset;
+}
+
+export function runInternalPasswordReset<T>(
+  fn: () => Promise<T>
+): Promise<T> {
+  const state: InternalPasswordResetState = {};
+  return internalPasswordResetContext().run(state, async () => {
+    const result = await fn();
+    if (!state.delivery || (await state.delivery).status !== "sent") {
+      throw new PasswordResetDeliveryError();
+    }
+    return result;
+  });
+}
+
+function isInternalPasswordReset(): boolean {
+  return internalPasswordResetContext().getStore() !== undefined;
+}
+
+export class PasswordResetDeliveryError extends Error {
+  constructor() {
+    super("No se pudo entregar el enlace de restablecimiento");
+    this.name = "PasswordResetDeliveryError";
+  }
+}
+
+const RATE_LIMITED_PATHS = new Set([
+  "/sign-in/email",
+  "/sign-up/email",
+  "/request-password-reset",
+  "/reset-password",
+]);
 
 function createAuth() {
   const env = getEnv();
@@ -61,12 +105,31 @@ function createAuth() {
       enabled: true,
       requireEmailVerification: false,
       minPasswordLength: 8,
+      maxPasswordLength: 128,
+      resetPasswordTokenExpiresIn: 60 * 60,
+      revokeSessionsOnPasswordReset: true,
+      sendResetPassword: async ({ user, url, token }) => {
+        const delivery = deliverPasswordResetEmail({
+          to: user.email,
+          userName: user.name,
+          url,
+          token,
+        });
+        const state = internalPasswordResetContext().getStore();
+        if (state) {
+          state.delivery = delivery;
+        }
+        await delivery;
+      },
     },
     plugins: [organization({ creatorRole: "owner" })],
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
         // Rate limit por IP en login/registro (FR-062): 10 / 10 min → 429.
-        if (RATE_LIMITED_PATHS.has(ctx.path)) {
+        if (
+          RATE_LIMITED_PATHS.has(ctx.path) &&
+          !isInternalPasswordReset()
+        ) {
           const ip =
             ctx.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() ||
             ctx.headers?.get("x-real-ip") ||
