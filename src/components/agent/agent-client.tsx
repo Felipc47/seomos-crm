@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  ArrowRight,
   BadgeDollarSign,
   Briefcase,
   CalendarClock,
@@ -16,6 +17,7 @@ import {
   ShieldAlert,
   Sparkles,
   Trash2,
+  WandSparkles,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -28,6 +30,7 @@ import {
 import { cn } from "@/lib/utils";
 import { SchedulingSection } from "@/components/agent/scheduling-section";
 import { FollowUpSection } from "@/components/agent/follow-up-section";
+import { AgentSetupAssistant } from "@/components/agent/agent-setup-assistant";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -36,6 +39,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
+import type { AgentConfigurationDraft } from "@/server/ai/config-assistant";
 
 type Profile = {
   enabled: boolean;
@@ -80,6 +84,11 @@ export function AgentClient() {
   const [entries, setEntries] = useState<KbEntry[]>([]);
   const [kbSize, setKbSize] = useState<{ chars: number; warnAt: number; warning: boolean } | null>(null);
   const [saved, setSaved] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [appliedDraft, setAppliedDraft] = useState<{
+    version: number;
+    draft: AgentConfigurationDraft;
+  } | null>(null);
 
   const refetch = useCallback(async () => {
     const [p, kb, size] = await Promise.all([
@@ -129,6 +138,14 @@ export function AgentClient() {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     void refetch();
+  }
+
+  function applyAssistantDraft(draft: AgentConfigurationDraft) {
+    setAppliedDraft((current) => ({
+      version: (current?.version ?? 0) + 1,
+      draft,
+    }));
+    toast("Borrador aplicado. Revísalo y guárdalo cuando esté listo.");
   }
 
   return (
@@ -207,9 +224,42 @@ export function AgentClient() {
         </section>
       )}
 
+      <section className="mx-6 mt-6 flex flex-col gap-4 rounded-2xl border border-brand/20 bg-brand-tint p-4 sm:flex-row sm:items-center sm:p-5">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface text-brand">
+          <WandSparkles className="h-5 w-5" strokeWidth={2.2} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-display text-[16px] font-extrabold">
+            Configúralo con ayuda de IA
+          </h3>
+          <p className="mt-1 max-w-[68ch] text-[13px] leading-5 text-mute">
+            Pega tu sitio o responde tres preguntas. Recibirás un borrador completo para
+            revisar, sin guardar ni encender nada automáticamente.
+          </p>
+        </div>
+        <Button
+          variant="secondary"
+          className="w-full shrink-0 bg-surface sm:w-auto"
+          disabled={!aiConfigured}
+          onClick={() => setAssistantOpen(true)}
+        >
+          Configurar con IA <ArrowRight className="h-4 w-4" />
+        </Button>
+        {!aiConfigured && (
+          <span className="text-xs font-semibold text-warning-fg sm:max-w-[180px]">
+            Disponible al configurar el proveedor de IA.
+          </span>
+        )}
+      </section>
+
       <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-6 p-6 lg:grid-cols-2">
-        <ProfileSection profile={profile} onSave={saveProfile} />
-        <KbSection entries={entries} kbSize={kbSize} onChanged={() => void refetch()} />
+        <ProfileSection profile={profile} onSave={saveProfile} appliedDraft={appliedDraft} />
+        <KbSection
+          entries={entries}
+          kbSize={kbSize}
+          onChanged={() => void refetch()}
+          appliedDraft={appliedDraft}
+        />
         <div className="lg:col-span-2">
           <FollowUpSection />
         </div>
@@ -217,6 +267,11 @@ export function AgentClient() {
           <SchedulingSection />
         </div>
       </div>
+      <AgentSetupAssistant
+        open={assistantOpen}
+        onClose={() => setAssistantOpen(false)}
+        onApply={applyAssistantDraft}
+      />
     </div>
   );
 }
@@ -224,13 +279,29 @@ export function AgentClient() {
 function ProfileSection({
   profile,
   onSave,
+  appliedDraft,
 }: {
   profile: Profile;
   onSave: (patch: Partial<Profile>) => Promise<void>;
+  appliedDraft: { version: number; draft: AgentConfigurationDraft } | null;
 }) {
   const [form, setForm] = useState(profile);
   const [openSection, setOpenSection] = useState<string | null>(null);
   useEffect(() => setForm(profile), [profile]);
+  useEffect(() => {
+    if (!appliedDraft) return;
+    const draft = appliedDraft.draft;
+    setForm((current) => ({
+      ...current,
+      name: draft.name,
+      greeting: draft.greeting,
+      tonePresets: draft.tonePresets,
+      tone: draft.tone,
+      instructionSections: draft.instructionSections,
+      escalationRules: draft.escalationRules,
+    }));
+    setOpenSection(null);
+  }, [appliedDraft]);
 
   function togglePreset(id: string) {
     const selected = form.tonePresets.includes(id);
@@ -540,14 +611,19 @@ function KbSection({
   entries,
   kbSize,
   onChanged,
+  appliedDraft,
 }: {
   entries: KbEntry[];
   kbSize: { chars: number; warnAt: number; warning: boolean } | null;
   onChanged: () => void;
+  appliedDraft: { version: number; draft: AgentConfigurationDraft } | null;
 }) {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [block, setBlock] = useState("");
+  useEffect(() => {
+    if (appliedDraft) setBlock(appliedDraft.draft.knowledgeBlock);
+  }, [appliedDraft]);
 
   async function addQa() {
     if (!question.trim() || !answer.trim()) return;

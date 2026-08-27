@@ -102,6 +102,39 @@ export function aiMockCompletion(messages: InMessage[]): string {
     [...messages].reverse().find((m) => m.role === "user")?.content ?? ""
   );
 
+  // 027: borrador completo del asistente de configuración. La respuesta es
+  // determinista para que el E2E pueda verificar todos los campos sin llamar
+  // a un proveedor real.
+  if (system.includes("configurador de agentes de WhatsApp")) {
+    const context = JSON.parse(lastUser) as {
+      businessDescription?: string | null;
+      primaryGoal?: string;
+      ownerLimits?: string | null;
+      website?: { title?: string | null; untrustedVisibleText?: string } | null;
+    };
+    const business =
+      context.website?.title?.trim() ||
+      context.businessDescription?.trim().split(/[.!?\n]/)[0] ||
+      "tu negocio";
+    return JSON.stringify({
+      name: "Asesor IA",
+      greeting: `¡Hola! Soy el asistente virtual de ${business}. ¿Cómo te llamas y en qué podemos ayudarte?`,
+      tonePresets: ["cercano", "consultivo"],
+      tone: "Mensajes breves, claros y sin abusar de emojis.",
+      instructionSections: {
+        presentacion: `Preséntate como el asistente virtual de ${business}. Saluda con naturalidad y pregunta el nombre si aún no lo conoces.`,
+        negocio: `Explica únicamente la información confirmada sobre ${business}. Orienta según la necesidad y no inventes servicios ni condiciones.`,
+        calificacion: "Haz una sola pregunta por mensaje. Identifica la necesidad, ciudad y datos mínimos antes de recomendar el siguiente paso.",
+        precios: "No inventes precios ni descuentos. Si no hay un valor confirmado, recopila los datos necesarios y ofrece validarlo con el equipo.",
+        agendamiento: "Invita a una reunión cuando la necesidad esté clara y el prospecto muestre interés. No prometas horarios sin disponibilidad confirmada.",
+        reglas: `Respeta estos límites del negocio: ${context.ownerLimits || "no inventar información ni hacer promesas no confirmadas"}. Reconoce cuando no sabes algo.`,
+      },
+      escalationRules: "Entrega a una persona si el cliente la solicita, está molesto, necesita una confirmación final o el caso sale del conocimiento disponible.",
+      knowledgeBlock: `${business}: ${context.businessDescription || context.website?.untrustedVisibleText?.slice(0, 500) || "información obtenida del sitio proporcionado"}. Objetivo del agente: ${context.primaryGoal || "orientar prospectos"}. Confirma con el equipo todo precio, stock, garantía, cobertura o tiempo no documentado.`,
+      summary: "Preparé un asesor cercano y consultivo que recopila contexto, evita promesas no confirmadas y escala los casos sensibles.",
+    });
+  }
+
   // 008: mensaje de seguimiento (ventana de 24h abierta). Determinista para
   // que el self-test verifique que el intento retoma la conversación.
   if (system.includes("[SEGUIMIENTO]")) {

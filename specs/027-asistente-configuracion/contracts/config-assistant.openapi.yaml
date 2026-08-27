@@ -1,0 +1,45 @@
+openapi: 3.0.3
+info:
+  title: Agent configuration assistant
+  version: 1.0.0
+paths:
+  /api/agent/config-assistant:
+    post:
+      summary: Generate a temporary agent configuration draft
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                websiteUrl:
+                  type: string
+                  maxLength: 2048
+                businessDescription:
+                  type: string
+                  maxLength: 3000
+                goal:
+                  type: string
+                  enum: [sales, qualify, support, schedule, inform]
+                limits:
+                  type: string
+                  maxLength: 2000
+              required: [goal]
+      responses:
+        "200":
+          description: Valid temporary draft
+        "403":
+          description: Role cannot edit the agent
+        "422":
+          description: Invalid input, unsafe URL or unavailable site without fallback description
+        "503":
+          description: AI is not configured or generation failed safely
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: session
