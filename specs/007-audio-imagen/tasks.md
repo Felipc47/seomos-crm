@@ -23,6 +23,14 @@
 - [x] T007 Ejecutar pruebas unitarias, `tests/e2e/us16-adjuntos.sh`, `tests/e2e/us15-reproducir-media.sh` y `tests/e2e/us35-media-ui.mjs`.
 - [x] T008 Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm build` y `pnpm test`.
 
+## Phase 4: Corrección de contenedor MP4 tras verificación real
+
+- [x] T009 [US1] Reproducir la captura de Chromium con y sin `timeslice` y
+  comprobar el contenedor con `ffprobe`.
+- [x] T010 [US1] Generar un único fragmento final en
+  `src/components/inbox/composer.tsx` para conservar la duración completa.
+- [ ] T011 Repetir gate, self-test de navegador, despliegue y smoke canónico.
+
 ## Dependencies & Execution Order
 
 T001 precede T003 y T004. T002 y T005 no comparten archivos y pueden hacerse

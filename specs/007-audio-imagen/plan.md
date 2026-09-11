@@ -50,7 +50,9 @@ con cache privada.
    `src/server/inbox/send.ts`.
 3. Ordenar la negociación de `MediaRecorder` en `src/components/inbox/composer.tsx`:
    AAC/MP4 primero; OGG/Opus solo cuando es la alternativa compatible.
-4. Renderizar directamente `ImageAttachment` en
+4. Iniciar `MediaRecorder` sin `timeslice` para que el evento final entregue un
+   MP4 completo, con duración e índice válidos para el procesamiento de Meta.
+5. Renderizar directamente `ImageAttachment` en
    `src/components/inbox/message-thread.tsx`; en error, mostrar la degradación
    actual sin botón de descarga.
 

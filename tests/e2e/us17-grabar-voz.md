@@ -19,13 +19,12 @@ WhatsApp, con vista previa antes de enviar.
 
 ## Self-test (Playwright, mic falso de Chromium)
 
-Guion de referencia: `scratchpad/ui-voz.mjs` de la sesión (mic falso con
-`--use-fake-device-for-media-capture`; **requiere `headless: false`** — el
-headless shell de Playwright no soporta `getUserMedia`). Verificó: barra con
-timer, cancelar sin rastro, chip con vista previa reproducible, burbuja
-saliente «Nota de voz», texto como mensaje aparte, outbox del mock con
-`type=audio` + `type=text`, y round-trip (la nota enviada se re-reproduce
-desde el hilo).
+`tests/e2e/us36-audio-container.mjs` usa el micrófono falso de Chromium y
+verifica el flujo desde el botón de grabar hasta el binario que recibe el mock
+de Meta. Además inspecciona ese binario con `ffprobe`: MIME `audio/mp4`, códec
+AAC, contenedor MP4 válido y duración completa. Esta última aserción protege la
+regresión `131053`: con `MediaRecorder.start(250)`, Chromium producía varios
+segmentos que al concatenarse reportaban solo la duración del primer fragmento.
 
 ## Verificación manual
 

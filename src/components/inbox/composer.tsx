@@ -156,7 +156,12 @@ export function Composer({
       }
       pickFile(note);
     };
-    recorder.start(250);
+    // No pedir fragmentos periódicos: en Chromium cada fragmento MP4 puede
+    // iniciar una película nueva. Concatenarlos produce un archivo que el
+    // navegador reproduce, pero cuya duración/índice quedan truncados y Meta
+    // termina rechazando de forma asíncrona con 131053. Un único fragmento al
+    // detener deja que MediaRecorder finalice correctamente el contenedor.
+    recorder.start();
     recorderRef.current = recorder;
     setRecording(true);
     setRecSecs(0);

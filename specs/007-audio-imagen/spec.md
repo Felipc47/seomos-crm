@@ -100,11 +100,16 @@ hilo para entender el mensaje sin una descarga manual.
 - **FR-308** Toda imagen o sticker con adjunto disponible DEBE previsualizarse
   automáticamente en el hilo; su fallo DEBE degradar a un estado visible, sin
   romper mensajes posteriores.
+- **FR-309** La grabación MP4 DEBE finalizarse como un único contenedor al
+  detener `MediaRecorder`; no se concatenarán fragmentos temporizados porque
+  Chromium genera un archivo reproducible localmente pero con duración/índice
+  truncados que Meta rechaza después con `131053`.
 
 ### Límites y supuestos
 
 - No se guarda el binario de una nota ni de una imagen: la previsualización
   mantiene la descarga autenticada desde la Cloud API de WhatsApp.
 - El error histórico `131053` llega de forma asíncrona desde Meta. El sistema
-  evita los MIME ambiguos que lo pueden provocar, pero no puede reintentar un
-  audio cuyo binario Meta ya rechazó sin guardar archivos localmente.
+  evita los MIME ambiguos y los contenedores MP4 fragmentados que lo pueden
+  provocar, pero no puede reintentar un audio cuyo binario Meta ya rechazó sin
+  guardar archivos localmente.
