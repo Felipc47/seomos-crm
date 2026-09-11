@@ -81,7 +81,8 @@ el cliente la reciba sin depender de un formato ambiguo del navegador.
    reproduce el audio; el doble check por sí solo no satisface este criterio.
 5. **Given** que una OGG/Opus se reproduce en el CRM pero WhatsApp iOS la
    declara no disponible, **When** se envía una nueva grabación, **Then** el
-   servidor la convierte a MP3 y la envía como audio estándar sin `voice`.
+   servidor declara `audio/ogg; codecs=opus` en toda la carga y la envía sin
+   forzar `voice`, conservando la apariencia de voz y la reproducción.
 
 ### User Story 2 — Ver imágenes automáticamente (Priority: P2)
 
@@ -111,23 +112,24 @@ hilo para entender el mensaje sin una descarga manual.
   Chromium genera un archivo reproducible localmente pero con duración/índice
   truncados que Meta rechaza después con `131053`.
 - **FR-310** Todo audio que el composer presenta como nota de voz, grabado o
-  adjuntado, DEBE normalizarse en el servidor a MP3 mono y enviarse como audio
-  estándar, sin `audio.voice=true`. La conversión DEBE ejecutarse localmente,
-  con tiempo y tamaño acotados, sin servicios externos; un archivo ilegible
-  DEBE fallar antes de contactar a Meta con un mensaje operable.
-- **FR-311** La subida del audio normalizado DEBE usar `audio/mpeg` tanto como
-  tipo base de Media API como `Content-Type` del archivo multipart. Una entrega
-  aceptada o con doble check NO cuenta como éxito hasta comprobar que el
-  binario puede descargarse y reproducirse en el cliente de WhatsApp.
+  adjuntado, DEBE normalizarse en el servidor a OGG/Opus mono. La conversión
+  DEBE ejecutarse localmente, con tiempo y tamaño acotados, sin servicios
+  externos; un archivo ilegible DEBE fallar antes de contactar a Meta con un
+  mensaje operable.
+- **FR-311** La subida del audio normalizado DEBE usar
+  `audio/ogg; codecs=opus` tanto en el campo `type` de Media API como en el
+  `Content-Type` del archivo multipart y NO DEBE forzar `audio.voice=true`.
+  Una entrega aceptada o con doble check NO cuenta como éxito hasta comprobar
+  que la burbuja tiene apariencia de voz y se reproduce en WhatsApp.
 
 ### Límites y supuestos
 
 - No se guarda el binario de una nota ni de una imagen: la previsualización
   mantiene la descarga autenticada desde la Cloud API de WhatsApp.
 - El error histórico `131053` llega de forma asíncrona desde Meta. El sistema
-  evita enviar los contenedores MP4 del navegador y el tratamiento especial
-  OGG/Opus mediante su normalización a MP3 estándar, pero no puede reintentar
-  un audio cuyo binario Meta ya rechazó sin guardar archivos localmente.
+  evita enviar los contenedores MP4 del navegador mediante su normalización a
+  OGG/Opus con MIME completo, pero no puede reintentar un audio cuyo binario
+  Meta ya rechazó sin guardar archivos localmente.
 - La Cloud API conserva media subida durante un periodo limitado. Un aviso de
   "audio no disponible" inmediatamente después del envío se considera un
   fallo de interoperabilidad, no una caducidad normal.

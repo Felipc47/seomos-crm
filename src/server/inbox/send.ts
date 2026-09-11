@@ -135,7 +135,6 @@ export async function sendMedia(input: {
   }
 
   let uploadBytes = input.bytes;
-  let uploadMime = mediaMime;
   let uploadContentType = mediaMime;
   let uploadFilename = input.filename;
   const normalizeAudio = input.voice === true && spec.kind === "audio";
@@ -154,7 +153,6 @@ export async function sendMedia(input: {
     try {
       const normalized = await normalizeOutgoingAudio(input.bytes, mediaMime);
       uploadBytes = normalized.bytes;
-      uploadMime = normalized.mime;
       uploadContentType = normalized.contentType;
       uploadFilename = normalized.filename;
     } catch (err) {
@@ -168,7 +166,10 @@ export async function sendMedia(input: {
 
   const form = new FormData();
   form.set("messaging_product", "whatsapp");
-  form.set("type", uploadMime);
+  // Para OGG, Meta documenta que el tipo base no basta: `codecs=opus` forma
+  // parte del MIME admitido. Debe viajar también en el campo `type`, no solo
+  // en el encabezado de la parte multipart.
+  form.set("type", uploadContentType);
   form.set(
     "file",
     new Blob([uploadBytes as BlobPart], { type: uploadContentType }),
@@ -193,9 +194,9 @@ export async function sendMedia(input: {
     spec.kind === "document"
       ? { document: { id: uploadedId, filename: input.filename, ...(caption ? { caption } : {}) } }
       : spec.kind === "audio"
-        // Se omite `voice`: las OGG/Opus marcadas como nota se entregaban, pero
-        // WhatsApp iOS las reportaba inmediatamente como no disponibles. El
-        // audio normalizado se envía como audio estándar MP3 reproducible.
+        // El MIME completo OGG/Opus hace que WhatsApp lo represente como voz.
+        // No se fuerza `voice`: así evitamos el camino que entregó burbujas
+        // visibles cuyo binario iOS declaraba no disponible.
         ? { audio: { id: uploadedId } }
         : { [spec.kind]: { id: uploadedId, ...(caption ? { caption } : {}) } };
 

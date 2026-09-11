@@ -6,8 +6,8 @@
 ## Summary
 
 Corregir el camino de audios salientes para capturar AAC/MP4 u OGG/Opus según
-el navegador, convertirlos a MP3 estándar y enviar a Meta un MIME canónico sin
-la marca especial de nota de voz. Cambiar el hilo
+el navegador, normalizarlos a OGG/Opus y declarar el MIME completo en toda la
+carga para conservar la burbuja de voz sin forzar `audio.voice`. Cambiar el hilo
 para que toda imagen disponible se cargue y se vea al abrir la conversación,
 con degradación explícita si Meta ya no la conserva.
 
@@ -56,9 +56,10 @@ lo elimina. Todo acceso a media continúa autenticado y con cache privada.
 4. Iniciar `MediaRecorder` sin `timeslice` para que el evento final entregue un
    MP4 completo, con duración e índice válidos para el procesamiento de Meta.
 5. Marcar internamente el audio del composer para normalización, convertirlo
-   localmente a MP3 mono, declarar `audio/mpeg` y enviarlo como audio estándar
-   sin `audio.voice=true`. Esto evita la variante OGG que el CRM reproducía
-   pero WhatsApp iOS declaraba no disponible.
+   localmente a OGG/Opus mono y declarar `audio/ogg; codecs=opus` tanto en el
+   campo `type` de Media API como en la parte multipart. Omitir el flag
+   `audio.voice`, porque la carga anterior con tipo base más flag produjo una
+   burbuja que el CRM reproducía pero WhatsApp iOS declaraba no disponible.
 6. Renderizar directamente `ImageAttachment` en
    `src/components/inbox/message-thread.tsx`; en error, mostrar la degradación
    actual sin botón de descarga.
@@ -70,13 +71,13 @@ src/components/inbox/composer.tsx        # captura de audio
 src/components/inbox/message-thread.tsx  # vista previa de imágenes
 src/lib/wa-media.ts                      # MIME permitido/canónico
 src/server/inbox/send.ts                 # subida a Meta y persistencia
-src/server/whatsapp/voice-note.ts        # conversión local a MP3 estándar
+src/server/whatsapp/voice-note.ts        # conversión local OGG/Opus
 Dockerfile                               # FFmpeg en runtime
 tests/unit/wa-media.test.ts              # MIME con parámetros de códec
 tests/e2e/us16-adjuntos.sh               # round-trip de audio saliente
 tests/e2e/us15-reproducir-media.*        # contrato de media autenticada
 tests/e2e/us35-media-ui.mjs               # navegador: imagen auto-preview
-tests/e2e/us36-audio-container.mjs         # navegador → MP3 → Meta mock
+tests/e2e/us36-audio-container.mjs         # navegador → OGG/Opus → Meta mock
 ```
 
 **Structure Decision**: Se modifica el flujo existente; no se crean tablas,

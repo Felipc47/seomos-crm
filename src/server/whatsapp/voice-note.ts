@@ -7,9 +7,10 @@ import { WA_MEDIA_MAX_BYTES } from "@/lib/wa-media";
 const TRANSCODE_TIMEOUT_MS = 45_000;
 const STDERR_LIMIT = 4_000;
 
-/** MP3 se envía como audio estándar: es compatible con Cloud API y clientes
- * móviles sin depender del tratamiento especial de las notas OGG/Opus. */
-export const WHATSAPP_AUDIO_CONTENT_TYPE = "audio/mpeg" as const;
+/** Meta distingue la nota de voz por el MIME completo: el tipo base
+ * `audio/ogg` no expresa que el único códec admitido es Opus. */
+export const WHATSAPP_VOICE_CONTENT_TYPE =
+  "audio/ogg; codecs=opus" as const;
 
 const EXTENSION_BY_MIME: Record<string, string> = {
   "audio/aac": "aac",
@@ -27,10 +28,10 @@ export class OutgoingAudioConversionError extends Error {
 }
 
 /**
- * Convierte una grabación del navegador a MP3 mono y la envía como audio
- * estándar. En producción comprobamos que la misma OGG/Opus se reproducía en
- * el CRM pero el cliente oficial de WhatsApp para iOS la marcaba como no
- * disponible pese a figurar entregada. MP3 evita ese camino especial.
+ * Convierte una grabación del navegador a OGG/Opus mono para que WhatsApp la
+ * muestre como nota de voz. El MIME completo se declara tanto en la parte del
+ * archivo como en el campo `type` de la carga a Meta; usar el tipo base en ese
+ * campo produjo una burbuja que iOS no podía reproducir.
  *
  * Se usan archivos temporales porque un MP4 normal puede necesitar seek para
  * leer su índice. El proceso es local: no sale ningún byte a otro proveedor.
@@ -40,8 +41,7 @@ export async function normalizeOutgoingAudio(
   mime: string
 ): Promise<{
   bytes: Uint8Array;
-  mime: "audio/mpeg";
-  contentType: typeof WHATSAPP_AUDIO_CONTENT_TYPE;
+  contentType: typeof WHATSAPP_VOICE_CONTENT_TYPE;
   filename: string;
 }> {
   const extension = EXTENSION_BY_MIME[mime];
@@ -51,7 +51,7 @@ export async function normalizeOutgoingAudio(
 
   const directory = await mkdtemp(join(tmpdir(), "seomos-audio-"));
   const inputPath = join(directory, `input.${extension}`);
-  const outputPath = join(directory, "audio.mp3");
+  const outputPath = join(directory, "voice.ogg");
 
   try {
     await writeFile(inputPath, bytes);
@@ -68,9 +68,8 @@ export async function normalizeOutgoingAudio(
         output.byteOffset,
         output.byteLength
       ),
-      mime: "audio/mpeg",
-      contentType: WHATSAPP_AUDIO_CONTENT_TYPE,
-      filename: "audio.mp3",
+      contentType: WHATSAPP_VOICE_CONTENT_TYPE,
+      filename: "nota-de-voz.ogg",
     };
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -95,19 +94,21 @@ function runFfmpeg(inputPath: string, outputPath: string): Promise<void> {
         "-ac",
         "1",
         "-ar",
-        "44100",
+        "48000",
         "-c:a",
-        "libmp3lame",
+        "libopus",
         "-b:a",
-        "64k",
-        "-write_xing",
-        "1",
-        "-id3v2_version",
-        "3",
+        "32k",
+        "-vbr",
+        "on",
+        "-application",
+        "voip",
+        "-frame_duration",
+        "20",
         "-threads",
         "1",
         "-f",
-        "mp3",
+        "ogg",
         outputPath,
       ],
       { stdio: ["ignore", "ignore", "pipe"] }
