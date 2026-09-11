@@ -8,7 +8,11 @@ import {
   MetaApiError,
   normalizeRecipient,
 } from "@/lib/meta/client";
-import { classifyWaMedia, formatBytes } from "@/lib/wa-media";
+import {
+  classifyWaMedia,
+  formatBytes,
+  normalizeWaMediaMime,
+} from "@/lib/wa-media";
 import { publish } from "@/server/events/bus";
 import {
   getCredentialsByOrg,
@@ -110,8 +114,9 @@ export async function sendMedia(input: {
   filename: string;
   caption?: string | null;
 }): Promise<SendResult> {
-  const spec = classifyWaMedia(input.mime);
-  if (!spec) {
+  const mediaMime = normalizeWaMediaMime(input.mime);
+  const spec = mediaMime ? classifyWaMedia(mediaMime) : null;
+  if (!mediaMime || !spec) {
     throw new SendError(
       "unsupported_media",
       "WhatsApp no acepta este formato de archivo"
@@ -131,10 +136,10 @@ export async function sendMedia(input: {
 
   const form = new FormData();
   form.set("messaging_product", "whatsapp");
-  form.set("type", input.mime);
+  form.set("type", mediaMime);
   form.set(
     "file",
-    new Blob([input.bytes as BlobPart], { type: input.mime }),
+    new Blob([input.bytes as BlobPart], { type: mediaMime }),
     input.filename
   );
   let uploadedId: string;
@@ -173,7 +178,7 @@ export async function sendMedia(input: {
     type: spec.kind,
     text: caption ?? null,
     mediaId: uploadedId,
-    mediaMime: input.mime,
+    mediaMime,
     mediaFilename: spec.kind === "document" ? input.filename : null,
     aiGenerated: false,
   });

@@ -7,8 +7,8 @@ export const dynamic = "force-dynamic";
 type Params = { params: Promise<{ id: string; messageId: string }> };
 
 /**
- * Sirve el adjunto de un mensaje (nota de voz, imagen) bajo demanda: la UI
- * solo lo pide cuando el usuario presiona el adjunto — nada se descarga solo.
+ * Sirve el adjunto de un mensaje. Las imágenes lo solicitan al renderizarse;
+ * las notas de voz y documentos continúan siendo bajo demanda.
  * El binario se trae de Meta con el `media_id` guardado (la URL firmada
  * caduca; el id no) y nunca se persiste en el servidor.
  */

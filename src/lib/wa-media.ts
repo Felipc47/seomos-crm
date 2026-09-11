@@ -48,11 +48,24 @@ const TYPES: Record<string, { kind: WaMediaKind; maxBytes: number }> = {
   },
 };
 
+/**
+ * Quita parámetros del MIME (por ejemplo `; codecs=opus`) y conserva solo el
+ * valor que la Cloud API reconoce como tipo de media. El contenido sigue
+ * siendo el mismo; esto evita que un `MediaRecorder` válido se anuncie a Meta
+ * con un MIME demasiado específico.
+ */
+export function normalizeWaMediaMime(mime: string): string | null {
+  const normalized = mime.toLowerCase().split(";")[0]?.trim() ?? "";
+  return TYPES[normalized] ? normalized : null;
+}
+
 /** Clasifica un mime: `null` si WhatsApp no lo acepta como envío. */
 export function classifyWaMedia(
   mime: string
 ): { kind: WaMediaKind; maxBytes: number } | null {
-  const spec = TYPES[mime.toLowerCase().split(";")[0]?.trim() ?? ""];
+  const normalized = normalizeWaMediaMime(mime);
+  if (!normalized) return null;
+  const spec = TYPES[normalized];
   if (!spec) return null;
   return { kind: spec.kind, maxBytes: Math.min(spec.maxBytes, WA_MEDIA_MAX_BYTES) };
 }

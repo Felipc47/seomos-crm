@@ -8,7 +8,6 @@ import {
   Clock3,
   Download,
   FileText,
-  ImageIcon,
   Mic,
   Paperclip,
   Play,
@@ -167,37 +166,22 @@ function VoiceNote({ m }: { m: MessageDto }) {
   );
 }
 
-/**
- * Imagen: no se descarga al abrir el hilo — se muestra un adjunto que el
- * usuario presiona para traer la imagen bajo demanda.
- */
+/** Imagen: se solicita y se muestra al abrir el hilo. */
 function ImageAttachment({ m }: { m: MessageDto }) {
-  const [state, setState] = useState<"idle" | "shown" | "error">("idle");
+  const [state, setState] = useState<"loading" | "shown" | "error">("loading");
   return (
     <span className="block">
-      {state === "idle" && (
-        <button
-          onClick={() => setState("shown")}
-          className="mb-1 flex items-center gap-2.5 rounded-xl border bg-surface-2 px-3.5 py-2.5 text-left transition-colors hover:bg-subtle"
-        >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-tint text-brand">
-            <ImageIcon className="h-[18px] w-[18px]" strokeWidth={2} />
-          </span>
-          <span>
-            <span className="block text-[13px] font-bold">Imagen</span>
-            <span className="block text-[11.5px] text-text-3">
-              Presiona para descargar
-            </span>
-          </span>
-        </button>
-      )}
-      {state === "shown" && (
+      {state !== "error" && (
         // eslint-disable-next-line @next/next/no-img-element -- binario autenticado bajo demanda, fuera del optimizador
         <img
           src={mediaUrl(m)}
           alt={m.text ?? "Imagen recibida"}
+          onLoad={() => setState("shown")}
           onError={() => setState("error")}
-          className="mb-1 max-h-80 w-auto max-w-full rounded-xl border"
+          className={cn(
+            "mb-1 max-h-80 w-auto max-w-full rounded-xl border transition-opacity",
+            state === "loading" && "min-h-16 animate-pulse bg-subtle opacity-60"
+          )}
         />
       )}
       {state === "error" && (

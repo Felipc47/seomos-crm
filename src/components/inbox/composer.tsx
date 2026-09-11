@@ -13,18 +13,18 @@ import { TemplateSender } from "./template-sender";
 const MAX_RECORDING_SECS = 300;
 
 /**
- * Formato de grabación según el navegador, siempre uno que WhatsApp acepte:
- * Firefox da ogg/opus (WhatsApp lo pinta como nota de voz), Chrome 126+ y
- * Safari dan mp4/AAC. Sin transcodificar ni dependencias extra.
+ * Formato de grabación según el navegador, siempre uno que WhatsApp acepte.
+ * AAC/MP4 es la primera opción en Chrome moderno y Safari; OGG/Opus queda
+ * como alternativa para Firefox. Sin transcodificar ni dependencias extra.
  */
 function pickRecordingFormat(): { mime: string; ext: string } | null {
   if (typeof MediaRecorder === "undefined") return null;
-  if (MediaRecorder.isTypeSupported("audio/ogg;codecs=opus"))
-    return { mime: "audio/ogg;codecs=opus", ext: "ogg" };
   if (MediaRecorder.isTypeSupported("audio/mp4;codecs=mp4a.40.2"))
     return { mime: "audio/mp4;codecs=mp4a.40.2", ext: "m4a" };
   if (MediaRecorder.isTypeSupported("audio/mp4"))
     return { mime: "audio/mp4", ext: "m4a" };
+  if (MediaRecorder.isTypeSupported("audio/ogg;codecs=opus"))
+    return { mime: "audio/ogg;codecs=opus", ext: "ogg" };
   return null;
 }
 

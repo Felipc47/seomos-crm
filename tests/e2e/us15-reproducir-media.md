@@ -1,8 +1,9 @@
-# US15 — Reproducir notas de voz y ver imágenes bajo demanda
+# US15 — Reproducir notas de voz y ver imágenes al abrir el hilo
 
 **Objetivo**: además de la transcripción (US13, que se mantiene), el operador
-puede **escuchar** la nota de voz y **ver** la imagen del cliente. Nada se
-descarga solo: el binario baja únicamente cuando se presiona el adjunto.
+puede **escuchar** la nota de voz y **ver** la imagen del cliente. Las notas de
+voz se descargan al reproducirse; las imágenes se previsualizan al abrir el
+hilo.
 
 ## Guion automatizado
 
@@ -19,12 +20,12 @@ colgarse), sin sesión (401), mensaje inexistente (404).
 
 ## Verificación manual en la UI (hilo de la bandeja)
 
-1. Abre un hilo con nota de voz: se ve la transcripción y el botón
-   «Reproducir». **Abrir el hilo no descarga nada** (verificado por red en el
-   self-test de Playwright).
+1. Abre un hilo con nota de voz e imagen: la transcripción y el botón
+   «Reproducir» están visibles; la imagen aparece directamente sin presionar
+   «descargar».
 2. Presiona «Reproducir» → aparece el reproductor nativo y suena la nota.
-3. Una imagen entra como adjunto «Imagen — Presiona para descargar»; al
-   presionar se trae de Meta y se muestra, con su pie de foto debajo.
+3. Una imagen se trae de Meta al renderizarse y se muestra con su pie de foto
+   debajo.
 4. Si Meta ya no conserva el adjunto (los guarda un tiempo limitado), el
    adjunto muestra «…ya no está disponible en WhatsApp» sin romper el hilo.
 

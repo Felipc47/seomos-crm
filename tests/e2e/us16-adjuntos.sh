@@ -27,6 +27,7 @@ has() { [ "$(echo "$1" | grep -c "$2")" -gt 0 ] && echo true || echo false; }
 # Archivos de prueba
 printf '%%PDF-1.4 cotizacion de prueba seomos' > "$TMP/cotizacion.pdf"
 printf 'informe de obra' > "$TMP/informe.docx"
+printf 'OggS\000\002nota de voz de prueba' > "$TMP/nota.ogg"
 python3 -c "
 import base64
 open('$TMP/foto.png','wb').write(base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='))
@@ -81,7 +82,14 @@ check "imagen PNG aceptada" "$(has "$R" 'messageId')" "$R"
 OUTBOX=$(curl -s "$BASE/api/dev/wa-mock/outbox")
 check "la imagen viajó con su pie" "$(has "$OUTBOX" 'así quedó')" "$OUTBOX"
 
-echo "── 4. Caminos infelices"
+echo "── 4. ENVIAR: nota OGG/Opus con MIME parametrizado"
+R=$(curl -s -b "$JAR" -X POST "$BASE/api/conversations/$CONV/messages/attachment" \
+  -F "file=@$TMP/nota.ogg;type=audio/ogg; codecs=opus")
+check "audio OGG/Opus aceptado y normalizado" "$(has "$R" 'messageId')" "$R"
+OUTBOX=$(curl -s "$BASE/api/dev/wa-mock/outbox")
+check "Meta (wa-mock) recibió type=audio" "$(has "$OUTBOX" '"type":"audio"')" "$OUTBOX"
+
+echo "── 5. Caminos infelices"
 R=$(curl -s -b "$JAR" -X POST "$BASE/api/conversations/$CONV/messages/attachment" \
   -F "file=@$TMP/cotizacion.pdf;type=application/x-msdownload")
 check "formato no permitido → unsupported_media" "$(has "$R" 'unsupported_media')" "$R"

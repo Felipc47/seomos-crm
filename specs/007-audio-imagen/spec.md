@@ -55,3 +55,56 @@ entrar y respuesta del agente a su contenido · imagen recibida de verdad por el
 modelo · pie de foto guardado · proveedor de transcripción caído · modelo que
 rechaza la imagen (no escala) · media inexistente · baja pedida por nota de voz
 (006 + 007). Sin regresión en us9–us12.
+
+## Extensión operativa — 2026-09-11
+
+La operación reportó un fallo de entrega de una nota de voz saliente de Meta
+(`131053`, error de carga multimedia) y pidió que las imágenes aparezcan sin
+tener que presionar una descarga.
+
+### User Story 1 — Enviar notas de voz interoperables (Priority: P1)
+
+Como operador, quiero grabar y enviar una nota de voz desde la bandeja para que
+el cliente la reciba sin depender de un formato ambiguo del navegador.
+
+**Acceptance Scenarios**:
+
+1. **Given** un navegador que permite AAC/MP4, **When** el operador graba una
+   nota, **Then** la aplicación usa ese formato interoperable para WhatsApp.
+2. **Given** un navegador sin AAC/MP4 pero con OGG/Opus, **When** el operador
+   graba una nota, **Then** la aplicación usa OGG/Opus como alternativa.
+3. **Given** un MIME con parámetros de códec, **When** se sube el adjunto,
+   **Then** Meta recibe el MIME canónico permitido y la burbuja conserva el
+   tipo correcto para poder reproducirlo.
+
+### User Story 2 — Ver imágenes automáticamente (Priority: P2)
+
+Como operador, quiero que una imagen disponible se previsualice al abrir el
+hilo para entender el mensaje sin una descarga manual.
+
+**Acceptance Scenarios**:
+
+1. **Given** una imagen con adjunto disponible, **When** se renderiza el
+   hilo, **Then** la imagen se solicita y se muestra automáticamente.
+2. **Given** que Meta ya no conserva la imagen, **When** falla la carga,
+   **Then** el hilo sigue operativo y explica que el adjunto no está
+   disponible.
+
+### Requisitos incrementales
+
+- **FR-306** La selección de formato de `MediaRecorder` DEBE priorizar AAC/MP4
+  y usar OGG/Opus únicamente como alternativa compatible.
+- **FR-307** Antes de la carga, el MIME de un adjunto DEBE normalizarse a su
+  tipo canónico permitido; no se enviarán parámetros de códec como el valor
+  del campo `type` de Meta.
+- **FR-308** Toda imagen o sticker con adjunto disponible DEBE previsualizarse
+  automáticamente en el hilo; su fallo DEBE degradar a un estado visible, sin
+  romper mensajes posteriores.
+
+### Límites y supuestos
+
+- No se guarda el binario de una nota ni de una imagen: la previsualización
+  mantiene la descarga autenticada desde la Cloud API de WhatsApp.
+- El error histórico `131053` llega de forma asíncrona desde Meta. El sistema
+  evita los MIME ambiguos que lo pueden provocar, pero no puede reintentar un
+  audio cuyo binario Meta ya rechazó sin guardar archivos localmente.
