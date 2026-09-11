@@ -7,6 +7,14 @@ import { WA_MEDIA_MAX_BYTES } from "@/lib/wa-media";
 const TRANSCODE_TIMEOUT_MS = 45_000;
 const STDERR_LIMIT = 4_000;
 
+/**
+ * WhatsApp acepta OGG únicamente cuando el archivo multipart declara Opus.
+ * `audio/ogg` sin el parámetro de códec puede producir una burbuja entregada
+ * cuyo binario el cliente móvil considera no disponible.
+ */
+export const WHATSAPP_VOICE_CONTENT_TYPE =
+  "audio/ogg; codecs=opus" as const;
+
 const EXTENSION_BY_MIME: Record<string, string> = {
   "audio/aac": "aac",
   "audio/mp4": "m4a",
@@ -31,7 +39,12 @@ export class VoiceNoteConversionError extends Error {
 export async function normalizeVoiceNote(
   bytes: Uint8Array,
   mime: string
-): Promise<{ bytes: Uint8Array; mime: "audio/ogg"; filename: string }> {
+): Promise<{
+  bytes: Uint8Array;
+  mime: "audio/ogg";
+  contentType: typeof WHATSAPP_VOICE_CONTENT_TYPE;
+  filename: string;
+}> {
   const extension = EXTENSION_BY_MIME[mime];
   if (!extension) {
     throw new VoiceNoteConversionError("Formato de audio no compatible");
@@ -57,6 +70,7 @@ export async function normalizeVoiceNote(
         output.byteLength
       ),
       mime: "audio/ogg",
+      contentType: WHATSAPP_VOICE_CONTENT_TYPE,
       filename: "nota-de-voz.ogg",
     };
   } finally {

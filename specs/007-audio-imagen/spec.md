@@ -74,8 +74,11 @@ el cliente la reciba sin depender de un formato ambiguo del navegador.
 2. **Given** un navegador sin AAC/MP4 pero con OGG/Opus, **When** el operador
    graba una nota, **Then** la aplicación usa OGG/Opus como alternativa.
 3. **Given** un MIME con parámetros de códec, **When** se sube el adjunto,
-   **Then** Meta recibe el MIME canónico permitido y la burbuja conserva el
-   tipo correcto para poder reproducirlo.
+   **Then** Meta recibe el tipo base permitido y, para una nota OGG, el archivo
+   declara `codecs=opus` para que la burbuja se pueda descargar y reproducir.
+4. **Given** que Meta entrega una burbuja de nota de voz, **When** el cliente
+   presiona reproducir inmediatamente, **Then** WhatsApp descarga el binario y
+   reproduce el audio; el doble check por sí solo no satisface este criterio.
 
 ### User Story 2 — Ver imágenes automáticamente (Priority: P2)
 
@@ -109,6 +112,10 @@ hilo para entender el mensaje sin una descarga manual.
   `audio.voice=true`. La conversión DEBE ejecutarse localmente, con tiempo y
   tamaño acotados, sin servicios externos; un archivo ilegible DEBE fallar
   antes de contactar a Meta con un mensaje operable.
+- **FR-311** La subida de una nota OGG DEBE usar `audio/ogg` como tipo base de
+  Media API y `audio/ogg; codecs=opus` como `Content-Type` del archivo
+  multipart. Una entrega aceptada o con doble check NO cuenta como éxito hasta
+  comprobar que el binario puede descargarse y reproducirse.
 
 ### Límites y supuestos
 
@@ -118,3 +125,6 @@ hilo para entender el mensaje sin una descarga manual.
   evita enviar los contenedores MP4 del navegador mediante su normalización a
   OGG/Opus, pero no puede reintentar un audio cuyo binario Meta ya rechazó sin
   guardar archivos localmente.
+- La Cloud API conserva media subida durante un periodo limitado. Un aviso de
+  "audio no disponible" inmediatamente después del envío se considera un
+  fallo de interoperabilidad, no una caducidad normal.

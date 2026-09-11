@@ -15,6 +15,11 @@ export async function GET(_req: Request, ctx: Ctx) {
   if (!entry) return new Response(null, { status: 404 });
 
   return new Response(Buffer.from(entry.bytes), {
-    headers: { "content-type": entry.mime },
+    headers: {
+      "content-type": entry.mime,
+      ...(entry.declaredType
+        ? { "x-wa-declared-type": entry.declaredType }
+        : {}),
+    },
   });
 }

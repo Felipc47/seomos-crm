@@ -49,10 +49,10 @@ const TYPES: Record<string, { kind: WaMediaKind; maxBytes: number }> = {
 };
 
 /**
- * Quita parámetros del MIME (por ejemplo `; codecs=opus`) y conserva solo el
- * valor que la Cloud API reconoce como tipo de media. El contenido sigue
- * siendo el mismo; esto evita que un `MediaRecorder` válido se anuncie a Meta
- * con un MIME demasiado específico.
+ * Quita parámetros del MIME (por ejemplo `; codecs=opus`) para clasificar y
+ * validar contra el tipo base que reconoce la Cloud API. El envío puede
+ * restaurar metadatos obligatorios del archivo, como `codecs=opus` en una
+ * nota OGG, sin alterar esta clasificación.
  */
 export function normalizeWaMediaMime(mime: string): string | null {
   const normalized = mime.toLowerCase().split(";")[0]?.trim() ?? "";

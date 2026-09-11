@@ -195,9 +195,12 @@ export async function POST(req: Request, ctx: Params) {
       );
     }
     const mediaId = `mediamock_${nextN()}`;
+    const declaredType = form?.get("type");
     getWaMockState().media.set(mediaId, {
       bytes: new Uint8Array(await file.arrayBuffer()),
       mime: file.type || "application/octet-stream",
+      declaredType:
+        typeof declaredType === "string" ? declaredType : undefined,
     });
     return Response.json({ id: mediaId });
   }

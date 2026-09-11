@@ -42,7 +42,8 @@ lo elimina. Todo acceso a media continúa autenticado y con cache privada.
 - III Multi-tenancy: PASS. Se reutiliza la ruta de media autenticada y acotada
   por organización.
 - IV Idempotencia: PASS. No se agregan webhooks ni reintentos de envío.
-- V/IX Calidad y comportamiento: PASS pendiente de gate, E2E y UI local.
+- V/IX Calidad y comportamiento: PASS pendiente de gate, E2E y reproducción
+  real en el cliente de WhatsApp; `delivered` por sí solo no cierra el flujo.
 
 ## Design
 
@@ -54,7 +55,8 @@ lo elimina. Todo acceso a media continúa autenticado y con cache privada.
 4. Iniciar `MediaRecorder` sin `timeslice` para que el evento final entregue un
    MP4 completo, con duración e índice válidos para el procesamiento de Meta.
 5. Marcar explícitamente el audio del composer como nota de voz, convertirlo
-   localmente a OGG/Opus y enviar a Meta `audio.voice=true`.
+   localmente a OGG/Opus, declarar `audio/ogg; codecs=opus` en la parte de
+   archivo multipart y enviar a Meta `audio.voice=true`.
 6. Renderizar directamente `ImageAttachment` en
    `src/components/inbox/message-thread.tsx`; en error, mostrar la degradación
    actual sin botón de descarga.

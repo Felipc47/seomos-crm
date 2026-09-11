@@ -109,8 +109,13 @@ try {
     );
     assert(mediaResponse.ok, "el binario subido se puede recuperar");
     assert(
-      mediaResponse.headers.get("content-type") === "audio/ogg",
-      "Meta recibe MIME canónico audio/ogg",
+      mediaResponse.headers.get("x-wa-declared-type") === "audio/ogg",
+      "Media API recibe audio/ogg como tipo base",
+      mediaResponse.headers.get("x-wa-declared-type") ?? "sin type"
+    );
+    assert(
+      mediaResponse.headers.get("content-type") === "audio/ogg; codecs=opus",
+      "el archivo OGG declara explícitamente el códec Opus",
       mediaResponse.headers.get("content-type") ?? "sin content-type"
     );
     const bytes = Buffer.from(await mediaResponse.arrayBuffer());

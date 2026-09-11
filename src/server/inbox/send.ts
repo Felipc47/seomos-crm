@@ -136,6 +136,7 @@ export async function sendMedia(input: {
 
   let uploadBytes = input.bytes;
   let uploadMime = mediaMime;
+  let uploadContentType = mediaMime;
   let uploadFilename = input.filename;
   const voice = input.voice === true && spec.kind === "audio";
   if (input.voice === true && spec.kind !== "audio") {
@@ -154,6 +155,7 @@ export async function sendMedia(input: {
       const normalized = await normalizeVoiceNote(input.bytes, mediaMime);
       uploadBytes = normalized.bytes;
       uploadMime = normalized.mime;
+      uploadContentType = normalized.contentType;
       uploadFilename = normalized.filename;
     } catch (err) {
       if (!(err instanceof VoiceNoteConversionError)) throw err;
@@ -169,7 +171,10 @@ export async function sendMedia(input: {
   form.set("type", uploadMime);
   form.set(
     "file",
-    new Blob([uploadBytes as BlobPart], { type: uploadMime }),
+    // El campo `type` usa el tipo base admitido por Media API, mientras el
+    // archivo OGG declara además `codecs=opus`; Meta necesita ambos datos para
+    // que la nota entregada siga siendo descargable por el cliente móvil.
+    new Blob([uploadBytes as BlobPart], { type: uploadContentType }),
     uploadFilename
   );
   let uploadedId: string;
@@ -208,7 +213,7 @@ export async function sendMedia(input: {
     type: spec.kind,
     text: caption ?? null,
     mediaId: uploadedId,
-    mediaMime: uploadMime,
+    mediaMime: uploadContentType,
     mediaFilename: spec.kind === "document" ? input.filename : null,
     aiGenerated: false,
   });

@@ -43,7 +43,10 @@ type WaMockState = {
   /** Usuarios bloqueados por phone_number_id. */
   blockedUsers: Map<string, Set<string>>;
   /** Adjuntos servidos por el mock (007): id → contenido y tipo. */
-  media: Map<string, { bytes: Uint8Array; mime: string }>;
+  media: Map<
+    string,
+    { bytes: Uint8Array; mime: string; declaredType?: string }
+  >;
 };
 
 const globalForMock = globalThis as unknown as { __waMockState?: WaMockState };

@@ -40,8 +40,16 @@
 - [x] T015 [US1] Instalar FFmpeg únicamente en la imagen runtime.
 - [x] T016 Verificar navegador → servidor → OGG/Opus → Meta mock, camino
   infeliz y gate completo.
-- [ ] T017 Desplegar, comprobar FFmpeg dentro del runtime y ejecutar smoke
+- [x] T017 Desplegar, comprobar FFmpeg dentro del runtime y ejecutar smoke
   canónico.
+
+## Phase 6: Reproducción real en el cliente móvil
+
+- [x] T018 Registrar que una burbuja `delivered` puede seguir siendo
+  irrecuperable y añadir reproducción a los criterios de aceptación.
+- [x] T019 Declarar `audio/ogg; codecs=opus` en el archivo multipart conservando
+  `audio/ogg` como tipo base de Media API.
+- [ ] T020 Repetir E2E, gate técnico, despliegue y reproducción en WhatsApp real.
 
 ## Dependencies & Execution Order
 
