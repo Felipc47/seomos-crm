@@ -22,8 +22,8 @@ import {
 import { isWindowOpen } from "@/server/inbox/window";
 import { serializeMessage } from "@/server/inbox/ingest";
 import {
-  normalizeOutgoingAudio,
-  OutgoingAudioConversionError,
+  normalizeVoiceNote,
+  VoiceNoteConversionError,
 } from "@/server/whatsapp/voice-note";
 
 /** Error tipado del envío; `code` mapea a HTTP en la capa de API. */
@@ -135,9 +135,10 @@ export async function sendMedia(input: {
   }
 
   let uploadBytes = input.bytes;
+  let uploadMime = mediaMime;
   let uploadContentType = mediaMime;
   let uploadFilename = input.filename;
-  const normalizeAudio = input.voice === true && spec.kind === "audio";
+  const voice = input.voice === true && spec.kind === "audio";
   if (input.voice === true && spec.kind !== "audio") {
     throw new SendError(
       "unsupported_media",
@@ -149,29 +150,30 @@ export async function sendMedia(input: {
     input.organizationId
   );
 
-  if (normalizeAudio) {
+  if (voice) {
     try {
-      const normalized = await normalizeOutgoingAudio(input.bytes, mediaMime);
+      const normalized = await normalizeVoiceNote(input.bytes, mediaMime);
       uploadBytes = normalized.bytes;
+      uploadMime = normalized.mime;
       uploadContentType = normalized.contentType;
       uploadFilename = normalized.filename;
     } catch (err) {
-      if (!(err instanceof OutgoingAudioConversionError)) throw err;
+      if (!(err instanceof VoiceNoteConversionError)) throw err;
       throw new SendError(
         "unsupported_media",
-        "La grabación no se pudo convertir a un audio compatible"
+        "La grabación no se pudo convertir a una nota de voz compatible"
       );
     }
   }
 
   const form = new FormData();
   form.set("messaging_product", "whatsapp");
-  // Para OGG, Meta documenta que el tipo base no basta: `codecs=opus` forma
-  // parte del MIME admitido. Debe viajar también en el campo `type`, no solo
-  // en el encabezado de la parte multipart.
-  form.set("type", uploadContentType);
+  form.set("type", uploadMime);
   form.set(
     "file",
+    // El campo `type` usa el tipo base admitido por Media API, mientras el
+    // archivo OGG declara además `codecs=opus`; Meta necesita ambos datos para
+    // que la nota entregada siga siendo descargable por el cliente móvil.
     new Blob([uploadBytes as BlobPart], { type: uploadContentType }),
     uploadFilename
   );
@@ -194,10 +196,7 @@ export async function sendMedia(input: {
     spec.kind === "document"
       ? { document: { id: uploadedId, filename: input.filename, ...(caption ? { caption } : {}) } }
       : spec.kind === "audio"
-        // El MIME completo OGG/Opus hace que WhatsApp lo represente como voz.
-        // No se fuerza `voice`: así evitamos el camino que entregó burbujas
-        // visibles cuyo binario iOS declaraba no disponible.
-        ? { audio: { id: uploadedId } }
+        ? { audio: { id: uploadedId, ...(voice ? { voice: true } : {}) } }
         : { [spec.kind]: { id: uploadedId, ...(caption ? { caption } : {}) } };
 
   const waMessageId = await callGraphSend(credentials, {

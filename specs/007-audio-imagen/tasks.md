@@ -51,29 +51,6 @@
   `audio/ogg` como tipo base de Media API.
 - [ ] T020 Repetir E2E, gate técnico, despliegue y reproducción en WhatsApp real.
 
-## Phase 7: Fallback a audio estándar tras fallo real de OGG/Opus
-
-- [x] T021 Registrar la evidencia de producción: el binario OGG/Opus se
-  reproduce desde el CRM, pero WhatsApp iOS lo declara no disponible.
-- [x] T022 Normalizar las grabaciones a MP3 mono y omitir `audio.voice` en
-  `src/server/whatsapp/voice-note.ts` y `src/server/inbox/send.ts`.
-- [x] T023 Verificar navegador → servidor → MP3 → Meta mock, camino infeliz y
-  gate completo.
-- [x] T024 Desplegar el commit exacto, comprobar salud y reproducir un audio
-  nuevo en WhatsApp real.
-
-## Phase 8: Recuperar la burbuja de voz sin romper la reproducción
-
-- [x] T025 Contrastar la carga anterior con el contrato actual de Meta y un
-  adaptador Cloud API funcional: el MIME OGG/Opus debe declararse completo en
-  el archivo y en el campo `type`.
-- [x] T026 Volver a OGG/Opus, usar `audio/ogg; codecs=opus` en toda la carga y
-  omitir el flag `audio.voice` que acompañó las burbujas rotas.
-- [x] T027 Verificar navegador → servidor → OGG/Opus → Meta mock, camino
-  infeliz y gate completo.
-- [ ] T028 Desplegar el commit exacto y confirmar en WhatsApp real tanto la
-  apariencia de nota de voz como su reproducción.
-
 ## Dependencies & Execution Order
 
 T001 precede T003 y T004. T002 y T005 no comparten archivos y pueden hacerse

@@ -5,9 +5,8 @@
 
 ## Summary
 
-Corregir el camino de audios salientes para capturar AAC/MP4 u OGG/Opus según
-el navegador, normalizarlos a OGG/Opus y declarar el MIME completo en toda la
-carga para conservar la burbuja de voz sin forzar `audio.voice`. Cambiar el hilo
+Corregir el camino de notas de voz salientes para preferir AAC/MP4, conservar
+OGG/Opus como alternativa y enviar a Meta un MIME canónico. Cambiar el hilo
 para que toda imagen disponible se cargue y se vea al abrir la conversación,
 con degradación explícita si Meta ya no la conserva.
 
@@ -55,11 +54,9 @@ lo elimina. Todo acceso a media continúa autenticado y con cache privada.
    AAC/MP4 primero; OGG/Opus solo cuando es la alternativa compatible.
 4. Iniciar `MediaRecorder` sin `timeslice` para que el evento final entregue un
    MP4 completo, con duración e índice válidos para el procesamiento de Meta.
-5. Marcar internamente el audio del composer para normalización, convertirlo
-   localmente a OGG/Opus mono y declarar `audio/ogg; codecs=opus` tanto en el
-   campo `type` de Media API como en la parte multipart. Omitir el flag
-   `audio.voice`, porque la carga anterior con tipo base más flag produjo una
-   burbuja que el CRM reproducía pero WhatsApp iOS declaraba no disponible.
+5. Marcar explícitamente el audio del composer como nota de voz, convertirlo
+   localmente a OGG/Opus, declarar `audio/ogg; codecs=opus` en la parte de
+   archivo multipart y enviar a Meta `audio.voice=true`.
 6. Renderizar directamente `ImageAttachment` en
    `src/components/inbox/message-thread.tsx`; en error, mostrar la degradación
    actual sin botón de descarga.

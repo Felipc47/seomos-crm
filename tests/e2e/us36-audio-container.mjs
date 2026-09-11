@@ -1,7 +1,6 @@
 /**
  * Regresión 131053: la nota grabada por Chromium debe llegar al pipeline como
- * un OGG/Opus normalizado por el servidor con el MIME completo en toda la
- * carga, no como MP4 fragmentado. Requiere
+ * un OGG/Opus normalizado por el servidor, no como MP4 fragmentado. Requiere
  * `pnpm dev` con wa-mock, PostgreSQL local en :5433 y ffprobe.
  */
 import { execFileSync, spawnSync } from "node:child_process";
@@ -101,8 +100,8 @@ try {
     const mediaId = audioOut.body?.audio?.id;
     assert(typeof mediaId === "string", "el envío usa un media_id");
     assert(
-      audioOut.body?.audio?.voice === undefined,
-      "Meta no recibe una marca voice forzada"
+      audioOut.body?.audio?.voice === true,
+      "Meta recibe la marca de nota de voz"
     );
 
     const mediaResponse = await fetch(
@@ -110,14 +109,13 @@ try {
     );
     assert(mediaResponse.ok, "el binario subido se puede recuperar");
     assert(
-      mediaResponse.headers.get("x-wa-declared-type") ===
-        "audio/ogg; codecs=opus",
-      "Media API recibe el MIME OGG/Opus completo",
+      mediaResponse.headers.get("x-wa-declared-type") === "audio/ogg",
+      "Media API recibe audio/ogg como tipo base",
       mediaResponse.headers.get("x-wa-declared-type") ?? "sin type"
     );
     assert(
       mediaResponse.headers.get("content-type") === "audio/ogg; codecs=opus",
-      "el archivo declara OGG/Opus",
+      "el archivo OGG declara explícitamente el códec Opus",
       mediaResponse.headers.get("content-type") ?? "sin content-type"
     );
     const bytes = Buffer.from(await mediaResponse.arrayBuffer());

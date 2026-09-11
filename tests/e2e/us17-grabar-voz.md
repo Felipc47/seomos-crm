@@ -11,11 +11,10 @@ WhatsApp, con vista previa antes de enviar.
 - El formato de captura lo decide el navegador con `MediaRecorder`: Firefox
   graba `audio/ogg` (Opus), mientras Chrome 126+ y Safari graban `audio/mp4`
   (AAC). Navegador sin soporte → mensaje claro.
-- Antes de contactar a Meta, el servidor normaliza a OGG/Opus mono cualquier
-  audio que el composer presenta como nota de voz. El MIME completo
-  `audio/ogg; codecs=opus` viaja tanto en el archivo como en el campo `type` de
-  Media API, y no se fuerza `voice=true`. FFmpeg corre dentro del mismo
-  contenedor, con temporales, tiempo y tamaño acotados.
+- Antes de contactar a Meta, el servidor normaliza a `audio/ogg` con códec
+  Opus cualquier audio que el composer presenta como nota de voz y lo envía
+  con `voice=true`. FFmpeg corre dentro del mismo contenedor, con temporales,
+  tiempo y tamaño acotados.
 - Los audios no llevan pie en WhatsApp: si había texto escrito, sale como
   mensaje aparte inmediatamente después de la nota.
 - El envío reutiliza el pipeline de adjuntos (US16): sube a Meta, guarda el
@@ -25,9 +24,8 @@ WhatsApp, con vista previa antes de enviar.
 
 `tests/e2e/us36-audio-container.mjs` usa el micrófono falso de Chromium y
 verifica el flujo desde el botón de grabar hasta el binario que recibe el mock
-de Meta. Además inspecciona ese binario con `ffprobe`: MIME
-`audio/ogg; codecs=opus`, códec Opus, contenedor OGG y duración completa. Esta
-última aserción protege la
+de Meta. Además inspecciona ese binario con `ffprobe`: MIME `audio/mp4`, códec
+AAC, contenedor MP4 válido y duración completa. Esta última aserción protege la
 regresión `131053`: con `MediaRecorder.start(250)`, Chromium producía varios
 segmentos que al concatenarse reportaban solo la duración del primer fragmento.
 
@@ -35,5 +33,5 @@ segmentos que al concatenarse reportaban solo la duración del primer fragmento.
 
 1. Abre un hilo con ventana abierta → presiona el micrófono → habla → «Detener».
 2. Escucha la vista previa en el chip; «X» la descarta.
-3. Envía: WhatsApp muestra la burbuja de nota de voz y permite reproducirla.
+3. Envía: la burbuja muestra «Nota de voz» con «Reproducir».
 4. Niega el permiso del micrófono en el navegador → mensaje claro sin colgarse.
