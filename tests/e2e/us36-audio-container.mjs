@@ -1,6 +1,7 @@
 /**
  * Regresión 131053: la nota grabada por Chromium debe llegar al pipeline como
- * un OGG/Opus normalizado por el servidor, no como MP4 fragmentado. Requiere
+ * un MP3 estándar normalizado por el servidor, no como MP4 fragmentado ni
+ * como una nota OGG/Opus rechazada por WhatsApp iOS. Requiere
  * `pnpm dev` con wa-mock, PostgreSQL local en :5433 y ffprobe.
  */
 import { execFileSync, spawnSync } from "node:child_process";
@@ -100,8 +101,8 @@ try {
     const mediaId = audioOut.body?.audio?.id;
     assert(typeof mediaId === "string", "el envío usa un media_id");
     assert(
-      audioOut.body?.audio?.voice === true,
-      "Meta recibe la marca de nota de voz"
+      audioOut.body?.audio?.voice === undefined,
+      "Meta recibe audio estándar sin la marca voice"
     );
 
     const mediaResponse = await fetch(
@@ -109,13 +110,13 @@ try {
     );
     assert(mediaResponse.ok, "el binario subido se puede recuperar");
     assert(
-      mediaResponse.headers.get("x-wa-declared-type") === "audio/ogg",
-      "Media API recibe audio/ogg como tipo base",
+      mediaResponse.headers.get("x-wa-declared-type") === "audio/mpeg",
+      "Media API recibe audio/mpeg como tipo base",
       mediaResponse.headers.get("x-wa-declared-type") ?? "sin type"
     );
     assert(
-      mediaResponse.headers.get("content-type") === "audio/ogg; codecs=opus",
-      "el archivo OGG declara explícitamente el códec Opus",
+      mediaResponse.headers.get("content-type") === "audio/mpeg",
+      "el archivo declara audio/mpeg",
       mediaResponse.headers.get("content-type") ?? "sin content-type"
     );
     const bytes = Buffer.from(await mediaResponse.arrayBuffer());
@@ -135,10 +136,10 @@ try {
     const audioStream = metadata.streams?.find(
       (stream) => stream.codec_type === "audio"
     );
-    assert(audioStream?.codec_name === "opus", "el códec final es Opus");
+    assert(audioStream?.codec_name === "mp3", "el códec final es MP3");
     assert(
-      metadata.format?.format_name?.includes("ogg"),
-      "el contenedor final es OGG"
+      metadata.format?.format_name?.includes("mp3"),
+      "el contenedor final es MP3"
     );
     const packetEnd = Math.max(
       ...(metadata.packets ?? []).map(
@@ -148,7 +149,7 @@ try {
     );
     assert(
       packetEnd >= 1.2,
-      "el OGG conserva la duración completa de la grabación",
+      "el MP3 conserva la duración completa de la grabación",
       String(packetEnd)
     );
 

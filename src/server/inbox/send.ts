@@ -22,8 +22,8 @@ import {
 import { isWindowOpen } from "@/server/inbox/window";
 import { serializeMessage } from "@/server/inbox/ingest";
 import {
-  normalizeVoiceNote,
-  VoiceNoteConversionError,
+  normalizeOutgoingAudio,
+  OutgoingAudioConversionError,
 } from "@/server/whatsapp/voice-note";
 
 /** Error tipado del envío; `code` mapea a HTTP en la capa de API. */
@@ -138,7 +138,7 @@ export async function sendMedia(input: {
   let uploadMime = mediaMime;
   let uploadContentType = mediaMime;
   let uploadFilename = input.filename;
-  const voice = input.voice === true && spec.kind === "audio";
+  const normalizeAudio = input.voice === true && spec.kind === "audio";
   if (input.voice === true && spec.kind !== "audio") {
     throw new SendError(
       "unsupported_media",
@@ -150,18 +150,18 @@ export async function sendMedia(input: {
     input.organizationId
   );
 
-  if (voice) {
+  if (normalizeAudio) {
     try {
-      const normalized = await normalizeVoiceNote(input.bytes, mediaMime);
+      const normalized = await normalizeOutgoingAudio(input.bytes, mediaMime);
       uploadBytes = normalized.bytes;
       uploadMime = normalized.mime;
       uploadContentType = normalized.contentType;
       uploadFilename = normalized.filename;
     } catch (err) {
-      if (!(err instanceof VoiceNoteConversionError)) throw err;
+      if (!(err instanceof OutgoingAudioConversionError)) throw err;
       throw new SendError(
         "unsupported_media",
-        "La grabación no se pudo convertir a una nota de voz compatible"
+        "La grabación no se pudo convertir a un audio compatible"
       );
     }
   }
@@ -171,9 +171,6 @@ export async function sendMedia(input: {
   form.set("type", uploadMime);
   form.set(
     "file",
-    // El campo `type` usa el tipo base admitido por Media API, mientras el
-    // archivo OGG declara además `codecs=opus`; Meta necesita ambos datos para
-    // que la nota entregada siga siendo descargable por el cliente móvil.
     new Blob([uploadBytes as BlobPart], { type: uploadContentType }),
     uploadFilename
   );
@@ -196,7 +193,10 @@ export async function sendMedia(input: {
     spec.kind === "document"
       ? { document: { id: uploadedId, filename: input.filename, ...(caption ? { caption } : {}) } }
       : spec.kind === "audio"
-        ? { audio: { id: uploadedId, ...(voice ? { voice: true } : {}) } }
+        // Se omite `voice`: las OGG/Opus marcadas como nota se entregaban, pero
+        // WhatsApp iOS las reportaba inmediatamente como no disponibles. El
+        // audio normalizado se envía como audio estándar MP3 reproducible.
+        ? { audio: { id: uploadedId } }
         : { [spec.kind]: { id: uploadedId, ...(caption ? { caption } : {}) } };
 
   const waMessageId = await callGraphSend(credentials, {

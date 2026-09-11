@@ -7,13 +7,9 @@ import { WA_MEDIA_MAX_BYTES } from "@/lib/wa-media";
 const TRANSCODE_TIMEOUT_MS = 45_000;
 const STDERR_LIMIT = 4_000;
 
-/**
- * WhatsApp acepta OGG únicamente cuando el archivo multipart declara Opus.
- * `audio/ogg` sin el parámetro de códec puede producir una burbuja entregada
- * cuyo binario el cliente móvil considera no disponible.
- */
-export const WHATSAPP_VOICE_CONTENT_TYPE =
-  "audio/ogg; codecs=opus" as const;
+/** MP3 se envía como audio estándar: es compatible con Cloud API y clientes
+ * móviles sin depender del tratamiento especial de las notas OGG/Opus. */
+export const WHATSAPP_AUDIO_CONTENT_TYPE = "audio/mpeg" as const;
 
 const EXTENSION_BY_MIME: Record<string, string> = {
   "audio/aac": "aac",
@@ -23,44 +19,47 @@ const EXTENSION_BY_MIME: Record<string, string> = {
   "audio/ogg": "ogg",
 };
 
-export class VoiceNoteConversionError extends Error {
+export class OutgoingAudioConversionError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "VoiceNoteConversionError";
+    this.name = "OutgoingAudioConversionError";
   }
 }
 
 /**
- * Convierte una grabación del navegador a OGG/Opus, el formato que WhatsApp
- * exige para enviarla como nota de voz (`audio.voice=true`). Se usan archivos
- * temporales porque un MP4 normal puede necesitar seek para leer su índice.
- * El proceso es local: no sale ningún byte hacia otro proveedor.
+ * Convierte una grabación del navegador a MP3 mono y la envía como audio
+ * estándar. En producción comprobamos que la misma OGG/Opus se reproducía en
+ * el CRM pero el cliente oficial de WhatsApp para iOS la marcaba como no
+ * disponible pese a figurar entregada. MP3 evita ese camino especial.
+ *
+ * Se usan archivos temporales porque un MP4 normal puede necesitar seek para
+ * leer su índice. El proceso es local: no sale ningún byte a otro proveedor.
  */
-export async function normalizeVoiceNote(
+export async function normalizeOutgoingAudio(
   bytes: Uint8Array,
   mime: string
 ): Promise<{
   bytes: Uint8Array;
-  mime: "audio/ogg";
-  contentType: typeof WHATSAPP_VOICE_CONTENT_TYPE;
+  mime: "audio/mpeg";
+  contentType: typeof WHATSAPP_AUDIO_CONTENT_TYPE;
   filename: string;
 }> {
   const extension = EXTENSION_BY_MIME[mime];
   if (!extension) {
-    throw new VoiceNoteConversionError("Formato de audio no compatible");
+    throw new OutgoingAudioConversionError("Formato de audio no compatible");
   }
 
-  const directory = await mkdtemp(join(tmpdir(), "seomos-voice-"));
+  const directory = await mkdtemp(join(tmpdir(), "seomos-audio-"));
   const inputPath = join(directory, `input.${extension}`);
-  const outputPath = join(directory, "voice.ogg");
+  const outputPath = join(directory, "audio.mp3");
 
   try {
     await writeFile(inputPath, bytes);
     await runFfmpeg(inputPath, outputPath);
     const output = await readFile(outputPath);
     if (output.byteLength === 0 || output.byteLength > WA_MEDIA_MAX_BYTES) {
-      throw new VoiceNoteConversionError(
-        "La nota de voz convertida quedó vacía o superó el límite"
+      throw new OutgoingAudioConversionError(
+        "El audio convertido quedó vacío o superó el límite"
       );
     }
     return {
@@ -69,9 +68,9 @@ export async function normalizeVoiceNote(
         output.byteOffset,
         output.byteLength
       ),
-      mime: "audio/ogg",
-      contentType: WHATSAPP_VOICE_CONTENT_TYPE,
-      filename: "nota-de-voz.ogg",
+      mime: "audio/mpeg",
+      contentType: WHATSAPP_AUDIO_CONTENT_TYPE,
+      filename: "audio.mp3",
     };
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -96,19 +95,19 @@ function runFfmpeg(inputPath: string, outputPath: string): Promise<void> {
         "-ac",
         "1",
         "-ar",
-        "48000",
+        "44100",
         "-c:a",
-        "libopus",
+        "libmp3lame",
         "-b:a",
-        "32k",
-        "-vbr",
-        "on",
-        "-application",
-        "voip",
+        "64k",
+        "-write_xing",
+        "1",
+        "-id3v2_version",
+        "3",
         "-threads",
         "1",
         "-f",
-        "ogg",
+        "mp3",
         outputPath,
       ],
       { stdio: ["ignore", "ignore", "pipe"] }
@@ -116,7 +115,7 @@ function runFfmpeg(inputPath: string, outputPath: string): Promise<void> {
     let stderr = "";
     let settled = false;
 
-    const finish = (error?: VoiceNoteConversionError) => {
+    const finish = (error?: OutgoingAudioConversionError) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
@@ -125,7 +124,11 @@ function runFfmpeg(inputPath: string, outputPath: string): Promise<void> {
     };
     const timer = setTimeout(() => {
       child.kill("SIGKILL");
-      finish(new VoiceNoteConversionError("La conversión de audio agotó el tiempo"));
+      finish(
+        new OutgoingAudioConversionError(
+          "La conversión de audio agotó el tiempo"
+        )
+      );
     }, TRANSCODE_TIMEOUT_MS);
 
     child.stderr.on("data", (chunk: Buffer) => {
@@ -133,7 +136,7 @@ function runFfmpeg(inputPath: string, outputPath: string): Promise<void> {
     });
     child.on("error", () => {
       finish(
-        new VoiceNoteConversionError(
+        new OutgoingAudioConversionError(
           "El conversor de notas de voz no está disponible"
         )
       );
@@ -142,7 +145,7 @@ function runFfmpeg(inputPath: string, outputPath: string): Promise<void> {
       if (code === 0) finish();
       else {
         finish(
-          new VoiceNoteConversionError(
+          new OutgoingAudioConversionError(
             stderr.trim() || "El archivo de audio no se pudo convertir"
           )
         );
