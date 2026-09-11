@@ -229,11 +229,16 @@ export function InboxClient() {
   // Envía un adjunto (multipart) con pie opcional; el servidor valida
   // formato/tamaño según lo que WhatsApp acepta.
   const sendFile = useCallback(
-    async (file: File, caption: string | null): Promise<string | null> => {
+    async (
+      file: File,
+      caption: string | null,
+      voice: boolean
+    ): Promise<string | null> => {
       if (!selectedIdRef.current) return "Sin conversación seleccionada";
       const form = new FormData();
       form.set("file", file);
       if (caption) form.set("caption", caption);
+      if (voice) form.set("voice", "true");
       const res = await fetch(
         `/api/conversations/${selectedIdRef.current}/messages/attachment`,
         { method: "POST", body: form }

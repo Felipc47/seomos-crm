@@ -1,6 +1,6 @@
 /**
  * Regresión 131053: la nota grabada por Chromium debe llegar al pipeline como
- * un MP4/AAC finalizado, no como segmentos MP4 concatenados. Requiere
+ * un OGG/Opus normalizado por el servidor, no como MP4 fragmentado. Requiere
  * `pnpm dev` con wa-mock, PostgreSQL local en :5433 y ffprobe.
  */
 import { execFileSync, spawnSync } from "node:child_process";
@@ -38,6 +38,8 @@ execFileSync("pnpm", ["db:migrate"], { cwd: repo, stdio: "ignore" });
 
 const api = await request.newContext({ baseURL });
 try {
+  const reset = await api.delete("/api/dev/wa-mock/outbox");
+  assert(reset.ok(), "estado del mock reiniciado");
   const signUp = await api.post("/api/auth/sign-up/email", {
     data: { name: "Tester Audio", email, password: "Password123!" },
   });
@@ -97,14 +99,18 @@ try {
     }, "el audio no llegó al outbox de WhatsApp");
     const mediaId = audioOut.body?.audio?.id;
     assert(typeof mediaId === "string", "el envío usa un media_id");
+    assert(
+      audioOut.body?.audio?.voice === true,
+      "Meta recibe la marca de nota de voz"
+    );
 
     const mediaResponse = await fetch(
       `${baseURL}/api/dev/wa-mock/media/${mediaId}`
     );
     assert(mediaResponse.ok, "el binario subido se puede recuperar");
     assert(
-      mediaResponse.headers.get("content-type") === "audio/mp4",
-      "Meta recibe MIME canónico audio/mp4",
+      mediaResponse.headers.get("content-type") === "audio/ogg",
+      "Meta recibe MIME canónico audio/ogg",
       mediaResponse.headers.get("content-type") ?? "sin content-type"
     );
     const bytes = Buffer.from(await mediaResponse.arrayBuffer());
@@ -112,7 +118,8 @@ try {
       "ffprobe",
       [
         "-v", "error",
-        "-show_entries", "format=format_name,duration:stream=codec_name,codec_type",
+        "-show_packets",
+        "-show_entries", "format=format_name:stream=codec_name,codec_type:packet=pts_time,duration_time",
         "-of", "json",
         "pipe:0",
       ],
@@ -123,15 +130,50 @@ try {
     const audioStream = metadata.streams?.find(
       (stream) => stream.codec_type === "audio"
     );
-    assert(audioStream?.codec_name === "aac", "el códec final es AAC");
+    assert(audioStream?.codec_name === "opus", "el códec final es Opus");
     assert(
-      metadata.format?.format_name?.includes("mp4"),
-      "el contenedor final es MP4"
+      metadata.format?.format_name?.includes("ogg"),
+      "el contenedor final es OGG"
+    );
+    const packetEnd = Math.max(
+      ...(metadata.packets ?? []).map(
+        (packet) =>
+          Number(packet.pts_time ?? 0) + Number(packet.duration_time ?? 0)
+      )
     );
     assert(
-      Number(metadata.format?.duration) >= 1.2,
-      "el MP4 conserva la duración completa de la grabación",
-      String(metadata.format?.duration)
+      packetEnd >= 1.2,
+      "el OGG conserva la duración completa de la grabación",
+      String(packetEnd)
+    );
+
+    const countBeforeInvalid = (
+      await (await fetch(`${baseURL}/api/dev/wa-mock/outbox`)).json()
+    ).outbox.filter((entry) => entry.type === "audio").length;
+    const invalid = await api.post(
+      `/api/conversations/${conversation.id}/messages/attachment`,
+      {
+        multipart: {
+          file: {
+            name: "nota-invalida.m4a",
+            mimeType: "audio/mp4",
+            buffer: Buffer.from("esto no es un mp4"),
+          },
+          voice: "true",
+        },
+      }
+    );
+    assert(
+      invalid.status() === 422,
+      "una grabación ilegible falla antes de contactar a Meta",
+      await invalid.text()
+    );
+    const countAfterInvalid = (
+      await (await fetch(`${baseURL}/api/dev/wa-mock/outbox`)).json()
+    ).outbox.filter((entry) => entry.type === "audio").length;
+    assert(
+      countAfterInvalid === countBeforeInvalid,
+      "el camino infeliz no crea un mensaje fantasma"
     );
     await context.close();
   } finally {

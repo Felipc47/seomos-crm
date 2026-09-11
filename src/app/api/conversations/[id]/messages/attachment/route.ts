@@ -22,6 +22,7 @@ export const POST = withAuth(async (session, req: Request, ctx: Params) => {
     return apiError(422, "invalid_body", "Falta el archivo (campo `file`)");
   }
   const caption = String(form.get("caption") ?? "").trim() || null;
+  const voice = form.get("voice") === "true";
 
   const spec = classifyWaMedia(file.type);
   if (!spec) {
@@ -29,6 +30,13 @@ export const POST = withAuth(async (session, req: Request, ctx: Params) => {
       422,
       "unsupported_media",
       "WhatsApp no acepta este formato. Permitidos: PDF, Word, Excel, PowerPoint, TXT, JPG, PNG, MP4/3GP y audios (AAC, MP3, OGG, AMR, M4A)."
+    );
+  }
+  if (voice && spec.kind !== "audio") {
+    return apiError(
+      422,
+      "unsupported_media",
+      "Solo un archivo de audio puede enviarse como nota de voz"
     );
   }
   if (file.size > spec.maxBytes) {
@@ -47,6 +55,7 @@ export const POST = withAuth(async (session, req: Request, ctx: Params) => {
       mime: file.type,
       filename: file.name || "adjunto",
       caption,
+      voice,
     });
     return Response.json({ messageId: result.messageId });
   } catch (err) {

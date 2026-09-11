@@ -8,10 +8,12 @@ WhatsApp, con vista previa antes de enviar.
 - Botón de micrófono junto al clip (solo con la ventana de 24 h abierta, como
   todo texto libre). Al grabar: barra con timer, «Cancelar» (descarta) y
   «Detener» (pasa al chip con reproductor de vista previa). Tope: 5 min.
-- El formato lo decide el navegador con `MediaRecorder`, siempre uno que
-  WhatsApp acepte — **sin transcodificar ni dependencias nuevas**: Firefox
-  graba `audio/ogg` (opus; WhatsApp lo pinta como nota de voz), Chrome 126+ y
-  Safari graban `audio/mp4` (AAC). Navegador sin soporte → mensaje claro.
+- El formato de captura lo decide el navegador con `MediaRecorder`: Firefox
+  graba `audio/ogg` (Opus), mientras Chrome 126+ y Safari graban `audio/mp4`
+  (AAC). Navegador sin soporte → mensaje claro.
+- Antes de contactar a Meta, el servidor normaliza exclusivamente estas
+  grabaciones a `audio/ogg` con códec Opus y las envía con `voice=true`. FFmpeg
+  corre dentro del mismo contenedor, con temporales, tiempo y tamaño acotados.
 - Los audios no llevan pie en WhatsApp: si había texto escrito, sale como
   mensaje aparte inmediatamente después de la nota.
 - El envío reutiliza el pipeline de adjuntos (US16): sube a Meta, guarda el

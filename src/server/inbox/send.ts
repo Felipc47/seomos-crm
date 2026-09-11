@@ -21,6 +21,10 @@ import {
 } from "@/server/whatsapp/credentials";
 import { isWindowOpen } from "@/server/inbox/window";
 import { serializeMessage } from "@/server/inbox/ingest";
+import {
+  normalizeVoiceNote,
+  VoiceNoteConversionError,
+} from "@/server/whatsapp/voice-note";
 
 /** Error tipado del envío; `code` mapea a HTTP en la capa de API. */
 export class SendError extends Error {
@@ -113,6 +117,7 @@ export async function sendMedia(input: {
   mime: string;
   filename: string;
   caption?: string | null;
+  voice?: boolean;
 }): Promise<SendResult> {
   const mediaMime = normalizeWaMediaMime(input.mime);
   const spec = mediaMime ? classifyWaMedia(mediaMime) : null;
@@ -129,18 +134,43 @@ export async function sendMedia(input: {
     );
   }
 
+  let uploadBytes = input.bytes;
+  let uploadMime = mediaMime;
+  let uploadFilename = input.filename;
+  const voice = input.voice === true && spec.kind === "audio";
+  if (input.voice === true && spec.kind !== "audio") {
+    throw new SendError(
+      "unsupported_media",
+      "Solo un archivo de audio puede enviarse como nota de voz"
+    );
+  }
   const { contact, credentials } = await resolveOutboundTarget(
     input.conversationId,
     input.organizationId
   );
 
+  if (voice) {
+    try {
+      const normalized = await normalizeVoiceNote(input.bytes, mediaMime);
+      uploadBytes = normalized.bytes;
+      uploadMime = normalized.mime;
+      uploadFilename = normalized.filename;
+    } catch (err) {
+      if (!(err instanceof VoiceNoteConversionError)) throw err;
+      throw new SendError(
+        "unsupported_media",
+        "La grabación no se pudo convertir a una nota de voz compatible"
+      );
+    }
+  }
+
   const form = new FormData();
   form.set("messaging_product", "whatsapp");
-  form.set("type", mediaMime);
+  form.set("type", uploadMime);
   form.set(
     "file",
-    new Blob([input.bytes as BlobPart], { type: mediaMime }),
-    input.filename
+    new Blob([uploadBytes as BlobPart], { type: uploadMime }),
+    uploadFilename
   );
   let uploadedId: string;
   try {
@@ -161,7 +191,7 @@ export async function sendMedia(input: {
     spec.kind === "document"
       ? { document: { id: uploadedId, filename: input.filename, ...(caption ? { caption } : {}) } }
       : spec.kind === "audio"
-        ? { audio: { id: uploadedId } }
+        ? { audio: { id: uploadedId, ...(voice ? { voice: true } : {}) } }
         : { [spec.kind]: { id: uploadedId, ...(caption ? { caption } : {}) } };
 
   const waMessageId = await callGraphSend(credentials, {
@@ -178,7 +208,7 @@ export async function sendMedia(input: {
     type: spec.kind,
     text: caption ?? null,
     mediaId: uploadedId,
-    mediaMime,
+    mediaMime: uploadMime,
     mediaFilename: spec.kind === "document" ? input.filename : null,
     aiGenerated: false,
   });

@@ -42,11 +42,16 @@ export function Composer({
 }: {
   conversation: ConversationDto;
   onSend: (text: string) => Promise<string | null>;
-  onSendFile: (file: File, caption: string | null) => Promise<string | null>;
+  onSendFile: (
+    file: File,
+    caption: string | null,
+    voice: boolean
+  ) => Promise<string | null>;
   onSent: () => void;
 }) {
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [voiceNote, setVoiceNote] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<TemplateDto[]>([]);
@@ -100,7 +105,7 @@ export function Composer({
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
   }
 
-  function pickFile(selected: File | null) {
+  function pickFile(selected: File | null, asVoiceNote = false) {
     if (!selected) return;
     const spec = classifyWaMedia(selected.type);
     if (!spec) {
@@ -117,6 +122,7 @@ export function Composer({
     }
     setError(null);
     setFile(selected);
+    setVoiceNote(asVoiceNote);
   }
 
   async function startRecording() {
@@ -154,7 +160,7 @@ export function Composer({
         setError("La grabación quedó vacía; intenta de nuevo.");
         return;
       }
-      pickFile(note);
+      pickFile(note, true);
     };
     // No pedir fragmentos periódicos: en Chromium cada fragmento MP4 puede
     // iniciar una película nueva. Concatenarlos produce un archivo que el
@@ -189,7 +195,7 @@ export function Composer({
     const isAudio = file?.type.startsWith("audio/") ?? false;
     let err: string | null = null;
     if (file) {
-      err = await onSendFile(file, isAudio ? null : value || null);
+      err = await onSendFile(file, isAudio ? null : value || null, voiceNote);
       if (!err && isAudio && value) err = await onSend(value);
     } else {
       err = await onSend(value);
@@ -201,6 +207,7 @@ export function Composer({
     }
     setText("");
     setFile(null);
+    setVoiceNote(false);
     if (fileRef.current) fileRef.current.value = "";
     if (taRef.current) taRef.current.style.height = "auto";
   }
@@ -298,6 +305,7 @@ export function Composer({
             aria-label="Quitar adjunto"
             onClick={() => {
               setFile(null);
+              setVoiceNote(false);
               if (fileRef.current) fileRef.current.value = "";
             }}
             className="rounded-md p-1 text-mute transition-colors hover:bg-subtle hover:text-foreground"

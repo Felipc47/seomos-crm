@@ -29,7 +29,19 @@
   comprobar el contenedor con `ffprobe`.
 - [x] T010 [US1] Generar un único fragmento final en
   `src/components/inbox/composer.tsx` para conservar la duración completa.
-- [ ] T011 Repetir gate, self-test de navegador, despliegue y smoke canónico.
+- [x] T011 Repetir gate, self-test de navegador, despliegue y smoke canónico.
+
+## Phase 5: Normalización de nota de voz para Meta
+
+- [x] T012 [US1] Marcar el audio del composer como nota de voz en el multipart.
+- [x] T013 [US1] Convertir notas de voz a OGG/Opus con FFmpeg local, límites de
+  tiempo/tamaño y limpieza garantizada de temporales.
+- [x] T014 [US1] Enviar `audio.voice=true` y persistir el MIME transformado.
+- [x] T015 [US1] Instalar FFmpeg únicamente en la imagen runtime.
+- [x] T016 Verificar navegador → servidor → OGG/Opus → Meta mock, camino
+  infeliz y gate completo.
+- [ ] T017 Desplegar, comprobar FFmpeg dentro del runtime y ejecutar smoke
+  canónico.
 
 ## Dependencies & Execution Order
 

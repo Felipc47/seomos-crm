@@ -15,7 +15,8 @@ con degradación explícita si Meta ya no la conserva.
 **Language/Version**: TypeScript estricto, Next.js 15, React 19.
 
 **Primary Dependencies**: APIs del navegador (`MediaRecorder`, `<img>`),
-WhatsApp Cloud API mediante el adaptador `src/lib/meta/client.ts`.
+FFmpeg local en el contenedor y WhatsApp Cloud API mediante el adaptador
+`src/lib/meta/client.ts`.
 
 **Storage**: PostgreSQL existente; no hay cambios de esquema ni se almacenan
 binarios.
@@ -30,9 +31,9 @@ verificación de interfaz local mediante navegador.
 **Performance Goals**: La imagen empieza a cargarse al renderizar su burbuja;
 un fallo de media no impide renderizar el hilo.
 
-**Constraints**: Sin servicios, dependencias, almacenamiento externo ni
-reintentos que dupliquen mensajes. Todo acceso a media continúa autenticado y
-con cache privada.
+**Constraints**: Sin servicios ni almacenamiento externo ni reintentos que
+dupliquen mensajes. FFmpeg usa un directorio temporal por solicitud y siempre
+lo elimina. Todo acceso a media continúa autenticado y con cache privada.
 
 ## Constitution Check
 
@@ -52,7 +53,9 @@ con cache privada.
    AAC/MP4 primero; OGG/Opus solo cuando es la alternativa compatible.
 4. Iniciar `MediaRecorder` sin `timeslice` para que el evento final entregue un
    MP4 completo, con duración e índice válidos para el procesamiento de Meta.
-5. Renderizar directamente `ImageAttachment` en
+5. Marcar explícitamente el audio del composer como nota de voz, convertirlo
+   localmente a OGG/Opus y enviar a Meta `audio.voice=true`.
+6. Renderizar directamente `ImageAttachment` en
    `src/components/inbox/message-thread.tsx`; en error, mostrar la degradación
    actual sin botón de descarga.
 
@@ -63,10 +66,13 @@ src/components/inbox/composer.tsx        # captura de audio
 src/components/inbox/message-thread.tsx  # vista previa de imágenes
 src/lib/wa-media.ts                      # MIME permitido/canónico
 src/server/inbox/send.ts                 # subida a Meta y persistencia
+src/server/whatsapp/voice-note.ts        # conversión local OGG/Opus
+Dockerfile                               # FFmpeg en runtime
 tests/unit/wa-media.test.ts              # MIME con parámetros de códec
 tests/e2e/us16-adjuntos.sh               # round-trip de audio saliente
 tests/e2e/us15-reproducir-media.*        # contrato de media autenticada
 tests/e2e/us35-media-ui.mjs               # navegador: imagen auto-preview
+tests/e2e/us36-audio-container.mjs         # navegador → OGG/Opus → Meta mock
 ```
 
 **Structure Decision**: Se modifica el flujo existente; no se crean tablas,

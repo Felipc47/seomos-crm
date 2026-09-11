@@ -104,12 +104,16 @@ hilo para entender el mensaje sin una descarga manual.
   detener `MediaRecorder`; no se concatenarán fragmentos temporizados porque
   Chromium genera un archivo reproducible localmente pero con duración/índice
   truncados que Meta rechaza después con `131053`.
+- **FR-310** Toda nota de voz grabada DEBE normalizarse en el servidor a
+  OGG/Opus y enviarse con `audio.voice=true`. La conversión DEBE ejecutarse
+  localmente, con tiempo y tamaño acotados, sin servicios externos; un archivo
+  ilegible DEBE fallar antes de contactar a Meta con un mensaje operable.
 
 ### Límites y supuestos
 
 - No se guarda el binario de una nota ni de una imagen: la previsualización
   mantiene la descarga autenticada desde la Cloud API de WhatsApp.
 - El error histórico `131053` llega de forma asíncrona desde Meta. El sistema
-  evita los MIME ambiguos y los contenedores MP4 fragmentados que lo pueden
-  provocar, pero no puede reintentar un audio cuyo binario Meta ya rechazó sin
+  evita enviar los contenedores MP4 del navegador mediante su normalización a
+  OGG/Opus, pero no puede reintentar un audio cuyo binario Meta ya rechazó sin
   guardar archivos localmente.
