@@ -11,9 +11,10 @@ WhatsApp, con vista previa antes de enviar.
 - El formato de captura lo decide el navegador con `MediaRecorder`: Firefox
   graba `audio/ogg` (Opus), mientras Chrome 126+ y Safari graban `audio/mp4`
   (AAC). Navegador sin soporte → mensaje claro.
-- Antes de contactar a Meta, el servidor normaliza exclusivamente estas
-  grabaciones a `audio/ogg` con códec Opus y las envía con `voice=true`. FFmpeg
-  corre dentro del mismo contenedor, con temporales, tiempo y tamaño acotados.
+- Antes de contactar a Meta, el servidor normaliza a `audio/ogg` con códec
+  Opus cualquier audio que el composer presenta como nota de voz y lo envía
+  con `voice=true`. FFmpeg corre dentro del mismo contenedor, con temporales,
+  tiempo y tamaño acotados.
 - Los audios no llevan pie en WhatsApp: si había texto escrito, sale como
   mensaje aparte inmediatamente después de la nota.
 - El envío reutiliza el pipeline de adjuntos (US16): sube a Meta, guarda el
