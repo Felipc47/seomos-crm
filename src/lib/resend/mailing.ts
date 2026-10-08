@@ -51,7 +51,16 @@ async function provider(path: string, method = "GET", body?: unknown, key?: stri
         throw new MailingProviderError("Respuesta inválida de Resend", true, true);
     return result;
 }
-export async function createMailingDomain(name: string) {
+export async function createMailingDomain(name: string, allowExisting = false) {
+    // Solo el superadmin puede asociar dominios preexistentes de la cuenta compartida.
+    if (allowExisting) {
+        const listed = z.object({ data: z.array(z.object({ id: z.string().min(1), name: z.string() })) }).safeParse(await provider("/domains"));
+        if (!listed.success)
+            throw new MailingProviderError("Respuesta inválida al buscar el dominio");
+        const existing = listed.data.data.find((d) => d.name === name);
+        if (existing)
+            return checkMailingDomain(existing.id);
+    }
     const result = domainSchema.safeParse(await provider("/domains", "POST", { name }));
     if (!result.success || result.data.name !== name)
         throw new MailingProviderError("Respuesta inválida al registrar dominio", false, true);

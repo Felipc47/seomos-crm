@@ -54,6 +54,11 @@ try {
   const initial = await state();
   await publicApi.delete("/api/dev/resend-mock");
   if (initial.sender) await publicApi.post("/api/dev/resend-mock/domains", { headers: { authorization: "Bearer re_test" }, data: { name: initial.sender.domain } });
+  const existingDomain = `existente-${stamp}.example.test`;
+  const preexisting = await publicApi.post("/api/dev/resend-mock/domains", { headers: { authorization: "Bearer re_test" }, data: { name: existingDomain } });
+  assert(preexisting.ok(), "dominio preexistente preparado en proveedor");
+  const importedDomain = await context.request.post("/api/mailing/sender", { data: { action: "configure", domain: existingDomain, fromEmail: `hola@${existingDomain}`, fromName: "Seomos" } });
+  assert(importedDomain.ok(), "superadmin reutiliza dominio preexistente sin registro duplicado");
   await mock({ domainVerified: false });
   await page.goto("/mailing"); await page.getByRole("heading", { name: "Mailing", exact: true }).waitFor();
   await page.getByRole("button", { name: "Remitente y DNS", exact: true }).click();
@@ -205,6 +210,8 @@ try {
   await page.getByRole("button", { name: "Nueva campaña", exact: true }).scrollIntoViewIfNeeded();
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth && [...document.querySelectorAll("main > div, main > div > div")].every((el) => el.scrollWidth <= el.clientWidth + 1)), "UI móvil sin desbordamiento del contenido");
   await page.screenshot({ path: path.join(artifacts, "mobile.png") });
+  await page.setViewportSize({ width: 1440, height: 1080 }); await page.goto("/companies"); await page.getByRole("switch", { name: `Mailing para ${ownCompany.name}`, exact: true }).waitFor();
+  await page.screenshot({ path: path.join(artifacts, "companies.png"), fullPage: true });
   assert(errors.length === 0, "sin errores de ejecución en navegador", errors.join("; "));
   await writeFile(path.join(artifacts, "result.json"), JSON.stringify({ passed, baseURL, completedAt: new Date().toISOString(), browserErrors: errors }, null, 2));
   console.log(`\nRESULTADO: ${passed} verificaciones verdes`);

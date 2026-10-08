@@ -58,3 +58,7 @@ T001–T005 antes de código de dominio. US1 precede envíos de US2/US3; T010 co
 - Empresas nuevas deshabilitadas; propietario de empresa no puede auto-habilitarse ni habilitar otro tenant.
 - Identidad inicial seleccionada para producción: `org_9rtxjmozs3xgoy3bb3z8`, slug `principal`, instancia Seomos. Default de columna false y migración se limita a esa identidad; no habilita por coincidencia de nombres.
 - Publicación autorizada pendiente de commit selectivo y rollout terminal.
+
+- Preflight productivo: marca SEOMOS confirmada; dominios Resend existentes detectados. Reutilización de dominio ya registrado limitada al superadmin, evitando apropiación desde owners de otros tenants. Añadidas pruebas específicas.
+
+- Verificación tras soporte de dominio preexistente: 329 tests / 48 archivos, typecheck y lint verdes; Playwright 165 comprobaciones, sin errores del navegador. Compilación final verde.

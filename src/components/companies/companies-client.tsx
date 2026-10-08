@@ -696,7 +696,7 @@ export function CompaniesClient() {
                   </span>
                 </span>
                 {c.deletedAt ? (
-                  <div className="ml-14 flex basis-full flex-wrap items-center gap-2 sm:ml-0 sm:basis-auto">
+                  <div className="ml-14 flex basis-full flex-wrap items-center gap-2">
                     <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-[11px] font-extrabold text-destructive">
                       Eliminada
                     </span>
@@ -706,7 +706,7 @@ export function CompaniesClient() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="ml-14 flex basis-full flex-wrap items-center gap-2 sm:ml-0 sm:basis-auto">
+                  <div className="ml-14 flex basis-full flex-wrap items-center gap-2">
                     <button
                       type="button"
                       role="switch"

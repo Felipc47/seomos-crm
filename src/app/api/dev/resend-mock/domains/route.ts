@@ -22,3 +22,10 @@ export async function POST(req: Request) {
     state.domains.push(domain);
     return Response.json(domain);
 }
+
+export async function GET(req: Request) {
+    const guard = mockGuard();
+    if (guard) return guard;
+    if (!req.headers.get("authorization")?.startsWith("Bearer ")) return new Response(null, { status: 401 });
+    return Response.json({ object: "list", has_more: false, data: getResendMockState().domains });
+}

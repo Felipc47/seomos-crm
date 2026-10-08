@@ -10,8 +10,8 @@ Runtime: RESEND_API_KEY con permiso full access para Domains, RESEND_WEBHOOK_SEC
 ## Resultado verificado — 2026-10-08
 
 - Typecheck, lint y build aprobados.
-- 327 pruebas unitarias en 48 archivos aprobadas.
-- Playwright: 163 verificaciones aprobadas; 0 errores del navegador.
+- 329 pruebas unitarias en 48 archivos aprobadas.
+- Playwright: 165 verificaciones aprobadas; 0 errores del navegador.
 - Evidencia local: `.artifacts/us37-mailing/result.json`, `desktop.png`, `mobile.png`.
 - Base aislada: `seomos_mailing_028`; bases existentes conservadas. Todo envío y DNS contra mocks.
 - Rama `codex/028-mailing-automation`, pendiente de despliegue autorizado con permisos por empresa.

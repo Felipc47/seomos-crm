@@ -52,7 +52,7 @@ export const POST = withAuth(async (session, req: Request) => {
         if (!sender)
             return apiError(409, "no_sender", "Configura primero el remitente");
         try {
-            let domain = sender.providerDomainId ? await checkMailingDomain(sender.providerDomainId, verify.success) : await createMailingDomain(sender.domain);
+            let domain = sender.providerDomainId ? await checkMailingDomain(sender.providerDomainId, verify.success) : await createMailingDomain(sender.domain, session.isSuperadmin);
             if (domain.name !== sender.domain)
                 return apiError(502, "domain_mismatch", "No se pudo confirmar el dominio");
             await db.update(schema.mailingSender).set({ providerDomainId: domain.id, status: domain.status, records: domain.records, lastError: null, updatedAt: new Date() }).where(scoped(schema.mailingSender.organizationId, org));

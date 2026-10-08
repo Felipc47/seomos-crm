@@ -14,3 +14,7 @@
 
 - Métricas opcionales por empresa: [Update Domain](https://resend.com/docs/api-reference/domains/update-domain) permite open_tracking/click_tracking; se muestran preferencias en remitente y solo eventos firmados alimentan los resultados.
 - Tags de envío (mailing_org/mailing_send) permiten reconciliar callback adelantado a la persistencia del provider ID; eventos transaccionales ajenos se ignoran sin generar retries permanentes.
+
+## Dominios existentes
+
+Listar dominios de la cuenta compartida solo durante configuración por superadmin; si existe el elegido se recupera por ID y reserva en la empresa. Los admins de tenants no adoptan dominios preexistentes ajenos. [Resend List Domains](https://resend.com/docs/api-reference/domains/list-domains).

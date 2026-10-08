@@ -3,7 +3,7 @@ import { describe, expect, it, vi, afterEach } from "vitest";
 vi.mock("@/lib/env", () => ({ isMockEnabled: () => true, getEnv: () => ({ BETTER_AUTH_SECRET: "mailing-unit-secret-028", RESEND_API_KEY: "re_unit", RESEND_BASE_URL: "https://mock.invalid" }) }));
 import { eligibleSubscriber, mailingStepsSchema, parseMailingCsv, renderMail, senderSchema, stepDueAt } from "@/lib/mailing";
 import { readUnsubscribeToken, unsubscribeToken, verifyMailingWebhook } from "@/server/mailing/security";
-import { MailingProviderError, sendMailingEmail } from "@/lib/resend/mailing";
+import { createMailingDomain, MailingProviderError, sendMailingEmail } from "@/lib/resend/mailing";
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 describe("mailing independiente y consentimiento", () => {
     it("requiere permiso y excluye bajas y supresiones", () => {
@@ -55,6 +55,25 @@ describe("tokens y webhooks", () => {
         expect(verifyMailingWebhook(body, headers, secret, Number(timestamp) * 1000)).toBe(true);
         expect(verifyMailingWebhook(`${body} `, headers, secret, Number(timestamp) * 1000)).toBe(false);
         expect(verifyMailingWebhook(body, headers, secret, Number(timestamp) * 1000 + 301000)).toBe(false);
+    });
+});
+describe("dominios preexistentes de la instancia", () => {
+    it("superadmin reutiliza el dominio registrado sin POST duplicado", async () => {
+        vi.stubEnv("RESEND_API_KEY", "re_unit");
+        const fetcher = vi.fn()
+            .mockResolvedValueOnce(Response.json({ data: [{ id: "domain_existing", name: "example.com" }] }))
+            .mockResolvedValueOnce(Response.json({ id: "domain_existing", name: "example.com", status: "verified", records: [] }));
+        vi.stubGlobal("fetch", fetcher);
+        expect((await createMailingDomain("example.com", true)).id).toBe("domain_existing");
+        expect(fetcher.mock.calls.map((call) => call[1].method)).toEqual(["GET", "GET"]);
+    });
+    it("administrador tenant no puede adoptar dominios existentes de otra empresa", async () => {
+        vi.stubEnv("RESEND_API_KEY", "re_unit");
+        const fetcher = vi.fn().mockResolvedValue(new Response("domain already exists", { status: 409 }));
+        vi.stubGlobal("fetch", fetcher);
+        await expect(createMailingDomain("example.com", false)).rejects.toBeInstanceOf(MailingProviderError);
+        expect(fetcher).toHaveBeenCalledTimes(1);
+        expect(fetcher.mock.calls[0]?.[1].method).toBe("POST");
     });
 });
 describe("proveedor tolerante", () => {
