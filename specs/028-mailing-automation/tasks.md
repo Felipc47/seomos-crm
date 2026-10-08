@@ -38,27 +38,20 @@
 
 - [x] T017 Añadir habilitación por empresa, migración Seomos y control exclusivo del superadmin (FR-020).
 - [x] T018 Verificar UI, URL, API y cron deshabilitados, roles y conservación de datos mediante Playwright (SC-007).
-- [ ] T019 Ejecutar gate actualizado y desplegar commit selectivo a producción; verificar estado terminal, migraciones, salud y habilitación solo de Seomos (FR-021).
+- [x] T019 Ejecutar gate actualizado y desplegar commit selectivo a producción; verificar estado terminal, migraciones, salud y habilitación solo de Seomos (FR-021).
 
 T001–T005 antes de código de dominio. US1 precede envíos de US2/US3; T010 compartido. Pruebas T014 durante implementación; T015–T016 cierran Hecho. Hooks de commit opcionales omitidos para preservar cambios previos sin mezclarlos.
 
-## Evidencia de verificación
+## Evidencia final — 2026-10-08
 
-- Typecheck, lint y build: verdes. Build requirió acceso de red para descargar Nunito/Poppins existentes; no se modificaron fuentes ni dependencias.
-- Suite completa: 327 tests / 48 archivos verdes, incluidas 9 pruebas nuevas de mailing.
-- E2E final: 141 verificaciones verdes, incluido consentimiento, campañas, cron concurrente, DNS, secuencia 7/14/21, pausa, baja, inscripción automática, reconciliación, 429, métricas, aislamiento, roles y móvil.
-- Correcciones surgidas del self-test: parámetros Date en SQL de consentimiento; valor de inscripción automática al abrir borrador; IDs únicos del mock entre reinicios.
-- Se mantiene la limitación de login existente; reiniciar el servidor local tras repeticiones evita que el guion confunda 429 con un fallo de rol. No se debilita auth.
-- No se registraron dominios reales, enviaron emails reales ni desplegó producción.
-
-## Habilitación — verificación actualizada
-
-- Typecheck/lint/build y 327 tests verdes. E2E repetido sobre versión final: 163 comprobaciones verdes, sin errores del navegador.
-- Cierre de acceso verificado en UI, URL, API, configuración DNS y cron; rehabilitar conserva inscripciones.
-- Empresas nuevas deshabilitadas; propietario de empresa no puede auto-habilitarse ni habilitar otro tenant.
-- Identidad inicial seleccionada para producción: `org_9rtxjmozs3xgoy3bb3z8`, slug `principal`, instancia Seomos. Default de columna false y migración se limita a esa identidad; no habilita por coincidencia de nombres.
-- Publicación autorizada pendiente de commit selectivo y rollout terminal.
-
-- Preflight productivo: marca SEOMOS confirmada; dominios Resend existentes detectados. Reutilización de dominio ya registrado limitada al superadmin, evitando apropiación desde owners de otros tenants. Añadidas pruebas específicas.
-
-- Verificación tras soporte de dominio preexistente: 329 tests / 48 archivos, typecheck y lint verdes; Playwright 165 comprobaciones, sin errores del navegador. Compilación final verde.
+- Typecheck, lint y build verdes. 329 tests / 48 archivos. Playwright: 165 comprobaciones y cero errores del navegador; evidencia en `.artifacts/us37-mailing/`.
+- UI/DNS, importación, consentimiento, campañas, secuencias 7/14/21, baja, pausa, concurrencia, reintentos, reconciliación, roles y aislamiento ejercidos con mocks y BD aislada `seomos_mailing_028`.
+- Habilitación desde Empresas, URL/API/nav bloqueadas y cron detenido al retirar acceso; rehabilitar conserva datos y reloj. Empresas nuevas deshabilitadas, solo superadmin otorga acceso.
+- Dominios preexistentes de la cuenta Resend solo reutilizables por superadmin; admins de otras empresas no pueden adoptarlos. Respuesta real del proveedor comprobada compatible con validación.
+- Cambios locales previos de créditos, inbox y otras specs preservados y excluidos de los commits de release.
+- Producción: commit `e5d20adae8db689974ac553001cd2de93ed33c03`, deployment `bnwifwxh0wfsuukule8oick8`, `finished` 22:07:25 UTC; aplicación/BD saludables, sin reinicios.
+- Arranque confirmó `[migrate] migraciones aplicadas`; journal productivo comprobado con hashes exactos de las tres migraciones (0026–0028). HTTPS `/api/health` 200 `{ "ok": true }`, Mailing sin sesión 401, mocks en producción 404.
+- SELECT productivo confirmó solo SEOMOS (`org_9rtxjmozs3xgoy3bb3z8`, slug `principal`) habilitada; SMANOVA, Baterias Mac Center y Lion Data deshabilitadas. La migración inicial se limita a esa identidad.
+- Webhook Resend dedicado configurado; secreto únicamente runtime producción. Firma válida con email desconocido devuelve 200 ignorado; firma falsa 401. No se enviaron emails reales ni cambiaron registros DNS.
+- Cron existente cada cinco minutos conservado y ejecución natural verificada 22:10:03–22:10:08 UTC: todos los contadores de Mailing en cero, sin fallos; no se forzaron barridos de WhatsApp/IA.
+- Verificación funcional de UI con Playwright local; producción verificada mediante API, BD, logs, dominio HTTPS y firmas. La automatización de Chrome en la sesión abierta estuvo bloqueada por otra interfaz de extensión.
