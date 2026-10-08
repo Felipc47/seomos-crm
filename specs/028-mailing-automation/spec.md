@@ -2,7 +2,7 @@
 
 **Feature Branch**: `codex/028-mailing-automation`
 **Created**: 2026-10-08
-**Status**: Improving immediate dispatch and usability after production feedback
+**Status**: Deployed and verified, including immediate dispatch and guided campaign workflow
 **Input**: Campañas completas de mailing y automatizaciones («a la semana enviar X, luego Y»), exclusivamente por email, con el remitente preferido del usuario verificado mediante DNS.
 
 ## User Scenarios & Testing

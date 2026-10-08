@@ -14,7 +14,7 @@ Runtime: RESEND_API_KEY con permiso full access para Domains, RESEND_WEBHOOK_SEC
 - Playwright: 182 verificaciones aprobadas; 0 errores del navegador. Incluye envío inmediato, programación y UX, preservación de dominios existentes y del remitente transaccional.
 - Evidencia local: `.artifacts/us37-mailing/result.json`, `desktop.png`, `mobile.png`.
 - Base aislada: `seomos_mailing_028`; bases existentes conservadas. Todo envío y DNS contra mocks.
-- Rama `codex/028-mailing-automation`; release productiva `625694f` verificada, solo SEOMOS habilitada.
+- Rama `codex/028-mailing-automation`; release productiva `ee125e1` verificada, habilitación por empresa conservada.
 
 ## Entorno de herramientas local
 
@@ -24,7 +24,7 @@ Detener dev antes de build, porque ambos comparten `.next`. Si el guion se repit
 
 ## Uso en producción
 
-Producción: https://seomos.cloud/mailing. Release `625694fd3972e51ab12d29cf9cf2cce591da5a96`, deployment `0byl8j22xlgvuuucr9dh5xp7` terminado 22:29:44 UTC y saludable. Migraciones 0026–0029 comprobadas en journal; arranque confirmó migraciones aplicadas. Health HTTPS 200; API sin sesión 401; mocks404.
+Producción: https://seomos.cloud/mailing. Release `ee125e1af958e4e373be9ecb984eb8a20c608cc8`, deployment `8s6yfx5zmt8l87pzm2pxnuas` terminado 2026-10-08 18:10:40 Colombia y saludable. Migraciones 0026–0029 comprobadas previamente en journal; sin migraciones nuevas para este ajuste. Health HTTPS 200; API sin sesión 401; mocks404.
 
 1. En Empresas, el superadmin habilita Mailing por empresa. El piloto inicial es SEOMOS, organización principal; las demás y todas las empresas nuevas permanecen deshabilitadas. Retirar acceso detiene nuevos envíos y conserva datos; bajas/eventos siguen operativos.
 2. En Mailing → Remitente y DNS, elegir dominio y dirección. El superadmin puede reutilizar los dominios existentes de Resend (seomos.cloud / crm.seomos.cloud ya verificados) preservando sus ajustes actuales. Dominios nuevos requieren publicar los registros reales mostrados y comprobar verificación. Las opciones de aperturas/clics se pueden ajustar solo en dominios creados exclusivamente para Mailing.
@@ -36,8 +36,10 @@ La dirección de Mailing es independiente del correo existente: avisos, resúmen
 
 Verificación del ajuste de aislamiento: las 37 entradas de variables de Coolify permanecen iguales antes/después. Las operaciones del despliegue no escribieron a Resend. La comparación completa de dominios no quedó confirmada: el script incluyó estados mutables de DNS y cerró sin conservar baseline/diferencias. No se atribuye la diferencia a DNS ni se afirma igualdad completa antes/después de todos los campos del proveedor. La protección del código se verificó con mocks (cero PATCH/verify en dominio preexistente) y correo transaccional con su remitente global. Evidencia HTTP posterior al rollout: `.artifacts/us37-mailing/production-isolation-http.json`, siete comprobaciones verdes a las 22:30:37 UTC.
 
-## Mejora de envío inmediato y UX — verificada localmente
+## Mejora de envío inmediato y UX — desplegada y verificada
 
 Enviar ahora inicia un barrido por empresa/campaña tras confirmar, sin esperar el ciclo de cinco minutos. Persistencia/lock/idempotencia y cron siguen recuperando pendientes. Configurar cron dedicado POST `/api/cron/mailing` cada minuto con Bearer AGENT_SWEEP_SECRET; únicamente Mailing, sin reemplazar el cron original. No añadir variables nuevas ni enviar correos manuales durante deploy. Programaciones se comprueban cada minuto desde su fecha; las campañas grandes se procesan gradualmente.
 
-Flujo: Destinatarios → Contenido → Revisar y enviar. Guardar borrador habilita pruebas al operador y confirmación; cambios sin guardar bloquean ambas. Elegir Enviar ahora o Programar para después, revisar diálogo y confirmar. Vista previa incluye nombre de ejemplo y baja; seguimiento distingue procesamiento, aceptación/entrega, fechas futuras y reintentos. UI refresca cada cinco segundos cuando visible. Capturas `desktop.png`, `progress-desktop.png`, `confirmation-desktop.png`, `mobile.png`; gate final verde y 182 comprobaciones en `result.json`. Pendiente publicación de esta mejora.
+Flujo: Destinatarios → Contenido → Revisar y enviar. Guardar borrador habilita pruebas al operador y confirmación; cambios sin guardar bloquean ambas. Elegir Enviar ahora o Programar para después, revisar diálogo y confirmar. Vista previa incluye nombre de ejemplo y baja; seguimiento distingue procesamiento, aceptación/entrega, fechas futuras y reintentos. UI refresca cada cinco segundos cuando visible. Capturas `desktop.png`, `progress-desktop.png`, `confirmation-desktop.png`, `mobile.png`; gate final verde y 182 comprobaciones en `result.json`.
+
+Cron dedicado `mailing-pendientes` activo cada minuto, timeout90s, task `a09xnte1qvucc4reoo17cslt`. Ejecuciones naturales 18:12 y18:13 Colombia exitosas, sin pendientes aceptados ni fallos. Cron original y 37 entradas env preservados exactamente. Ocho pruebas HTTPS posteriores al deployment aprobadas en `production-ux-http.json`; no se dispararon campañas/pruebas reales manualmente ni se modificó proveedor/DNS/remitentes. Recargar la página permite obtener la interfaz nueva en sesiones que tenían los archivos previos.
