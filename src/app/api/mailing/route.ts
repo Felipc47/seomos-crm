@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getSql } from "@/lib/db";
 import { canManageMailing } from "@/lib/permissions";
@@ -5,6 +6,7 @@ import { isMailingEnabled } from "@/server/mailing/access";
 import { mailingActionSchema } from "@/lib/mailing";
 import { MailingProviderError } from "@/lib/resend/mailing";
 import { mailingAction, MailingError, mailingSnapshot } from "@/server/mailing/repository";
+import { sweepMailing } from "@/server/mailing/runner";
 export const dynamic = "force-dynamic";
 export const GET = withAuth(async (session) => {
     if (!canManageMailing(session.role))
@@ -33,7 +35,21 @@ export const POST = withAuth(async (session, req: Request) => {
     try {
         if (connection && !await isMailingEnabled(session.organizationId))
             return apiError(404, "mailing_disabled", "Mailing no está habilitado para esta empresa");
-        return Response.json(await mailingAction(session, body.data));
+        const result = await mailingAction(session, body.data);
+        const action = body.data;
+        const immediate = (action.action === "start_program" && !action.scheduledAt) || action.action === "resume_program" || action.action === "enroll_program" || action.action === "add_subscribers";
+        if (immediate) {
+            const target = { organizationId: session.organizationId, ...("programId" in action ? { programId: action.programId } : {}) };
+            after(async () => {
+                try {
+                    await sweepMailing(new Date(), target);
+                } catch {
+                    // Outbox permanece durable y el cron recupera el trabajo.
+                    console.error("[mailing] el inicio inmediato se recuperará en el próximo ciclo");
+                }
+            });
+        }
+        return Response.json(result);
     }
     catch (error) {
         if (error instanceof MailingError)

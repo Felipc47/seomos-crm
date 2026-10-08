@@ -2,7 +2,7 @@
 
 **Feature Branch**: `codex/028-mailing-automation`
 **Created**: 2026-10-08
-**Status**: Deployed and verified in production, including isolation of existing email settings
+**Status**: Improving immediate dispatch and usability after production feedback
 **Input**: Campañas completas de mailing y automatizaciones («a la semana enviar X, luego Y»), exclusivamente por email, con el remitente preferido del usuario verificado mediante DNS.
 
 ## User Scenarios & Testing
@@ -80,6 +80,8 @@ Marketing define pasos por días desde que el contacto entra en una lista/secuen
 - **FR-020**: Solo el superadmin habilita/deshabilita Mailing por empresa desde Empresas. Empresas nuevas deshabilitadas; Seomos habilitada inicialmente para pruebas. El estado persistido gobierna navegación, página, API y despachador; deshabilitar conserva datos y detiene nuevos envíos, con bajas y eventos todavía operativos.
 - **FR-021**: Desplegar el cambio autorizado en `https://seomos.cloud` y verificar migraciones, salud, permisos y estado inicial de empresas.
 - **FR-022**: DNS, dirección y habilitación de Mailing no modifican remitentes, credenciales ni configuración transaccional existente. Dominios preexistentes o usados por RESEND_FROM_EMAIL solo se consultan; no se cambia tracking ni se solicita nueva verificación sobre ellos.
+- **FR-023**: Enviar ahora inicia el procesamiento tras confirmar, sin esperar el cron periódico, manteniendo outbox, permisos vigentes e idempotencia. El envío programado se procesa por un cron exclusivo de Mailing cada minuto, con recuperación conservada.
+- **FR-024**: Mostrar un flujo guiado de destinatarios, contenido y revisión/envío; separar claramente Enviar ahora de Programar, indicar destino de pruebas, progreso y bloqueos, distinguir aceptación de entrega y actualizar estados sin recargar manualmente. No enviar contenido editado sin guardar.
 
 ### Key Entities
 

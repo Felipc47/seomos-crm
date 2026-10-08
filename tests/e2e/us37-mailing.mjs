@@ -17,16 +17,17 @@ let passed = 0;
 function assert(condition, message, detail = "") { if (!condition) throw new Error(`${message}${detail ? ` — ${detail}` : ""}`); passed++; console.log(`  ✅ ${message}`); }
 async function json(response) { return response.json().catch(() => ({})); }
 const browser = await chromium.launch({ channel: "chrome", headless: true });
-const context = await browser.newContext({ baseURL, viewport: { width: 1440, height: 1080 } });
+const context = await browser.newContext({ baseURL, viewport: { width: 1440, height: 1080 }, timezoneId: "America/Bogota" });
 const page = await context.newPage(); const publicApi = await request.newContext({ baseURL }); const errors = [];
 page.on("pageerror", (error) => errors.push(error.message));
 page.on("dialog", (dialog) => dialog.accept());
 async function state(api = context.request) { const response = await api.get("/api/mailing"); assert(response.ok(), "estado de mailing disponible"); return json(response); }
 async function action(input, api = context.request) { const response = await api.post("/api/mailing", { data: input }); const body = await json(response); assert(response.ok(), `${input.action} responde`, body.error?.message); return body; }
-async function sweep(now = new Date(), api = publicApi) { const response = await api.post(`/api/cron/sweep?now=${now.toISOString()}`, { headers: { authorization: `Bearer ${sweepSecret}` } }); const body = await json(response); assert(response.ok() && !body.mailing?.error, "ciclo de mailing disponible", JSON.stringify(body.mailing)); return body.mailing; }
+async function sweep(now = new Date(), api = publicApi) { const response = await api.post(`/api/cron/mailing?now=${now.toISOString()}`, { headers: { authorization: `Bearer ${sweepSecret}` } }); const body = await json(response); assert(response.ok() && !body.mailing?.error, "ciclo de mailing disponible", JSON.stringify(body.mailing)); return body.mailing; }
 async function outbox() { return (await json(await publicApi.get("/api/dev/resend-mock"))).outbox ?? []; }
 async function mock(input) { assert((await publicApi.post("/api/dev/resend-mock", { data: input })).ok(), "mock configurado"); }
 async function waitStatus(message) { await page.getByRole("status").filter({ hasText: message }).waitFor(); }
+async function waitState(predicate) { const deadline = Date.now() + 15000; while (Date.now() < deadline) { const response = await context.request.get("/api/mailing"); if (response.ok()) { const snapshot = await json(response); if (predicate(snapshot)) return snapshot; } await page.waitForTimeout(100); } throw new Error("No se observó el estado esperado de Mailing"); }
 async function reload() { await page.getByRole("button", { name: "Actualizar mailing", exact: true }).click(); }
 async function createProgram(kind, listId, prefix, days = [0]) { return (await action({ action: "create_program", kind, name: prefix, listId, steps: days.map((day, i) => ({ day, subject: `${prefix} ${["X", "Y", "Z"][i] ?? i} {{nombre}}`, body: `Mensaje ${i + 1} para {{nombre}}.\nhttps://example.test` })) })).id; }
 
@@ -98,19 +99,39 @@ try {
   await page.getByRole("button", { name: "Guardar borrador", exact: true }).click(); await waitStatus("Borrador guardado");
   snapshot = await state(); const campaign = snapshot.programs.find((p) => p.name === `Campaña ${stamp}`);
   assert(Boolean(campaign), "borrador creado desde UI");
-  assert(await page.getByRole("button", { name: "Enviar campaña", exact: true }).isDisabled(), "DNS pendiente bloquea envío en UI");
+  assert(await page.getByRole("button", { name: "Revisar envío", exact: true }).isDisabled(), "DNS pendiente bloquea envío en UI");
   const denied = await context.request.post("/api/mailing", { data: { action: "start_program", programId: campaign.id } }); assert(denied.status() === 409, "DNS pendiente también bloquea API");
-  await page.getByRole("button", { name: "Vista previa paso 1", exact: true }).click();
+  await page.getByRole("button", { name: "Vista previa", exact: true }).click();
   await page.frameLocator('iframe[title="Vista previa del correo"]').getByText("Hola Ana, conoce nuestra oferta.", { exact: false }).waitFor();
   assert(await page.frameLocator('iframe[title="Vista previa del correo"]').getByRole("link", { name: "Dejar de recibir estos correos" }).isVisible(), "vista previa personaliza e incluye baja");
   await mock({ domainVerified: true }); await page.getByRole("button", { name: "Remitente y DNS", exact: true }).click(); await page.getByRole("button", { name: "Comprobar DNS", exact: true }).click(); await waitStatus("Estado de DNS actualizado");
   assert((await state()).sender.status === "verified", "dominio verificado habilita remitente elegido");
   assert((await state()).sender.trackOpens && (await state()).sender.trackClicks, "preferencias de métricas guardadas por empresa");
   await page.getByRole("button", { name: "Campañas", exact: true }).click(); await page.getByRole("button", { name: new RegExp(`^Campaña ${stamp}`) }).click();
-  await page.getByRole("button", { name: "Enviar prueba paso 1", exact: true }).click(); await waitStatus("Prueba aceptada");
+  await page.getByRole("button", { name: "Enviar prueba", exact: true }).click(); await waitStatus("Prueba aceptada");
   assert((await outbox()).some((m) => m.to[0] === ownerEmail && m.from === `Mi Empresa <hola@${mailingDomain}>`), "prueba usa remitente de empresa y email del operador");
-  await page.getByRole("button", { name: "Enviar campaña", exact: true }).click(); await waitStatus("Campaña confirmada");
-  const concurrent = await Promise.all([sweep(), sweep()]); assert(concurrent.some((r) => r.locked) || concurrent.reduce((sum, r) => sum + r.accepted, 0) === 3, "cron concurrente no duplica envíos");
+  assert(await page.getByRole("heading", { name: "1. Destinatarios", exact: true }).isVisible(), "flujo guiado muestra destinatarios");
+  await page.getByLabel("Asunto paso 1", { exact: true }).fill(`Oferta ${stamp} modificada`);
+  assert(await page.getByRole("button", { name: "Enviar prueba", exact: true }).isDisabled() && await page.getByRole("button", { name: "Revisar envío", exact: true }).isDisabled(), "cambios sin guardar bloquean prueba y envío de contenido anterior");
+  await page.getByLabel("Asunto paso 1", { exact: true }).fill(`Oferta ${stamp} {{nombre}}`);
+  await page.getByRole("radio", { name: /Programar para después/ }).check();
+  await page.getByLabel("Programar campaña", { exact: true }).fill(new Date(Date.now() + 3600000 - 5 * 3600000).toISOString().slice(0, 16));
+  await page.getByRole("radio", { name: /Enviar ahora/ }).check();
+  const queuedOther = await createProgram("campaign", list.id, `Otra pendiente ${stamp}`);
+  await action({ action: "start_program", programId: queuedOther, scheduledAt: new Date(Date.now() + 1000).toISOString() });
+  await page.waitForTimeout(1100);
+  await page.getByRole("button", { name: "Revisar envío", exact: true }).click();
+  const confirm = page.getByRole("dialog", { name: "Confirmar envío", exact: true }); await confirm.waitFor();
+  assert(await confirm.getByText(/3 contactos con permiso/).isVisible(), "confirmación muestra audiencia con permiso");
+  assert((await outbox()).filter((m) => m.headers?.["List-Unsubscribe"] && m.subject.startsWith(`Oferta ${stamp}`)).length === 0, "revisar todavía no envía campañas");
+  await confirm.getByRole("button", { name: "Volver a revisar", exact: true }).click(); assert(await confirm.isVisible() === false, "volver a revisión no inicia envío");
+  await page.getByRole("button", { name: "Revisar envío", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Enviar ahora", exact: true }).click(); await waitStatus("Campaña confirmada");
+  snapshot = await waitState((s) => s.sends.filter((row) => row.programId === campaign.id && row.status === "accepted").length === 3);
+  assert(snapshot.programs.find((p) => p.id === campaign.id).scheduledAt && new Date(snapshot.programs.find((p) => p.id === campaign.id).scheduledAt).getTime() < Date.now(), "ahora descarta una fecha de programación anterior");
+  assert(snapshot.sends.filter((s) => s.programId === campaign.id && s.status === "accepted").length === 3, "Enviar ahora despacha sin esperar ni forzar cron");
+  assert(snapshot.sends.filter((s) => s.programId === queuedOther).every((s) => s.status === "pending"), "inicio inmediato solo procesa la campaña confirmada");
+  await Promise.all([sweep(), sweep()]); assert((await outbox()).filter((m) => m.headers?.["List-Unsubscribe"] && m.subject.startsWith(`Oferta ${stamp}`)).length === 3, "cron concurrente no duplica el inicio inmediato");
   await sweep();
   snapshot = await state(); assert(snapshot.sends.filter((s) => s.programId === campaign.id && s.status === "accepted").length === 3, "campaña envía exactamente a tres elegibles");
   const mails = (await outbox()).filter((m) => m.subject.startsWith(`Oferta ${stamp}`) && m.headers?.["List-Unsubscribe"]);
@@ -133,7 +154,7 @@ try {
   for (let i = 0; i < 3; i++) { assert(await page.getByLabel(`Día paso ${i + 1}`, { exact: true }).inputValue() === `${[7, 14, 21][i]}`, `paso ${i + 1} muestra día desde inscripción`); await page.getByLabel(`Asunto paso ${i + 1}`, { exact: true }).fill(`Secuencia ${stamp} ${["X", "Y", "Z"][i]} {{nombre}}`); await page.getByLabel(`Contenido paso ${i + 1}`, { exact: true }).fill(`Correo ${i + 1} para {{nombre}}`); }
   await page.getByRole("button", { name: "Guardar borrador", exact: true }).click(); await waitStatus("Borrador guardado");
   assert(await page.getByLabel("Inscribir automáticamente nuevos contactos de esta lista", { exact: true }).isChecked(), "guardar borrador conserva inscripción automática predeterminada");
-  await page.getByRole("button", { name: "Activar automatización", exact: true }).click(); await waitStatus("Secuencia activada");
+  await page.getByRole("button", { name: "Revisar activación", exact: true }).click(); await page.getByRole("dialog", { name: "Confirmar automatización" }).getByRole("button", { name: "Activar automatización", exact: true }).click(); await waitStatus("Secuencia activada");
   const sequence = (await state()).programs.find((p) => p.name === `Seguimiento ${stamp}`);
   await page.getByRole("button", { name: "Inscribir contactos existentes", exact: true }).click(); await waitStatus("Contactos inscritos");
   snapshot = await state(); const enrollment = snapshot.enrollments.find((e) => e.programId === sequence.id); const start = new Date(enrollment.startedAt);
@@ -162,10 +183,10 @@ try {
   await sweep(new Date(future.getTime() - 1000)); assert((await state()).sends.filter((s) => s.programId === scheduled).every((s) => s.status === "pending"), "campaña programada espera su fecha");
   await action({ action: "cancel_program", programId: scheduled }); await sweep(new Date(future.getTime() + 1000)); assert((await state()).sends.filter((s) => s.programId === scheduled).every((s) => s.status === "skipped"), "cancelación conserva pendientes excluidos");
 
-  const failure = await createProgram("campaign", seqList, `Fallo ${stamp}`); await action({ action: "start_program", programId: failure }); await mock({ failNext: 1 }); const failureAt = new Date(); await sweep(failureAt);
+  const failure = await createProgram("campaign", seqList, `Fallo ${stamp}`); await mock({ failNext: 1 }); const failureAt = new Date(); await action({ action: "start_program", programId: failure }); await waitState((s) => s.sends.some((row) => row.programId === failure && row.lastError === "Resend respondió HTTP 500"));
   snapshot = await state(); assert(snapshot.sends.some((s) => s.programId === failure && s.status === "pending" && s.lastError === "Resend respondió HTTP 500"), "fallo proveedor aplaza y registra error sanitizado");
   await sweep(new Date(failureAt.getTime() + 121000)); assert((await state()).sends.filter((s) => s.programId === failure).every((s) => s.status === "accepted"), "reintento acotado recupera el envío");
-  const malformed = await createProgram("campaign", seqList, `Formato ${stamp}`); await action({ action: "start_program", programId: malformed }); await mock({ malformedNext: 1 }); const malformedAt = new Date(); await sweep(malformedAt);
+  const malformed = await createProgram("campaign", seqList, `Formato ${stamp}`); await mock({ malformedNext: 1 }); const malformedAt = new Date(); await action({ action: "start_program", programId: malformed }); await waitState((s) => s.sends.some((row) => row.programId === malformed && row.lastError === "Respuesta inválida al enviar correo"));
   const firstCount = (await outbox()).filter((m) => m.subject.startsWith(`Formato ${stamp}`)).length; await sweep(new Date(malformedAt.getTime() + 121000));
   const afterMalformed = (await outbox()).filter((m) => m.subject.startsWith(`Formato ${stamp}`)); assert(afterMalformed.length === 2 && firstCount === 1, "respuesta inesperada se recupera sin duplicar aceptación del proveedor");
 
@@ -175,15 +196,18 @@ try {
   assert((await webhook("email.opened", `evt-opened-${stamp}`)).ok() && (await webhook("email.clicked", `evt-clicked-${stamp}`)).ok(), "apertura y clic se registran solo con eventos");
   assert((await webhook("email.complained", `evt-complaint-${stamp}`)).ok(), "queja firmada suprime futuros envíos");
   assert((await publicApi.post("/api/mailing/webhook", { data: {}, headers: { "svix-signature": "v1,falsa" } })).status() === 401, "firma falsa rechazada");
-  assert((await publicApi.post("/api/cron/sweep", { headers: { authorization: "Bearer incorrecto" } })).status() === 404, "cron protegido");
+  assert((await publicApi.post("/api/cron/sweep", { headers: { authorization: "Bearer incorrecto" } })).status() === 404, "cron de recuperación protegido");
+  assert((await publicApi.post("/api/cron/mailing", { headers: { authorization: "Bearer incorrecto" } })).status() === 404, "cron dedicado protegido");
+  const mailingOnly = await json(await publicApi.post("/api/cron/mailing", { headers: { authorization: `Bearer ${sweepSecret}` } }));
+  assert(mailingOnly.ok && mailingOnly.mailing && !('followUps' in mailingOnly) && !('weeklyEmail' in mailingOnly), "cron dedicado procesa solo Mailing");
   assert((await webhook("email.sent", `evt-unrelated-${stamp}`, "transactional-not-in-mailing")).ok(), "webhook ignora correos transaccionales sin bloquear al proveedor");
-  const uncertain = await createProgram("campaign", seqList, `Incierto ${stamp}`); await action({ action: "start_program", programId: uncertain }); await mock({ malformedNext: 1 }); const uncertainAt = new Date(); await sweep(uncertainAt);
+  const uncertain = await createProgram("campaign", seqList, `Incierto ${stamp}`); await mock({ malformedNext: 1 }); const uncertainAt = new Date(); await action({ action: "start_program", programId: uncertain }); await waitState((s) => s.sends.some((row) => row.programId === uncertain && row.lastError === "Respuesta inválida al enviar correo"));
   const uncertainMail = (await outbox()).find((m) => m.subject.startsWith(`Incierto ${stamp}`));
   await sweep(new Date(uncertainAt.getTime() + 24 * 3600000));
   assert((await state()).sends.some((s) => s.programId === uncertain && s.status === "uncertain"), "respuesta incierta fuera de ventana no se reenvía a ciegas");
   assert((await webhook("email.delivered", `evt-reconcile-${stamp}`, uncertainMail.id, uncertainMail.tags)).ok(), "evento por tags reconcilia respuesta incierta");
   assert((await state()).sends.some((s) => s.programId === uncertain && s.status === "accepted" && s.deliveredAt), "reconciliación observable sin duplicar correo");
-  const quota = await createProgram("campaign", seqList, `Cuota ${stamp}`); await action({ action: "start_program", programId: quota }); await mock({ statusNext: 429 }); const quotaAt = new Date(); await sweep(quotaAt);
+  const quota = await createProgram("campaign", seqList, `Cuota ${stamp}`); await mock({ statusNext: 429 }); const quotaAt = new Date(); await action({ action: "start_program", programId: quota }); await waitState((s) => s.sends.some((row) => row.programId === quota && row.lastError === "Resend respondió HTTP 429"));
   assert((await state()).sends.some((s) => s.programId === quota && s.lastError === "Resend respondió HTTP 429"), "límite del proveedor aplaza el agregado de envíos");
   await sweep(new Date(quotaAt.getTime() + 121000));
 
@@ -212,11 +236,26 @@ try {
   assert((await editor.get("/api/mailing")).status() === 403 && (await editor.post("/api/mailing", { data: { action: "create_list", name: "No permitida" } })).status() === 403, "editor de agente no accede a mailing");
   await foreign.dispose(); await editor.dispose();
 
-  await page.getByRole("button", { name: "Campañas", exact: true }).click(); await page.getByRole("button", { name: new RegExp(`^Campaña ${stamp}`) }).click(); await page.getByText("Entregados", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Campañas", exact: true }).click(); await page.getByRole("button", { name: new RegExp(`^Campaña ${stamp}`) }).click(); await page.getByText("Entregados al buzón", { exact: true }).waitFor();
+  await page.screenshot({ path: path.join(artifacts, "progress-desktop.png"), fullPage: true });
+  await page.getByRole("button", { name: "Duplicar", exact: true }).click(); await waitStatus("Copia creada");
+  assert(await page.locator('#mailing-editor').evaluate((el) => el.getBoundingClientRect().top >= 0 && el.getBoundingClientRect().top < 200), "abrir un borrador enfoca el editor");
   await page.screenshot({ path: path.join(artifacts, "desktop.png"), fullPage: true }); await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Nueva campaña", exact: true }).scrollIntoViewIfNeeded();
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth && [...document.querySelectorAll("main > div, main > div > div")].every((el) => el.scrollWidth <= el.clientWidth + 1)), "UI móvil sin desbordamiento del contenido");
   await page.screenshot({ path: path.join(artifacts, "mobile.png") });
+  assert(await page.getByLabel("Abrir programa", { exact: true }).isVisible(), "móvil usa selector compacto de campañas");
+  await page.setViewportSize({ width: 1440, height: 1080 });
+  await page.getByRole("radio", { name: /Programar para después/ }).check();
+  const uiFuture = new Date(Date.now() + 3600000);
+  await page.getByLabel("Programar campaña", { exact: true }).fill(new Date(uiFuture.getTime() - 5 * 3600000).toISOString().slice(0, 16));
+  await page.getByRole("button", { name: "Revisar programación", exact: true }).click();
+  await page.screenshot({ path: path.join(artifacts, "confirmation-desktop.png") });
+  const scheduledCopyId = (await state()).programs.find((p) => p.name === `Campaña ${stamp} (copia)`).id;
+  const beforeScheduled = (await outbox()).length;
+  await page.getByRole("dialog", { name: "Confirmar programación" }).getByRole("button", { name: "Programar campaña", exact: true }).click(); await waitStatus("Campaña programada");
+  assert((await state()).programs.find((p) => p.id === scheduledCopyId).status === "scheduled" && (await outbox()).length === beforeScheduled, "programación desde UI no dispara antes de su fecha");
+  await action({ action: "cancel_program", programId: scheduledCopyId });
   await page.setViewportSize({ width: 1440, height: 1080 }); await page.goto("/companies"); await page.getByRole("switch", { name: `Mailing para ${ownCompany.name}`, exact: true }).waitFor();
   await page.screenshot({ path: path.join(artifacts, "companies.png"), fullPage: true });
   assert(errors.length === 0, "sin errores de ejecución en navegador", errors.join("; "));

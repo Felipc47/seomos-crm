@@ -40,6 +40,10 @@ Modelo, decisiones y contrato en [data-model.md](data-model.md), [research.md](r
 
 ## Verification
 
+### Envío inmediato y usabilidad (feedback)
+
+La confirmación actual persiste outbox y espera cron de cinco minutos. Usar `after()` para iniciar un barrido exclusivo de la empresa/programa después de la respuesta; mantener lock global, datos durables y recovery. Cron dedicado `/api/cron/mailing` cada minuto con el secreto existente, sin ejecutar WhatsApp/IA ni correos transaccionales. UI: lista de campañas y pasos Destinatarios → Contenido → Revisar y enviar, vista previa persistente, prueba al operador visible, confirmación en diálogo, opción explícita ahora/programar, resumen de envío/progreso y estados que distinguen próximas fechas, reintentos, aceptación y entrega. Cambios sin guardar bloquean pruebas/envío del contenido anterior.
+
 ### Aislamiento de correo existente
 
 `mailing_sender.manages_domain` distingue dominios creados por Mailing de los ya existentes. Default false conservador para filas previas. Solo un dominio creado por Mailing y distinto del dominio de RESEND_FROM_EMAIL permite modificar tracking o solicitar verificación al proveedor. Los demás se consultan sin mutarlos. Nombre, dirección y reply-to se guardan únicamente en Mailing; el adaptador transaccional y sus variables se conservan.

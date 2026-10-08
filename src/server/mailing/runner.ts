@@ -6,7 +6,7 @@ import { eligibleSubscriber, renderMail } from "@/lib/mailing";
 import { checkMailingDomain, isMailingConfigured, MailingProviderError, sendMailingEmail } from "@/lib/resend/mailing";
 import { unsubscribeUrl } from "./repository";
 /** Lock de conexión PostgreSQL: compartido entre procesos; sin transacción durante HTTP. */
-export async function sweepMailing(now = new Date()) {
+export async function sweepMailing(now = new Date(), target?: { organizationId: string; programId?: string }) {
     const result = { accepted: 0, failed: 0, deferred: 0, skipped: 0, locked: false };
     if (!isMailingConfigured())
         return result;
@@ -19,7 +19,9 @@ export async function sweepMailing(now = new Date()) {
     try {
         const db = getDb();
         // Enumeración de tenants solo para el scheduler; queries de dominio scoped por tenant.
-        const orgs = await db.select({ id: schema.organization.id }).from(schema.organization).where(and(isNull(schema.organization.deletedAt), eq(schema.organization.mailingEnabled, true)));
+        const orgs = await db.select({ id: schema.organization.id }).from(schema.organization).where(target
+            ? scoped(schema.organization.id, target.organizationId, isNull(schema.organization.deletedAt), eq(schema.organization.mailingEnabled, true))
+            : and(isNull(schema.organization.deletedAt), eq(schema.organization.mailingEnabled, true)));
         let budget = 50;
         const deadline = Date.now() + 40000;
         for (const org of orgs) {
@@ -27,7 +29,7 @@ export async function sweepMailing(now = new Date()) {
                 break;
             await db.update(schema.mailingSend).set({ status: "pending", leaseUntil: null }).where(scoped(schema.mailingSend.organizationId, org.id, eq(schema.mailingSend.status, "sending"), lte(schema.mailingSend.leaseUntil, now)));
             const [sender] = await db.select().from(schema.mailingSender).where(scoped(schema.mailingSender.organizationId, org.id));
-            const candidates = await db.select().from(schema.mailingSend).where(scoped(schema.mailingSend.organizationId, org.id, eq(schema.mailingSend.status, "pending"), lte(schema.mailingSend.dueAt, now), or(isNull(schema.mailingSend.nextAttemptAt), lte(schema.mailingSend.nextAttemptAt, now))))
+            const candidates = await db.select().from(schema.mailingSend).where(scoped(schema.mailingSend.organizationId, org.id, eq(schema.mailingSend.status, "pending"), lte(schema.mailingSend.dueAt, now), or(isNull(schema.mailingSend.nextAttemptAt), lte(schema.mailingSend.nextAttemptAt, now)), ...(target?.programId ? [eq(schema.mailingSend.programId, target.programId)] : [])))
                 .orderBy(asc(schema.mailingSend.dueAt), asc(schema.mailingSend.stepIndex)).limit(200);
             if (!candidates.length)
                 continue;
@@ -122,7 +124,7 @@ export async function sweepMailing(now = new Date()) {
                     } // aplazar el agregado, sin ráfagas ante 429/5xx
                 }
             }
-            const campaigns = await db.select().from(schema.mailingProgram).where(scoped(schema.mailingProgram.organizationId, org.id, eq(schema.mailingProgram.kind, "campaign"), eq(schema.mailingProgram.status, "active")));
+            const campaigns = await db.select().from(schema.mailingProgram).where(scoped(schema.mailingProgram.organizationId, org.id, eq(schema.mailingProgram.kind, "campaign"), eq(schema.mailingProgram.status, "active"), ...(target?.programId ? [eq(schema.mailingProgram.id, target.programId)] : [])));
             for (const p of campaigns) {
                 const [pending] = await db.select({ id: schema.mailingSend.id }).from(schema.mailingSend).where(scoped(schema.mailingSend.organizationId, org.id, eq(schema.mailingSend.programId, p.id), inArray(schema.mailingSend.status, ["pending", "sending", "uncertain"]))).limit(1);
                 if (!pending)

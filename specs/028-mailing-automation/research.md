@@ -20,3 +20,9 @@
 Listar dominios de la cuenta compartida solo durante configuración por superadmin; si existe el elegido se recupera por ID y reserva en la empresa. Los admins de tenants no adoptan dominios preexistentes ajenos. [Resend List Domains](https://resend.com/docs/api-reference/domains/list-domains).
 
 La aclaración del dueño protege las configuraciones actuales de correo. `manages_domain` persiste si el dominio fue creado exclusivamente por Mailing; la migración asigna false a filas existentes. Un dominio compartido o transaccional solo recibe GET al configurar/comprobar DNS. El adaptador transaccional sigue enviando con RESEND_FROM_EMAIL/RESEND_FROM_NAME, sin depender del remitente DNS ni la habilitación de Mailing.
+
+## Espera e interfaz — feedback posterior
+
+Cron productivo observado cada cinco minutos: 22:30 UTC aceptados0 en2.28s; 22:35 aceptados0 en1.01s; 22:40 aceptados2 en3.33s, sin deferred/failed/locked. La espera inicial proviene del intervalo. Las pruebas envían directamente al proveedor, cuya aceptación no garantiza llegada inmediata al buzón. [Next after](https://nextjs.org/docs/app/api-reference/functions/after) estable desde15.1 y compatible con Docker/Node permite iniciar el barrido tras responder, con outbox/cron como recuperación. Un cron exclusivo por minuto mejora programación y continuación sin alterar las funciones del cron original.
+
+UI: mostrar tres etapas con preview, destino de prueba visible, ahora/programar como opciones explícitas y confirmación, bloquear contenido no guardado, estado por destinatario con causa/reintento, progreso y refresco cada cinco segundos mientras la pestaña está visible. Selector compacto móvil, navegación de secciones persistente y enfoque del editor al abrir un programa.

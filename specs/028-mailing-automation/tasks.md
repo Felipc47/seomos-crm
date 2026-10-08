@@ -66,3 +66,12 @@ Typecheck, lint y build aprobados; 331 tests / 48 archivos y 168 verificaciones 
 Follow-up productivo `625694fd3972e51ab12d29cf9cf2cce591da5a96`, deployment `0byl8j22xlgvuuucr9dh5xp7`, finished 22:29:44 UTC; app/BD running:healthy, cero reinicios. Arranque 22:28:42 UTC con migraciones aplicadas y Ready 1070ms, sin errores nuevos. Root verificó siete rutas por HTTPS después de terminal: health200, Mailing/sender401 sin sesión, mocks y lab404; respuestas transitorias 502 observadas durante reemplazo no persistieron. Flags productivos conservan solo SEOMOS true; 37 entradas env sin cambios. Sin escrituras operativas a Resend. La comparación íntegra de dominios antes/después no quedó confirmada porque se incluyeron estados DNS mutables y se perdió baseline al cerrar el script; no se atribuye una causa sin evidencia.
 
 Limpieza operativa confirmada: solo permanece el cron original. DEFAULT false NOT NULL confirmado por DDL y hash aplicado del journal; la lectura adicional de information_schema no retornó por intermitencia de polling y no se afirma como verificación directa. Empresas nuevas deshabilitadas comprobadas en E2E.
+
+## Feedback: demora y navegación
+
+- [x] T022 Iniciar envío inmediato tras confirmar, por empresa/programa, conservando permisos/lock/idempotencia y recuperación.
+- [x] T023 Guiar destinatarios/contenido/revisión con preview, envío ahora/programado explícitos, confirmación, progreso y motivos de espera; evitar enviar borradores sin guardar.
+- [x] T024 Verificar envío sin forzar cron, fechas futuras, aislamiento, deshabilitación y caminos infelices; gate técnico y capturas desktop/móvil.
+- [ ] T025 Desplegar selectivamente y configurar cron dedicado de Mailing cada minuto; verificar producción y preservar correos/entitlements existentes.
+
+Self-test final: 182 comprobaciones, cero errores del navegador; envío inmediato demostrado sin llamar al cron, no procesa otra campaña pendiente, concurrencia sin duplicar, fechas futuras y recuperación tras500/formato/429, UI y permisos. Capturas editor/progreso/confirmación desktop y selector móvil en `.artifacts/us37-mailing/`. Typecheck, lint, build y 331 tests / 48 archivos verdes. Inicio de producción observado con cron de cinco minutos y ejecuciones de segundos; no se forzaron barridos ni emails reales. Pendiente release/cron dedicado.

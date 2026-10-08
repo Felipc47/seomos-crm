@@ -107,6 +107,8 @@ export type MailingSnapshot = {
         dueAt: string;
         status: string;
         lastError: string | null;
+        nextAttemptAt: string | null;
+        acceptedAt: string | null;
         deliveredAt: string | null;
         openedAt: string | null;
         clickedAt: string | null;
