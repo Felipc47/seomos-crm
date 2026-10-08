@@ -40,4 +40,8 @@ Modelo, decisiones y contrato en [data-model.md](data-model.md), [research.md](r
 
 ## Verification
 
+### Aislamiento de correo existente
+
+`mailing_sender.manages_domain` distingue dominios creados por Mailing de los ya existentes. Default false conservador para filas previas. Solo un dominio creado por Mailing y distinto del dominio de RESEND_FROM_EMAIL permite modificar tracking o solicitar verificación al proveedor. Los demás se consultan sin mutarlos. Nombre, dirección y reply-to se guardan únicamente en Mailing; el adaptador transaccional y sus variables se conservan.
+
 Gate completo: `pnpm typecheck && pnpm lint && pnpm build && pnpm test`; detener dev durante build. E2E en localhost con Resend/WhatsApp/IA mock y reloj virtual solo detrás de dev guard. Ejercer UI real, buzón, DNS pendiente/verificado, aislamiento, inscripción y 7/14/21, pausas, baja y errores/concurrencia. Registrar resultados reales en tasks.

@@ -2,7 +2,7 @@
 
 Toda tabla lleva organization_id NOT NULL con índice org-first. Queries pasan por scoped(), incluso claims y callbacks.
 
-- mailing_sender: PK organization_id, dominio UNIQUE, provider_domain_id, from_email/from_name/reply_to, status, dns_records, last_error, track_opens/track_clicks opcionales.
+- mailing_sender: PK organization_id, dominio UNIQUE, provider_domain_id, manages_domain boolean NOT NULL default false, from_email/from_name/reply_to, status, dns_records, last_error, track_opens/track_clicks opcionales. manages_domain true solo al crear un dominio nuevo; cambiar dominio vuelve a false. Dominios existentes o usados por el remitente transaccional se consultan sin modificar tracking/verificación.
 - mailing_subscriber: id msu_, org/email UNIQUE, name, consent_at, unsubscribed_at, suppressed_at/reason, token opaco UNIQUE. Reimportar nunca limpia bajas/supresiones.
 - mailing_list: id mli_, org/name UNIQUE.
 - mailing_list_member: id mlm_, org/list/subscriber UNIQUE, created_at.

@@ -932,6 +932,8 @@ export const campaignRecipient = pgTable(
 
 /* Mailing independiente del canal WhatsApp (028). */
 export const mailingSender = pgTable("mailing_sender", {
+  /** Solo dominios creados exclusivamente por Mailing admiten cambios globales. */
+  managesDomain: boolean("manages_domain").notNull().default(false),
   organizationId: text("organization_id").primaryKey().references(() => organization.id, { onDelete: "cascade" }),
   domain: text("domain").notNull(),
   providerDomainId: text("provider_domain_id"),

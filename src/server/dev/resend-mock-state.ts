@@ -17,7 +17,8 @@ type ResendMockState = {
   statusNext: number;
   malformedNext: number;
   domainVerified: boolean;
-  domains: { id: string; name: string; status: string; records: import("@/lib/mailing").DnsRecord[] }[];
+  domainMutations: { id: string; method: string }[];
+  domains: { id: string; name: string; status: string; open_tracking?: boolean; click_tracking?: boolean; records: import("@/lib/mailing").DnsRecord[] }[];
 };
 
 const globalForResend = globalThis as unknown as {
@@ -26,11 +27,11 @@ const globalForResend = globalThis as unknown as {
 
 export function getResendMockState(): ResendMockState {
   if (!globalForResend.__resendMockState) {
-    globalForResend.__resendMockState = { outbox: [], failNext: 0, statusNext: 0, malformedNext: 0, domainVerified: false, domains: [] };
+    globalForResend.__resendMockState = { outbox: [], failNext: 0, statusNext: 0, malformedNext: 0, domainVerified: false, domains: [], domainMutations: [] };
   }
   return globalForResend.__resendMockState;
 }
 
 export function resetResendMockState(): void {
-  globalForResend.__resendMockState = { outbox: [], failNext: 0, statusNext: 0, malformedNext: 0, domainVerified: false, domains: [] };
+  globalForResend.__resendMockState = { outbox: [], failNext: 0, statusNext: 0, malformedNext: 0, domainVerified: false, domains: [], domainMutations: [] };
 }

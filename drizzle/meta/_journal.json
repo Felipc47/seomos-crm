@@ -204,6 +204,13 @@
       "when": 1791495855007,
       "tag": "0028_yielding_talos",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1791497654645,
+      "tag": "0029_icy_vivisector",
+      "breakpoints": true
     }
   ]
 }

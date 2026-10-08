@@ -12,9 +12,11 @@
 - Entorno comprobado: PostgreSQL Homebrew en 127.0.0.1:5433 y Chrome/Playwright disponible; crear BD separada y nunca resetear vocero/portal_seomos.
 - Alternativas descartadas: Broadcasts/Automations del proveedor (estado fuera de self-host), SMTP nuevo (proveedor fuera de constitución), contact WhatsApp (requiere teléfono), HTML libre (superficie XSS innecesaria).
 
-- Métricas opcionales por empresa: [Update Domain](https://resend.com/docs/api-reference/domains/update-domain) permite open_tracking/click_tracking; se muestran preferencias en remitente y solo eventos firmados alimentan los resultados.
+- Métricas del dominio: [Update Domain](https://resend.com/docs/api-reference/domains/update-domain) permite open_tracking/click_tracking. Como estas opciones afectan al dominio entero, solo se modifican en dominios nuevos creados por Mailing y no usados por el remitente transaccional. En dominios existentes se conserva su configuración y solo eventos firmados del ledger de Mailing alimentan los resultados.
 - Tags de envío (mailing_org/mailing_send) permiten reconciliar callback adelantado a la persistencia del provider ID; eventos transaccionales ajenos se ignoran sin generar retries permanentes.
 
 ## Dominios existentes
 
 Listar dominios de la cuenta compartida solo durante configuración por superadmin; si existe el elegido se recupera por ID y reserva en la empresa. Los admins de tenants no adoptan dominios preexistentes ajenos. [Resend List Domains](https://resend.com/docs/api-reference/domains/list-domains).
+
+La aclaración del dueño protege las configuraciones actuales de correo. `manages_domain` persiste si el dominio fue creado exclusivamente por Mailing; la migración asigna false a filas existentes. Un dominio compartido o transaccional solo recibe GET al configurar/comprobar DNS. El adaptador transaccional sigue enviando con RESEND_FROM_EMAIL/RESEND_FROM_NAME, sin depender del remitente DNS ni la habilitación de Mailing.

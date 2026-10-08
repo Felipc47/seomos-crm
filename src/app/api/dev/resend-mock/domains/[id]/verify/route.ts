@@ -13,5 +13,6 @@ export async function POST(req: Request, ctx: {
     const { id } = await ctx.params;
     if (!getResendMockState().domains.some((d) => d.id === id))
         return new Response(null, { status: 404 });
+    getResendMockState().domainMutations.push({ id, method: "VERIFY" });
     return Response.json({ object: "domain", id });
 }

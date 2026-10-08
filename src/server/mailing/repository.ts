@@ -1,3 +1,4 @@
+import { canConfigureMailingTracking } from "./access";
 import { randomBytes } from "node:crypto";
 import { and, eq, desc, inArray, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
@@ -57,7 +58,7 @@ export async function mailingSnapshot(session: SessionContext) {
         db.select({ email: schema.user.email }).from(schema.user).where(eq(schema.user.id, session.userId)),
     ]);
     const sender = senders[0];
-    return { sender: sender ? { domain: sender.domain, fromEmail: sender.fromEmail, fromName: sender.fromName, replyTo: sender.replyTo, trackOpens: sender.trackOpens, trackClicks: sender.trackClicks, status: sender.status, records: sender.records, lastError: sender.lastError } : null,
+    return { sender: sender ? { canConfigureTracking: canConfigureMailingTracking(sender), domain: sender.domain, fromEmail: sender.fromEmail, fromName: sender.fromName, replyTo: sender.replyTo, trackOpens: sender.trackOpens, trackClicks: sender.trackClicks, status: sender.status, records: sender.records, lastError: sender.lastError } : null,
         configured: isMailingConfigured(), canConfigure: canManageOrgSettings(session.role), operatorEmail: users[0]?.email ?? "",
         lists: lists.map((l) => { const ids = new Set(members.filter((m) => m.listId === l.id).map((m) => m.subscriberId)); return { ...l, members: ids.size, eligible: subscribers.filter((s) => ids.has(s.id) && eligibleSubscriber(s)).length }; }),
         subscribers: subscribers.map(({ unsubscribeToken: _nonce, ...s }) => ({ ...s, listIds: members.filter((m) => m.subscriberId === s.id).map((m) => m.listId) })), programs, enrollments, sends };

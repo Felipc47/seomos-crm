@@ -1,8 +1,10 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it, vi, afterEach } from "vitest";
-vi.mock("@/lib/env", () => ({ isMockEnabled: () => true, getEnv: () => ({ BETTER_AUTH_SECRET: "mailing-unit-secret-028", RESEND_API_KEY: "re_unit", RESEND_BASE_URL: "https://mock.invalid" }) }));
+vi.mock("@/lib/env", () => ({ isMockEnabled: () => true, isEmailConfigured: () => true, getEnv: () => ({ BETTER_AUTH_SECRET: "mailing-unit-secret-028", RESEND_API_KEY: "re_unit", RESEND_BASE_URL: "https://mock.invalid", RESEND_FROM_EMAIL: "avisos@system.example", RESEND_FROM_NAME: "Sistema" }) }));
 import { eligibleSubscriber, mailingStepsSchema, parseMailingCsv, renderMail, senderSchema, stepDueAt } from "@/lib/mailing";
 import { readUnsubscribeToken, unsubscribeToken, verifyMailingWebhook } from "@/server/mailing/security";
+import { canConfigureMailingTracking } from "@/server/mailing/access";
+import { sendResendEmail } from "@/lib/resend/client";
 import { createMailingDomain, MailingProviderError, sendMailingEmail } from "@/lib/resend/mailing";
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 describe("mailing independiente y consentimiento", () => {
@@ -94,5 +96,22 @@ describe("proveedor tolerante", () => {
             expect(e).toBeInstanceOf(MailingProviderError);
             expect(e).toMatchObject({ safeMessage: "Resend respondió HTTP 429", retryable: true, uncertain: false, retryAfterSeconds: 120 });
         }
+    });
+});
+
+describe("aislamiento de correo existente", () => {
+    it("solo cambia tracking de dominios exclusivos y ajenos al remitente transaccional", () => {
+        expect(canConfigureMailingTracking({ managesDomain: false, domain: "example.com" })).toBe(false);
+        expect(canConfigureMailingTracking({ managesDomain: true, domain: "system.example" })).toBe(false);
+        expect(canConfigureMailingTracking({ managesDomain: true, domain: "mail.example.com" })).toBe(true);
+    });
+    it("el correo transaccional conserva from global aunque Mailing use otro remitente", async () => {
+        vi.stubEnv("RESEND_API_KEY", "re_unit");
+        const fetcher = vi.fn().mockImplementation(() => Promise.resolve(Response.json({ id: "email_1" })));
+        vi.stubGlobal("fetch", fetcher);
+        await sendMailingEmail({ from: "Marketing <hola@mail.example.com>", to: "ana@example.com", subject: "Campaña", html: "X", text: "X" }, "mse_unit");
+        await sendResendEmail({ to: "ana@example.com", subject: "Recuperación", html: "X", text: "X", idempotencyKey: "reset_unit" });
+        expect(JSON.parse(fetcher.mock.calls[0]?.[1].body).from).toBe("Marketing <hola@mail.example.com>");
+        expect(JSON.parse(fetcher.mock.calls[1]?.[1].body).from).toBe("Sistema <avisos@system.example>");
     });
 });

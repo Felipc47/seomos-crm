@@ -55,3 +55,10 @@ T001–T005 antes de código de dominio. US1 precede envíos de US2/US3; T010 co
 - Webhook Resend dedicado configurado; secreto únicamente runtime producción. Firma válida con email desconocido devuelve 200 ignorado; firma falsa 401. No se enviaron emails reales ni cambiaron registros DNS.
 - Cron existente cada cinco minutos conservado y ejecución natural verificada 22:10:03–22:10:08 UTC: todos los contadores de Mailing en cero, sin fallos; no se forzaron barridos de WhatsApp/IA.
 - Verificación funcional de UI con Playwright local; producción verificada mediante API, BD, logs, dominio HTTPS y firmas. La automatización de Chrome en la sesión abierta estuvo bloqueada por otra interfaz de extensión.
+
+## Aclaración de aislamiento de correo existente
+
+- [x] T020 Proteger dominios preexistentes/transaccionales, preservando remitentes y ajustes del proveedor (FR-022).
+- [ ] T021 Verificar preservación con mocks, correos transaccionales, gate completo y desplegar ajuste autorizado.
+
+Typecheck, lint y build aprobados; 331 tests / 48 archivos y 168 verificaciones Playwright / cero errores del navegador. E2E comprueba ausencia de PATCH/verify sobre dominio preexistente; prueba unitaria comprueba from transaccional conservado después de enviar con Mailing. Migración 0029 aplicada a la BD aislada; pendiente despliegue y verificación productiva de este ajuste.

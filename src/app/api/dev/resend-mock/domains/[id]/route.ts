@@ -33,5 +33,10 @@ export async function PATCH(req: Request, ctx: {
     const { id } = await ctx.params;
     if (!getResendMockState().domains.some((d) => d.id === id))
         return new Response(null, { status: 404 });
+    const state = getResendMockState();
+    const domain = state.domains.find((d) => d.id === id)!;
+    const raw = await req.json() as { open_tracking: boolean; click_tracking: boolean };
+    domain.open_tracking = raw.open_tracking; domain.click_tracking = raw.click_tracking;
+    state.domainMutations.push({ id, method: "PATCH" });
     return Response.json({ object: "domain", id });
 }

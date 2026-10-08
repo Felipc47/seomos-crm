@@ -10,8 +10,8 @@ Runtime: RESEND_API_KEY con permiso full access para Domains, RESEND_WEBHOOK_SEC
 ## Resultado verificado — 2026-10-08
 
 - Typecheck, lint y build aprobados.
-- 329 pruebas unitarias en 48 archivos aprobadas.
-- Playwright: 165 verificaciones aprobadas; 0 errores del navegador.
+- 331 pruebas unitarias en 48 archivos aprobadas.
+- Playwright: 168 verificaciones aprobadas; 0 errores del navegador. Incluye preservación de dominios existentes y del remitente transaccional.
 - Evidencia local: `.artifacts/us37-mailing/result.json`, `desktop.png`, `mobile.png`.
 - Base aislada: `seomos_mailing_028`; bases existentes conservadas. Todo envío y DNS contra mocks.
 - Rama `codex/028-mailing-automation`; release productiva `e5d20ad` verificada, solo SEOMOS habilitada.
@@ -27,9 +27,9 @@ Detener dev antes de build, porque ambos comparten `.next`. Si el guion se repit
 Producción: https://seomos.cloud/mailing. Release `e5d20adae8db689974ac553001cd2de93ed33c03`, deployment `bnwifwxh0wfsuukule8oick8` terminado y saludable. Migrations 0026–0028 al arrancar. Health HTTPS 200; API sin sesión 401; mocks404.
 
 1. En Empresas, el superadmin habilita Mailing por empresa. El piloto inicial es SEOMOS, organización principal; las demás y todas las empresas nuevas permanecen deshabilitadas. Retirar acceso detiene nuevos envíos y conserva datos; bajas/eventos siguen operativos.
-2. En Mailing → Remitente y DNS, elegir dominio y dirección. El superadmin puede reutilizar los dominios existentes de Resend (seomos.cloud / crm.seomos.cloud ya verificados). Dominios nuevos requieren publicar los registros reales mostrados y comprobar verificación. Elegir aperturas/clics si se desea medirlos.
+2. En Mailing → Remitente y DNS, elegir dominio y dirección. El superadmin puede reutilizar los dominios existentes de Resend (seomos.cloud / crm.seomos.cloud ya verificados) preservando sus ajustes actuales. Dominios nuevos requieren publicar los registros reales mostrados y comprobar verificación. Las opciones de aperturas/clics se pueden ajustar solo en dominios creados exclusivamente para Mailing.
 3. Añadir listas con permiso de email, guardar borrador, enviar prueba al operador y confirmar campaña/inscripción. Las secuencias cuentan días desde inscripción.
 
 RESEND_API_KEY existente comprobada y RESEND_WEBHOOK_SECRET configurado solo en runtime producción; webhook `/api/mailing/webhook` configurado para sent/delivered/bounced/complained/failed/opened/clicked. Firma válida200, falsa401 comprobadas sin emails reales. Cron POST `/api/cron/sweep` cada cinco minutos ya configurado con AGENT_SWEEP_SECRET; preservado sin disparar barridos extras; ejecución natural 22:10 UTC verificada con Mailing sin pendientes, aceptados ni fallos.
 
-La aplicación gestiona dominio, dirección y métricas por empresa; RESEND_FROM_* conserva su función transaccional. Cambiar dominio exige nueva verificación; snapshots en reintento no se migran silenciosamente a otra dirección. La dirección concreta de marketing queda a elección del administrador.
+La dirección de Mailing es independiente del correo existente: avisos, resúmenes y recuperación de contraseña conservan RESEND_FROM_* y su adaptador actual. Añadir registros DNS de envío no exige reemplazar los registros de correo existentes. En dominios compartidos, Mailing solo consulta el estado y conserva métricas/configuración del proveedor. Cambiar dominio exige confirmar verificación; snapshots en reintento no se migran silenciosamente a otra dirección. La dirección concreta de marketing queda a elección del administrador.

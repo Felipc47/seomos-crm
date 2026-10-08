@@ -52,6 +52,7 @@ export type DnsRecord = {
 };
 export type MailingSnapshot = {
     sender: {
+        canConfigureTracking: boolean;
         domain: string;
         fromEmail: string;
         fromName: string;

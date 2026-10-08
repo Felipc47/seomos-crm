@@ -1,0 +1,1 @@
+ALTER TABLE "mailing_sender" ADD COLUMN "manages_domain" boolean DEFAULT false NOT NULL;

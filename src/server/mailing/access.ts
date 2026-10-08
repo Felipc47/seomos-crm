@@ -1,6 +1,12 @@
 import { isNull } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
+import { getEnv } from "@/lib/env";
+
+export function canConfigureMailingTracking(sender: { managesDomain: boolean; domain: string }): boolean {
+  const transactionalDomain = getEnv().RESEND_FROM_EMAIL?.split("@")[1]?.toLowerCase();
+  return sender.managesDomain && sender.domain !== transactionalDomain;
+}
 
 /** Se consulta siempre en BD: deshabilitar no depende de cookies antiguas. */
 export async function isMailingEnabled(organizationId: string): Promise<boolean> {

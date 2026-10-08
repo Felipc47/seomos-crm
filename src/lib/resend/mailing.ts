@@ -8,7 +8,7 @@ export function isMailingConfigured() {
     return Boolean(key && !key.startsWith("REEMPLAZA_"));
 }
 const recordSchema = z.object({ record: z.string(), name: z.string(), value: z.string(), type: z.string(), ttl: z.union([z.string(), z.number()]).optional(), status: z.string().optional(), priority: z.number().optional() });
-const domainSchema = z.object({ id: z.string().min(1), name: z.string(), status: z.string(), records: z.array(recordSchema) });
+const domainSchema = z.object({ id: z.string().min(1), name: z.string(), status: z.string(), records: z.array(recordSchema), open_tracking: z.boolean().optional(), click_tracking: z.boolean().optional() });
 const pace = globalThis as unknown as {
     __mailingProviderPace?: Promise<void>;
     __mailingProviderStartedAt?: number;
@@ -59,12 +59,12 @@ export async function createMailingDomain(name: string, allowExisting = false) {
             throw new MailingProviderError("Respuesta inválida al buscar el dominio");
         const existing = listed.data.data.find((d) => d.name === name);
         if (existing)
-            return checkMailingDomain(existing.id);
+            return { ...await checkMailingDomain(existing.id), managesDomain: false };
     }
     const result = domainSchema.safeParse(await provider("/domains", "POST", { name }));
     if (!result.success || result.data.name !== name)
         throw new MailingProviderError("Respuesta inválida al registrar dominio", false, true);
-    return result.data;
+    return { ...result.data, managesDomain: true };
 }
 export async function checkMailingDomain(id: string, verify = false) {
     if (verify)

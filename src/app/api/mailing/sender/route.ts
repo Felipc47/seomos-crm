@@ -1,4 +1,4 @@
-import { isMailingEnabled } from "@/server/mailing/access";
+import { canConfigureMailingTracking, isMailingEnabled } from "@/server/mailing/access";
 import { z } from "zod";
 import { apiError, withAuth } from "@/lib/api";
 import { getDb, getSql, schema } from "@/lib/db";
@@ -40,7 +40,7 @@ export const POST = withAuth(async (session, req: Request) => {
                 const changingDomain = sender.domain !== parsed.data.domain;
                 try {
                     const [updated] = await db.update(schema.mailingSender).set({ domain: parsed.data.domain, fromEmail: parsed.data.fromEmail, fromName: parsed.data.fromName, replyTo: parsed.data.replyTo ?? null, trackOpens: parsed.data.trackOpens, trackClicks: parsed.data.trackClicks,
-                        ...(changingDomain ? { providerDomainId: null, status: "not_started", records: [], lastError: null } : {})
+                        ...(changingDomain ? { providerDomainId: null, managesDomain: false, status: "not_started", records: [], lastError: null } : {})
                     }).where(scoped(schema.mailingSender.organizationId, org)).returning();
                     sender = updated;
                 }
@@ -52,13 +52,20 @@ export const POST = withAuth(async (session, req: Request) => {
         if (!sender)
             return apiError(409, "no_sender", "Configura primero el remitente");
         try {
-            let domain = sender.providerDomainId ? await checkMailingDomain(sender.providerDomainId, verify.success) : await createMailingDomain(sender.domain, session.isSuperadmin);
+            let domain = sender.providerDomainId ? await checkMailingDomain(sender.providerDomainId, verify.success && canConfigureMailingTracking(sender)) : await createMailingDomain(sender.domain, session.isSuperadmin);
+            if ("managesDomain" in domain && typeof domain.managesDomain === "boolean") {
+                sender.managesDomain = domain.managesDomain;
+                await db.update(schema.mailingSender).set({ managesDomain: sender.managesDomain }).where(scoped(schema.mailingSender.organizationId, org));
+            }
             if (domain.name !== sender.domain)
                 return apiError(502, "domain_mismatch", "No se pudo confirmar el dominio");
             await db.update(schema.mailingSender).set({ providerDomainId: domain.id, status: domain.status, records: domain.records, lastError: null, updatedAt: new Date() }).where(scoped(schema.mailingSender.organizationId, org));
-            if (parsed.success) {
+            if (parsed.success && canConfigureMailingTracking(sender)) {
                 domain = await setMailingTracking(domain.id, parsed.data.trackOpens, parsed.data.trackClicks);
                 await db.update(schema.mailingSender).set({ status: domain.status, records: domain.records }).where(scoped(schema.mailingSender.organizationId, org));
+            }
+            if (!canConfigureMailingTracking(sender)) {
+                await db.update(schema.mailingSender).set({ trackOpens: domain.open_tracking ?? false, trackClicks: domain.click_tracking ?? false }).where(scoped(schema.mailingSender.organizationId, org));
             }
             return Response.json({ status: domain.status, records: domain.records });
         }

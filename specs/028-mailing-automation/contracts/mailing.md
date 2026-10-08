@@ -2,9 +2,9 @@
 
 Auth de organización existente. Admin/Marketing/Comercial pueden operar; solo Admin gestiona remitente. IDs ajenos: 404. Datos inválidos: 422; transición no permitida/DNS pendiente: 409; proveedor: 502 con mensaje sanitizado.
 
-- GET /api/mailing: estado agregado de remitente, listas, suscriptores, programas, inscripciones e historial. Sin tokens de baja ni secretos.
+- GET /api/mailing: estado agregado de remitente (incluye canConfigureTracking), listas, suscriptores, programas, inscripciones e historial. Sin tokens de baja ni secretos.
 - POST /api/mailing: discriminante action; create_list, add_subscribers (rows email/name/consent, listId), unsubscribe_subscriber, create_program (kind/name/listId/steps), update_program (solo draft), duplicate_program, start_program (scheduledAt opcional, autoEnroll para secuencia), pause_program, resume_program, cancel_program, enroll_program, stop_enrollment, test_program (destino email del usuario autenticado).
-- POST /api/mailing/sender: action configure (domain/fromEmail/fromName/replyTo/trackOpens/trackClicks) o verify; solo Admin. Devuelve registros reales del proveedor.
+- POST /api/mailing/sender: action configure (domain/fromEmail/fromName/replyTo/trackOpens/trackClicks) o verify; solo Admin. Devuelve registros reales del proveedor. Sobre dominios preexistentes o usados por RESEND_FROM_EMAIL, conserva los ajustes de tracking y solo consulta el estado: no PATCH ni POST verify al proveedor. Las opciones de tracking se modifican únicamente en dominios creados exclusivamente por Mailing.
 - GET /api/mailing/unsubscribe?token=…: página de confirmación sin mutar. POST mismo token: baja idempotente de esa empresa; admite List-Unsubscribe-Post.
 - POST /api/mailing/webhook: headers svix-id/timestamp/signature, body crudo, firma/edad válidas. Tipo/email_id validado; org se deduce del envío local, con tags firmados para callbacks adelantados. Eventos transaccionales/pruebas ajenos al ledger se ignoran. Duplicado: 200 sin efectos nuevos.
 - POST /api/cron/sweep: Bearer AGENT_SWEEP_SECRET; procesa mailing independientemente del navegador, con presupuesto y estado durable. now solo se acepta en mocks.

@@ -11,7 +11,7 @@ export async function GET() {
   const guard = mockGuard();
   if (guard) return guard;
   const state = getResendMockState();
-  return Response.json({ outbox: state.outbox, failNext: state.failNext });
+  return Response.json({ outbox: state.outbox, domains: state.domains, domainMutations: state.domainMutations, failNext: state.failNext });
 }
 
 export async function DELETE() {
