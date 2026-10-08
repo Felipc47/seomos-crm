@@ -59,6 +59,10 @@ T001–T005 antes de código de dominio. US1 precede envíos de US2/US3; T010 co
 ## Aclaración de aislamiento de correo existente
 
 - [x] T020 Proteger dominios preexistentes/transaccionales, preservando remitentes y ajustes del proveedor (FR-022).
-- [ ] T021 Verificar preservación con mocks, correos transaccionales, gate completo y desplegar ajuste autorizado.
+- [x] T021 Verificar preservación con mocks, correos transaccionales, gate completo y desplegar ajuste autorizado.
 
-Typecheck, lint y build aprobados; 331 tests / 48 archivos y 168 verificaciones Playwright / cero errores del navegador. E2E comprueba ausencia de PATCH/verify sobre dominio preexistente; prueba unitaria comprueba from transaccional conservado después de enviar con Mailing. Migración 0029 aplicada a la BD aislada; pendiente despliegue y verificación productiva de este ajuste.
+Typecheck, lint y build aprobados; 331 tests / 48 archivos y 168 verificaciones Playwright / cero errores del navegador. E2E comprueba ausencia de PATCH/verify sobre dominio preexistente; prueba unitaria comprueba from transaccional conservado después de enviar con Mailing. Migración 0029 aplicada a la BD aislada y journal productivo confirmado con hash `93d05f50b3971af4c919560a11d3463236800a7dd2487472cedc7fdd08c27efd`.
+
+Follow-up productivo `625694fd3972e51ab12d29cf9cf2cce591da5a96`, deployment `0byl8j22xlgvuuucr9dh5xp7`, finished 22:29:44 UTC; app/BD running:healthy, cero reinicios. Arranque 22:28:42 UTC con migraciones aplicadas y Ready 1070ms, sin errores nuevos. Root verificó siete rutas por HTTPS después de terminal: health200, Mailing/sender401 sin sesión, mocks y lab404; respuestas transitorias 502 observadas durante reemplazo no persistieron. Flags productivos conservan solo SEOMOS true; 37 entradas env sin cambios. Sin escrituras operativas a Resend. La comparación íntegra de dominios antes/después no quedó confirmada porque se incluyeron estados DNS mutables y se perdió baseline al cerrar el script; no se atribuye una causa sin evidencia.
+
+Limpieza operativa confirmada: solo permanece el cron original. DEFAULT false NOT NULL confirmado por DDL y hash aplicado del journal; la lectura adicional de information_schema no retornó por intermitencia de polling y no se afirma como verificación directa. Empresas nuevas deshabilitadas comprobadas en E2E.

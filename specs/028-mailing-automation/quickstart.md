@@ -14,7 +14,7 @@ Runtime: RESEND_API_KEY con permiso full access para Domains, RESEND_WEBHOOK_SEC
 - Playwright: 168 verificaciones aprobadas; 0 errores del navegador. Incluye preservación de dominios existentes y del remitente transaccional.
 - Evidencia local: `.artifacts/us37-mailing/result.json`, `desktop.png`, `mobile.png`.
 - Base aislada: `seomos_mailing_028`; bases existentes conservadas. Todo envío y DNS contra mocks.
-- Rama `codex/028-mailing-automation`; release productiva `e5d20ad` verificada, solo SEOMOS habilitada.
+- Rama `codex/028-mailing-automation`; release productiva `625694f` verificada, solo SEOMOS habilitada.
 
 ## Entorno de herramientas local
 
@@ -24,7 +24,7 @@ Detener dev antes de build, porque ambos comparten `.next`. Si el guion se repit
 
 ## Uso en producción
 
-Producción: https://seomos.cloud/mailing. Release `e5d20adae8db689974ac553001cd2de93ed33c03`, deployment `bnwifwxh0wfsuukule8oick8` terminado y saludable. Migrations 0026–0028 al arrancar. Health HTTPS 200; API sin sesión 401; mocks404.
+Producción: https://seomos.cloud/mailing. Release `625694fd3972e51ab12d29cf9cf2cce591da5a96`, deployment `0byl8j22xlgvuuucr9dh5xp7` terminado 22:29:44 UTC y saludable. Migraciones 0026–0029 comprobadas en journal; arranque confirmó migraciones aplicadas. Health HTTPS 200; API sin sesión 401; mocks404.
 
 1. En Empresas, el superadmin habilita Mailing por empresa. El piloto inicial es SEOMOS, organización principal; las demás y todas las empresas nuevas permanecen deshabilitadas. Retirar acceso detiene nuevos envíos y conserva datos; bajas/eventos siguen operativos.
 2. En Mailing → Remitente y DNS, elegir dominio y dirección. El superadmin puede reutilizar los dominios existentes de Resend (seomos.cloud / crm.seomos.cloud ya verificados) preservando sus ajustes actuales. Dominios nuevos requieren publicar los registros reales mostrados y comprobar verificación. Las opciones de aperturas/clics se pueden ajustar solo en dominios creados exclusivamente para Mailing.
@@ -33,3 +33,5 @@ Producción: https://seomos.cloud/mailing. Release `e5d20adae8db689974ac553001cd
 RESEND_API_KEY existente comprobada y RESEND_WEBHOOK_SECRET configurado solo en runtime producción; webhook `/api/mailing/webhook` configurado para sent/delivered/bounced/complained/failed/opened/clicked. Firma válida200, falsa401 comprobadas sin emails reales. Cron POST `/api/cron/sweep` cada cinco minutos ya configurado con AGENT_SWEEP_SECRET; preservado sin disparar barridos extras; ejecución natural 22:10 UTC verificada con Mailing sin pendientes, aceptados ni fallos.
 
 La dirección de Mailing es independiente del correo existente: avisos, resúmenes y recuperación de contraseña conservan RESEND_FROM_* y su adaptador actual. Añadir registros DNS de envío no exige reemplazar los registros de correo existentes. En dominios compartidos, Mailing solo consulta el estado y conserva métricas/configuración del proveedor. Cambiar dominio exige confirmar verificación; snapshots en reintento no se migran silenciosamente a otra dirección. La dirección concreta de marketing queda a elección del administrador.
+
+Verificación del ajuste de aislamiento: las 37 entradas de variables de Coolify permanecen iguales antes/después. Las operaciones del despliegue no escribieron a Resend. La comparación completa de dominios no quedó confirmada: el script incluyó estados mutables de DNS y cerró sin conservar baseline/diferencias. No se atribuye la diferencia a DNS ni se afirma igualdad completa antes/después de todos los campos del proveedor. La protección del código se verificó con mocks (cero PATCH/verify en dominio preexistente) y correo transaccional con su remitente global. Evidencia HTTP posterior al rollout: `.artifacts/us37-mailing/production-isolation-http.json`, siete comprobaciones verdes a las 22:30:37 UTC.

@@ -2,7 +2,7 @@
 
 **Feature Branch**: `codex/028-mailing-automation`
 **Created**: 2026-10-08
-**Status**: Deployed — isolation follow-up verified locally, awaiting production deployment
+**Status**: Deployed and verified in production, including isolation of existing email settings
 **Input**: Campañas completas de mailing y automatizaciones («a la semana enviar X, luego Y»), exclusivamente por email, con el remitente preferido del usuario verificado mediante DNS.
 
 ## User Scenarios & Testing
