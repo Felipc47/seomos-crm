@@ -21,7 +21,7 @@ export async function DELETE() {
   return Response.json({ cleared: true });
 }
 
-const failSchema = z.object({ failNext: z.number().int().min(0).max(20) });
+const failSchema = z.object({ failNext: z.number().int().min(0).max(20).optional(), statusNext: z.union([z.literal(0), z.literal(429), z.literal(422)]).optional(), malformedNext: z.number().int().min(0).max(20).optional(), domainVerified: z.boolean().optional() });
 
 export async function POST(req: Request) {
   const guard = mockGuard();
@@ -30,6 +30,6 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return Response.json({ error: "invalid_body" }, { status: 400 });
   }
-  getResendMockState().failNext = parsed.data.failNext;
-  return Response.json({ failNext: parsed.data.failNext });
+  Object.assign(getResendMockState(), parsed.data);
+  return Response.json({ configured: true });
 }

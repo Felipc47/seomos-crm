@@ -45,11 +45,12 @@ producción.
 
 Ver [.specify/memory/constitution.md](.specify/memory/constitution.md).
 
-- **Soberanía (II, enmienda 1.5.0)**: dependencias de runtime SOLO WhatsApp
+- **Soberanía (II, enmienda 2.0.0)**: dependencias de runtime SOLO WhatsApp
   Cloud API + proveedor LLM OpenRouter-compatible opcional + Google Calendar
   API opcional (únicamente agendamiento, adaptador en `src/lib/google/`, OAuth
-  por usuario con token cifrado) + Resend opcional (únicamente avisos de nuevos
-  leads, resúmenes operativos y restablecimiento de contraseñas; adaptador
+  por usuario con token cifrado) + Resend opcional (avisos de nuevos
+  leads, resúmenes operativos, restablecimiento de contraseñas y mailing
+  con campañas/secuencias y dominios de remitente verificados por DNS; adaptador
   dedicado, secreto en runtime y fallo tolerante). PROHIBIDO en v1 introducir
   S3/R2, otros proveedores de email,
   Stripe u otros servicios de Google distintos de Calendar. Auth y BD
@@ -135,3 +136,10 @@ For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
 at specs/027-asistente-configuracion/plan.md
 <!-- SPECKIT END -->
+
+## Mailing (028)
+
+Módulo exclusivo de email, independiente de WhatsApp. Suscriptores/listas propios
+sin teléfono, consentimiento y bajas por canal/empresa, remitente verificado por
+DNS con Resend. Secuencias por días desde inscripción y outbox persistente.
+Plan activo: `specs/028-mailing-automation/plan.md`.

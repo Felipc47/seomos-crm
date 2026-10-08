@@ -1,3 +1,4 @@
+import { isMailingEnabled } from "@/server/mailing/access";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getAuth } from "@/lib/auth";
@@ -11,7 +12,7 @@ export default async function AppLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const session = await getSessionOrNull();
   if (!session) redirect("/login");
-  const branding = await getBranding(session.organizationId);
+  const [branding, mailingEnabled] = await Promise.all([getBranding(session.organizationId), isMailingEnabled(session.organizationId)]);
   const authSession = await getAuth().api.getSession({
     headers: await headers(),
   });
@@ -25,6 +26,7 @@ export default async function AppLayout({
           userImage={authSession?.user.image ?? null}
           role={session.role}
           isSuperadmin={session.isSuperadmin}
+          mailingEnabled={mailingEnabled}
         />
         <main className="min-w-0 flex-1 overflow-hidden">{children}</main>
       </div>

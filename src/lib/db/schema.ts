@@ -87,6 +87,8 @@ export const organization = pgTable("organization", {
   /** Borrado suave: la empresa queda suspendida (sin acceso ni webhook) y sus
    * datos se conservan como respaldo 30 días antes de la purga definitiva. */
   deletedAt: timestamp("deleted_at"),
+  /** Acceso a Mailing otorgado exclusivamente por el superadmin. */
+  mailingEnabled: boolean("mailing_enabled").notNull().default(false),
 });
 
 export const member = pgTable("member", {
@@ -927,3 +929,79 @@ export const campaignRecipient = pgTable(
     index("campaign_recipient_status_idx").on(t.campaignId, t.status),
   ]
 );
+
+/* Mailing independiente del canal WhatsApp (028). */
+export const mailingSender = pgTable("mailing_sender", {
+  organizationId: text("organization_id").primaryKey().references(() => organization.id, { onDelete: "cascade" }),
+  domain: text("domain").notNull(),
+  providerDomainId: text("provider_domain_id"),
+  fromEmail: text("from_email").notNull(),
+  fromName: text("from_name").notNull(),
+  replyTo: text("reply_to"),
+  trackOpens: boolean("track_opens").notNull().default(false),
+  trackClicks: boolean("track_clicks").notNull().default(false),
+  status: text("status").notNull().default("not_started"),
+  records: jsonb("records").$type<import("@/lib/mailing").DnsRecord[]>().notNull().default([]),
+  lastError: text("last_error"),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (t) => [uniqueIndex("mailing_sender_domain_uq").on(t.domain)]);
+
+export const mailingSubscriber = pgTable("mailing_subscriber", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  email: text("email").notNull(), name: text("name").notNull(),
+  consentAt: timestamp("consent_at"), unsubscribedAt: timestamp("unsubscribed_at"),
+  suppressedAt: timestamp("suppressed_at"), suppressionReason: text("suppression_reason"),
+  unsubscribeToken: text("unsubscribe_token").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [uniqueIndex("mailing_subscriber_org_email_uq").on(t.organizationId, t.email), uniqueIndex("mailing_subscriber_token_uq").on(t.unsubscribeToken)]);
+
+export const mailingList = pgTable("mailing_list", {
+  id: text("id").primaryKey(), organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  name: text("name").notNull(), createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [uniqueIndex("mailing_list_org_name_uq").on(t.organizationId, t.name)]);
+
+export const mailingListMember = pgTable("mailing_list_member", {
+  id: text("id").primaryKey(), organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  listId: text("list_id").notNull().references(() => mailingList.id, { onDelete: "cascade" }),
+  subscriberId: text("subscriber_id").notNull().references(() => mailingSubscriber.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [uniqueIndex("mailing_member_org_list_sub_uq").on(t.organizationId, t.listId, t.subscriberId)]);
+
+export const mailingProgram = pgTable("mailing_program", {
+  id: text("id").primaryKey(), organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  kind: text("kind", { enum: ["campaign", "sequence"] }).notNull(), name: text("name").notNull(),
+  listId: text("list_id").notNull().references(() => mailingList.id),
+  steps: jsonb("steps").$type<import("@/lib/mailing").MailingStep[]>().notNull(),
+  status: text("status", { enum: ["draft", "scheduled", "active", "paused", "completed", "cancelled"] }).notNull().default("draft"),
+  autoEnroll: boolean("auto_enroll").notNull().default(false),
+  scheduledAt: timestamp("scheduled_at"), createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [index("mailing_program_org_status_idx").on(t.organizationId, t.status)]);
+
+export const mailingEnrollment = pgTable("mailing_enrollment", {
+  id: text("id").primaryKey(), organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  programId: text("program_id").notNull().references(() => mailingProgram.id, { onDelete: "cascade" }),
+  subscriberId: text("subscriber_id").notNull().references(() => mailingSubscriber.id, { onDelete: "cascade" }),
+  startedAt: timestamp("started_at").notNull(), stoppedAt: timestamp("stopped_at"),
+}, (t) => [uniqueIndex("mailing_enrollment_org_program_sub_uq").on(t.organizationId, t.programId, t.subscriberId)]);
+
+export const mailingSend = pgTable("mailing_send", {
+  id: text("id").primaryKey(), organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  programId: text("program_id").notNull().references(() => mailingProgram.id, { onDelete: "cascade" }),
+  enrollmentId: text("enrollment_id").notNull().references(() => mailingEnrollment.id, { onDelete: "cascade" }),
+  subscriberId: text("subscriber_id").notNull().references(() => mailingSubscriber.id, { onDelete: "cascade" }),
+  stepIndex: integer("step_index").notNull(), dueAt: timestamp("due_at").notNull(),
+  status: text("status", { enum: ["pending", "sending", "accepted", "failed", "uncertain", "skipped"] }).notNull().default("pending"),
+  nextAttemptAt: timestamp("next_attempt_at"), firstAttemptAt: timestamp("first_attempt_at"),
+  attempts: integer("attempts").notNull().default(0), leaseUntil: timestamp("lease_until"),
+  payload: jsonb("payload").$type<{ from: string; to: string; reply_to?: string; subject: string; html: string; text: string; headers: Record<string, string> }>(),
+  providerMessageId: text("provider_message_id"), lastError: text("last_error"),
+  acceptedAt: timestamp("accepted_at"), deliveredAt: timestamp("delivered_at"),
+  openedAt: timestamp("opened_at"), clickedAt: timestamp("clicked_at"), outcome: text("outcome"),
+}, (t) => [uniqueIndex("mailing_send_org_identity_uq").on(t.organizationId, t.programId, t.subscriberId, t.stepIndex), index("mailing_send_org_due_idx").on(t.organizationId, t.status, t.dueAt), uniqueIndex("mailing_send_provider_uq").on(t.providerMessageId)]);
+
+export const mailingEvent = pgTable("mailing_event", {
+  id: text("id").primaryKey(), organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  sendId: text("send_id").notNull().references(() => mailingSend.id, { onDelete: "cascade" }),
+  providerEventId: text("provider_event_id").notNull(), kind: text("kind").notNull(), occurredAt: timestamp("occurred_at").notNull(),
+}, (t) => [uniqueIndex("mailing_event_org_provider_uq").on(t.organizationId, t.providerEventId)]);

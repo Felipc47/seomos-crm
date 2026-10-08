@@ -81,3 +81,7 @@ export function templatesRequireApproval(role: string): boolean {
 export function canApproveTemplates(role: string): boolean {
   return isOrgAdmin(role);
 }
+
+export function canManageMailing(role: string): boolean {
+  return ["owner", "admin", "marketing", "commercial", "member"].includes(role);
+}

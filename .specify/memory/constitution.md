@@ -1,28 +1,15 @@
 <!--
-SYNC IMPACT REPORT
-==================
-Versión: 1.4.0 → 1.5.0
-
-Cambios:
-  - Principio II "Soberanía / Self-Hosted" → ENMIENDA aprobada por el dueño
-    (2026-08-26, feature 026): se amplía el uso permitido de Resend a correos
-    transaccionales de restablecimiento de contraseña, además de avisos de
-    nuevos leads y resúmenes operativos. Se mantienen el adaptador dedicado,
-    el secreto solo en runtime y la degradación segura ante fallos.
-  - Resto de principios: íntegros (sin cambio semántico).
-
-Bump: MINOR (1.4.0 → 1.5.0) — expansión material del uso permitido de una
-dependencia existente; sin agregar proveedores ni redefinir otros principios.
-
-Plantillas dependientes:
-  - .specify/templates/plan-template.md — ✅ compatible.
-  - .specify/templates/spec-template.md — ✅ compatible.
-  - .specify/templates/tasks-template.md — ✅ compatible.
-  - AGENTS.md — ✅ actualizado.
-  - CLAUDE.md — ✅ actualizado.
-
-TODOs diferidos: ninguno.
+SYNC IMPACT REPORT — 2026-10-08
+Versión: 1.5.0 → 2.0.0 (MAJOR: redefinición del foco vertical VIII).
+Autorización: solicitud explícita del dueño en esta conversación: campañas de
+mailing, automatizaciones por tiempo y remitente propio mediante DNS.
+II: ampliar Resend a marketing por email y verificación de dominios de envío.
+VIII: permitir módulo exclusivo de email, independiente de WhatsApp, por empresa.
+I, III, IV, V, VI, VII, IX: preservados.
+AGENTS.md y CLAUDE.md sincronizados. Plantillas spec/plan/tasks compatibles:
+no contienen restricciones de canal. Feature 028 registra decisiones y pruebas.
 -->
+
 
 # Seomos CRM Constitution
 
@@ -68,10 +55,11 @@ dependencias externas en runtime es CERRADA:
      refresh token se cifra en reposo (Principio I). Sin conexión configurada, el
      producto funciona completo sin agendamiento; su fallo degrada sin colgar
      ninguna otra función.
-  4. **Resend**, opcional (enmiendas 1.4.0 y 1.5.0, aprobadas por el dueño el
-     2026-08-12 y 2026-08-26), EXCLUSIVAMENTE para correo transaccional de avisos
-     de nuevos leads, resúmenes operativos del CRM y enlaces de restablecimiento
-     de contraseña: accedido tras un adaptador dedicado, con API key solo en
+  4. **Resend**, opcional (enmiendas 1.4.0, 1.5.0 y 2.0.0; última aprobada
+     por el dueño el 2026-10-08), para correo transaccional de avisos de nuevos
+     leads, resúmenes operativos y restablecimiento de contraseña, además del
+     módulo de campañas y secuencias de marketing por email con dominios de
+     remitente verificados mediante DNS: accedido tras un adaptador dedicado, con API key solo en
      variables de runtime y entregas idempotentes cuando corresponda. Sin
      configuración o ante un fallo del proveedor, el CRM conserva sus datos y
      credenciales y continúa sin colgar el flujo principal.
@@ -159,25 +147,24 @@ Las decisiones tomadas sin contexto suficiente se documentan para revisión huma
 **Rationale**: Las decisiones implícitas bajo incertidumbre son la principal fuente
 de deuda oculta; hacerlas visibles permite corregirlas a tiempo.
 
-### VIII. Foco Vertical — CRM de Conversaciones y Leads de WhatsApp
+### VIII. Foco Vertical — Conversaciones, Leads y Mailing por Empresa
 
-Es un CRM de conversaciones y leads de WhatsApp que las agencias despliegan para
-negocios. No es plataforma de marketing masivo, ni constructor visual de flujos, ni
-herramienta de scraping. Lo que no ayude a *atender, organizar y convertir
-conversaciones de WhatsApp de UN negocio* se rechaza.
+Seomos conserva el CRM de WhatsApp y añade un módulo exclusivo de email por empresa
+(enmienda 2.0.0, solicitada por el dueño el 2026-10-08). Mailing administra listas,
+suscriptores, campañas y secuencias temporales sin requerir teléfono ni WhatsApp.
 
-- El modelo de datos y los flujos MUST reflejar ese dominio: contactos que escriben
-  por WhatsApp, conversaciones con ventana de 24h, leads en un pipeline, un agente
-  de IA que atiende con el conocimiento del negocio y escala a humanos.
-- WhatsApp Cloud API es el canal; el producto es el CRM. Features de canal que no
-  sirvan a atender/organizar/convertir (broadcast masivo, scraping de números,
-  flujos visuales genéricos) quedan FUERA del alcance de v1.
-- Toda feature MUST servir a la agencia que despliega o al negocio que opera UNA
-  instancia. Lo que solo sirva a una plataforma centralizada (billing, planes,
-  multi-instancia) queda FUERA.
+- Las funciones WhatsApp mantienen ventana de 24h, plantillas y guardas existentes.
+- El consentimiento y las bajas de email son independientes de los de WhatsApp.
+- Mailing usa dominios de remitente verificados, bajas por empresa, envíos
+  persistentes/idempotentes y límites compartidos del proveedor. No admite scraping
+  ni destinatarios sin permiso registrado.
+- Las secuencias y listas se gestionan self-hosted; Resend se usa tras adaptador
+  dedicado para DNS de remitentes, envío y eventos de entrega.
+- El alcance sirve a cada empresa aislada de la instancia, sin billing ni servicios
+  adicionales fuera de la lista cerrada del Principio II.
 
-**Rationale**: Un foco vertical explícito mantiene el modelo de datos alineado con el
-negocio real y da un criterio claro para aceptar o rechazar alcance.
+**Rationale**: Atender el alcance de mailing explícitamente solicitado preservando
+la soberanía, las fronteras de tenant y los comportamientos existentes del CRM.
 
 ### IX. Verificación de Comportamiento en Vivo (NO NEGOCIABLE)
 
@@ -268,4 +255,4 @@ práctica, convención o preferencia; ante un conflicto, gana la constitución.
 - **Propagación**: al enmendar la constitución se revisan y, si procede, se actualizan
   las plantillas dependientes (plan, spec, tasks).
 
-**Version**: 1.5.0 | **Ratified**: 2026-07-09 | **Last Amended**: 2026-08-26
+**Version**: 2.0.0 | **Ratified**: 2026-07-09 | **Last Amended**: 2026-10-08

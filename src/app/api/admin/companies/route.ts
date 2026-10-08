@@ -29,6 +29,7 @@ export const GET = withAuth(async (session) => {
       name: schema.organization.name,
       createdAt: schema.organization.createdAt,
       deletedAt: schema.organization.deletedAt,
+      mailingEnabled: schema.organization.mailingEnabled,
     })
     .from(schema.organization)
     .orderBy(schema.organization.createdAt);
@@ -80,6 +81,7 @@ export const GET = withAuth(async (session) => {
     companies: orgs.map((o) => ({
       id: o.id,
       name: o.name,
+      mailingEnabled: o.mailingEnabled,
       createdAt: o.createdAt.toISOString(),
       members: membersBy.get(o.id) ?? 0,
       contacts: contactsBy.get(o.id) ?? 0,

@@ -13,6 +13,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -20,6 +21,7 @@ import { useToast } from "@/components/ui/toast";
 type CompanyDto = {
   id: string;
   name: string;
+  mailingEnabled: boolean;
   createdAt: string;
   members: number;
   contacts: number;
@@ -560,6 +562,8 @@ function CreatedBanner({
 }
 
 export function CompaniesClient() {
+  const router = useRouter();
+  const [mailingBusy, setMailingBusy] = useState<string | null>(null);
   const toast = useToast();
   const [companies, setCompanies] = useState<CompanyDto[] | null>(null);
   const [ownOrgId, setOwnOrgId] = useState<string | null>(null);
@@ -583,6 +587,30 @@ export function CompaniesClient() {
     setCompanies(data.companies);
     setOwnOrgId(data.ownOrganizationId);
   }, []);
+
+  async function toggleMailing(company: CompanyDto) {
+    if (mailingBusy) return;
+    setMailingBusy(company.id);
+    try {
+      const res = await fetch(`/api/admin/companies/${company.id}/mailing`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ enabled: !company.mailingEnabled }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null) as { error?: { message?: string } } | null;
+        toast(data?.error?.message ?? "No se pudo cambiar el acceso a Mailing");
+        return;
+      }
+      await refetch();
+      router.refresh();
+      toast(`Mailing ${company.mailingEnabled ? "deshabilitado" : "habilitado"} para «${company.name}»`);
+    } catch {
+      toast("Sin conexión con el servidor");
+    } finally {
+      setMailingBusy(null);
+    }
+  }
 
   const restore = useCallback(
     async (company: CompanyDto) => {
@@ -678,7 +706,25 @@ export function CompaniesClient() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="ml-14 flex basis-full flex-wrap items-center gap-2 sm:ml-0 sm:basis-auto sm:flex-nowrap">
+                  <div className="ml-14 flex basis-full flex-wrap items-center gap-2 sm:ml-0 sm:basis-auto">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={c.mailingEnabled}
+                      aria-label={`Mailing para ${c.name}`}
+                      disabled={mailingBusy !== null}
+                      onClick={() => void toggleMailing(c)}
+                      title="Habilitar o deshabilitar Mailing para esta empresa"
+                      className={cn(
+                        "flex min-h-9 items-center gap-2 rounded-[9px] border px-2.5 py-1.5 text-[12.5px] font-bold transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-soft",
+                        c.mailingEnabled ? "border-brand/35 bg-brand-tint text-brand" : "bg-surface-2 text-mute hover:text-foreground"
+                      )}
+                    >
+                      <span aria-hidden className={cn("flex h-4 w-7 items-center rounded-full px-0.5", c.mailingEnabled ? "bg-brand" : "bg-mute/40")}>
+                        <span className={cn("h-3 w-3 rounded-full bg-white transition-transform", c.mailingEnabled && "translate-x-3")} />
+                      </span>
+                      {mailingBusy === c.id ? "Guardando…" : `Mailing ${c.mailingEnabled ? "activo" : "inactivo"}`}
+                    </button>
                     <button
                       onClick={() => setCreditsOf(c)}
                       title="Ver y recargar créditos de IA"

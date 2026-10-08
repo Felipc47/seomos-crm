@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
 import { mockGuard } from "@/lib/dev-guard";
 import { getResendMockState } from "@/server/dev/resend-mock-state";
 
@@ -10,6 +11,9 @@ const bodySchema = z.object({
   subject: z.string(),
   html: z.string(),
   text: z.string(),
+  headers: z.record(z.string()).optional(),
+  reply_to: z.string().optional(),
+  tags: z.array(z.object({ name: z.string(), value: z.string() })).optional(),
 });
 
 export async function POST(req: Request) {
@@ -25,6 +29,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "invalid_body" }, { status: 400 });
   }
   const state = getResendMockState();
+  if (state.statusNext) { const status = state.statusNext; state.statusNext = 0; return Response.json({ error: "forced_status" }, { status, headers: { "retry-after": "60" } }); }
   if (state.failNext > 0) {
     state.failNext--;
     return Response.json({ error: "forced_failure" }, { status: 500 });
@@ -33,7 +38,8 @@ export async function POST(req: Request) {
     (email) => email.idempotencyKey === idempotencyKey
   );
   if (duplicate) return Response.json({ id: duplicate.id });
-  const id = `re_mock_${state.outbox.length + 1}`;
+  const id = `re_mock_${randomUUID()}`;
   state.outbox.push({ id, idempotencyKey, ...parsed.data });
+  if (state.malformedNext > 0) { state.malformedNext--; return Response.json({ unexpected: true }); }
   return Response.json({ id });
 }

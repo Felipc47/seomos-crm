@@ -12,6 +12,7 @@ import {
   Kanban,
   LayoutDashboard,
   LogOut,
+  Mail,
   Megaphone,
   Moon,
   Settings,
@@ -36,6 +37,7 @@ const NAV = [
   { href: "/agent", label: "Agente", icon: Sparkles, roles: ["owner", "agent_editor"] },
   { href: "/templates", label: "Plantillas", icon: FileText, roles: ["owner", "commercial", "marketing"] },
   { href: "/campaigns", label: "Envío masivo", icon: Megaphone, roles: ["owner", "commercial", "marketing"] },
+  { href: "/mailing", label: "Mailing", icon: Mail, roles: ["owner", "commercial", "marketing"] },
   { href: "/services", label: "Servicios", icon: Briefcase, roles: ["owner", "commercial", "marketing"] },
 ] as const;
 
@@ -56,12 +58,14 @@ export function AppNav({
   userImage,
   role,
   isSuperadmin = false,
+  mailingEnabled = false,
 }: {
   branding: Branding;
   userName: string;
   userImage?: string | null;
   role: string;
   isSuperadmin?: boolean;
+  mailingEnabled?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -69,7 +73,7 @@ export function AppNav({
   const [unread, setUnread] = useState(0);
   const normalizedRole = normalizeRole(role);
   const nav = [
-    ...NAV.filter((i) => (i.roles as readonly string[]).includes(normalizedRole)),
+    ...NAV.filter((i) => (i.roles as readonly string[]).includes(normalizedRole) && (i.href !== "/mailing" || mailingEnabled)),
     ...(isSuperadmin ? SUPERADMIN_NAV : []),
   ];
   /* En mobile la sidebar no cabe: la navegación baja a una tab bar con las
