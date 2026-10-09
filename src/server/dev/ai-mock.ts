@@ -5,6 +5,8 @@
  * el gate de mocks está activo.
  */
 
+import { findHelpGuides, HELP_GUIDES } from "@/lib/help-guides";
+
 type ContentPart =
   | { type: "text"; text?: string }
   | { type: "image_url"; image_url?: { url?: string } };
@@ -101,6 +103,22 @@ export function aiMockCompletion(messages: InMessage[]): string {
   const lastUser = flattenContent(
     [...messages].reverse().find((m) => m.role === "user")?.content ?? ""
   );
+
+  // 029: prueba del chat de ayuda; solo se usa tras el gate interno de mocks.
+  if (system.includes("asistente de ayuda de Seomos CRM")) {
+    const context = JSON.parse(lastUser) as { question: string; currentScreen: { pathname: string }; conversation: { role: string; content: string }[] };
+    if (context.question.includes("FORMATO_INVALIDO")) return "No puedo devolver JSON esta vez";
+    if (context.question.includes("FORMATO_ENVUELTO")) return 'Aquí va la respuesta:\n```json\n{"answer":"Puedes actualizar tu perfil en Ajustes → Perfil.","guideIds":["profile"]}\n```';
+    if (context.question.includes("GUIA_NO_AUTORIZADA")) return JSON.stringify({ answer: "Abre la sección de empresas.", guideIds: ["companies"] });
+    const authorizedIds = new Set([...system.matchAll(/"id":"([a-z-]+)"/g)].map((match) => match[1]));
+    const available = HELP_GUIDES.filter((guide) => authorizedIds.has(guide.id));
+    let selected = findHelpGuides(context.question, context.currentScreen.pathname, available);
+    if (selected.length === 0 && /despu[eé]s|ese|esa|siguiente/i.test(context.question)) {
+      const previous = [...context.conversation].reverse().find((message) => message.role === "user");
+      if (previous) selected = findHelpGuides(previous.content, context.currentScreen.pathname, available);
+    }
+    return JSON.stringify({ answer: selected[0]?.summary ?? "Puedo ayudarte con el CRM. ¿Qué quieres hacer y en qué pantalla estás? Si no tienes acceso a una función, consulta al administrador.", guideIds: selected.slice(0, 1).map((guide) => guide.id) });
+  }
 
   // 027: borrador completo del asistente de configuración. La respuesta es
   // determinista para que el E2E pueda verificar todos los campos sin llamar

@@ -6,6 +6,7 @@ import { getSessionOrNull } from "@/lib/auth/session";
 import { getBranding } from "@/server/branding";
 import { AppNav } from "@/components/app-nav";
 import { ToastProvider } from "@/components/ui/toast";
+import { HelpChat } from "@/components/help/help-chat";
 
 export default async function AppLayout({
   children,
@@ -29,6 +30,7 @@ export default async function AppLayout({
           mailingEnabled={mailingEnabled}
         />
         <main className="min-w-0 flex-1 overflow-hidden">{children}</main>
+        <HelpChat role={session.role} isSuperadmin={session.isSuperadmin} mailingEnabled={mailingEnabled} />
       </div>
     </ToastProvider>
   );
