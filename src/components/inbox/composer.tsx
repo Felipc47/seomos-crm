@@ -211,7 +211,7 @@ export function Composer({
 
   if (!conversation.windowOpen) {
     return (
-      <div className="border-t bg-background px-[18px] py-3.5">
+      <div data-help="composer" className="border-t bg-background px-[18px] py-3.5">
         <div className="mb-3 flex items-start gap-2 rounded-md border border-[color:var(--warning-border)] bg-[color:var(--warning-bg)] p-3 text-sm text-[color:var(--warning-fg)]">
           <Clock3 className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.7} />
           <div>
@@ -229,7 +229,7 @@ export function Composer({
   }
 
   return (
-    <div className="border-t bg-background px-[18px] pb-3.5 pt-3">
+    <div data-help="composer" className="border-t bg-background px-[18px] pb-3.5 pt-3">
       {templates.length > 0 && (
         <div className="mb-2.5 flex flex-wrap gap-2">
           {templates.slice(0, 4).map((t) => (

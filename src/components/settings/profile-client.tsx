@@ -167,6 +167,7 @@ export function ProfileClient() {
               />
               <div className="flex gap-2">
                 <Button
+                  data-help="profile-photo"
                   size="sm"
                   variant="secondary"
                   disabled={busyPhoto}
@@ -196,6 +197,7 @@ export function ProfileClient() {
             <Label htmlFor="profile-name">Nombre</Label>
             <Input
               id="profile-name"
+              data-help="profile-name"
               maxLength={80}
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -217,6 +219,7 @@ export function ProfileClient() {
           {error && <p className="text-sm text-destructive">{error}</p>}
           {saved && <p className="text-sm text-brand-text">Perfil guardado ✓</p>}
           <Button
+            data-help="profile-save"
             disabled={saving || !name.trim() || name.trim() === profile.name}
             onClick={() => void saveName()}
           >

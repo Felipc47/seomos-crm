@@ -25,3 +25,12 @@ T001→T002→T003/T005→T004→T007→T006/T008→T009→T010. MVP: US1; entre
 
 ## Resultado 2026-10-09
 Gate final verde: 49 archivos / 341 pruebas unitarias. E2E: 65 comprobaciones verdes, repetido tras ajustar textos y foco. QA adicional del tema oscuro con respuesta del mock. Producción no desplegada. Cambios previos ajenos preservados.
+
+## Revisión 2026-10-11
+- [x] T011 Especificar guía interactiva y límites de contexto local.
+- [x] T012 Documentar controles exactos e intenciones de pausar/reactivar IA.
+- [x] T013 Implementar catálogo, marcadores y coach que señala controles reales.
+- [x] T014 Simplificar respuestas y mantener progreso, navegación, estados y accesibilidad.
+- [x] T015 Probar intención, permisos, guía real, no mutación automática, fallos y móvil.
+- [x] T016 Ejecutar gate técnico, QA visual y registrar evidencia (344 unidades, 39 + 68 comprobaciones E2E).
+- [ ] T017 Publicar la mejora y verificar el chat en producción, continuando la autorización de despliegue de esta conversación.

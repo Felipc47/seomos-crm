@@ -68,6 +68,7 @@ export function AiConversationHeaderControl({
       )}
       title={label}
       data-testid="chat-ai-control"
+      data-help="chat-ai"
     >
       <Sparkles
         className={cn(

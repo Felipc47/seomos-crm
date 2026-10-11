@@ -533,10 +533,14 @@ export function InboxClient() {
   );
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full" data-help="inbox"
+      data-help-state={selected ? "selected" : "empty"}
+      data-help-ai={!selected ? undefined : selected.contact.blockedAt ? "blocked" : agentAvailability === null || aiUpdatingId === selected.id ? "loading" : !selected.aiEnabled || selected.handoffAt ? "paused" : !agentAvailability.enabled || !agentAvailability.aiConfigured ? "unavailable" : "active"}
+      data-help-window={selected ? selected.windowOpen ? "open" : "closed" : undefined}>
       {/* Master-detail en mobile: lista a pantalla completa sin selección;
           con selección se muestra solo el hilo (botón atrás en el header). */}
       <section
+        data-help="conversation-list"
         className={cn(
           "w-full shrink-0 overflow-hidden md:w-[400px] md:border-r",
           selected && "hidden md:block"

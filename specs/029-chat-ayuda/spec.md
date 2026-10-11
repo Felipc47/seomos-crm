@@ -2,7 +2,7 @@
 
 **Feature Branch**: `codex/029-chat-ayuda`
 **Created**: 2026-10-09
-**Status**: Implementado y verificado localmente; pendiente de publicación en producción
+**Status**: Versión inicial publicada el 2026-10-09 (bd13b70); mejora interactiva verificada localmente el 2026-10-11, publicación en curso.
 **Input**: Chat emergente de preguntas y respuestas que enseñe a utilizar la herramienta.
 
 ## User Scenarios & Testing
@@ -29,6 +29,14 @@ Como usuario quiero poder continuar si no hay IA, la respuesta es inválida o se
 2. Sin red se conserva la pregunta, se libera el estado de carga y se permite reintentar.
 3. Si la documentación no cubre la pregunta, pide aclaración sin afirmar capacidades inventadas.
 
+### US4 — Aprender haciendo, en la pantalla real (P1, revisión 2026-10-11)
+El usuario considera que la respuesta actual es genérica: al preguntar cómo inactivar la IA de un chat, dice «revisa el control del agente» sin identificarlo. Quiere que la ayuda guíe de verdad.
+1. «Guíame en pantalla» transforma la respuesta en una guía compacta con un paso por vez y resalta el control real, dejando la aplicación utilizable.
+2. Para pausar la IA de un chat, pide seleccionar la conversación si hace falta, señala «IA en esta conversación» en la cabecera y avanza solo al observar «IA pausada». Si ya está pausada o no está disponible, explica el estado y no pide repetir la acción.
+3. El usuario hace los clics, guarda y envía; iniciar una guía no cambia datos. La guía puede cerrarse, retomarse y navegar a la sección necesaria sin perder el contexto.
+4. Respuestas breves, sin repetir un párrafo y la misma lista. Las instrucciones completas quedan desplegables; las tareas frecuentes tienen objetivos concretos en pantalla (Bandeja, Contactos, Perfil, Agente y Mailing).
+5. Los marcadores de UI y su geometría se observan localmente. Solo estados enumerados sin nombres, teléfonos, mensajes ni valores de formularios pueden acompañar una consulta a la IA. Un control ausente no genera una afirmación de éxito.
+
 ### Edge Cases
 Pregunta vacía o demasiado larga; historial manipulado; rutas y enlaces inventados; consultas fuera del CRM; permisos insuficientes; móvil pequeño; múltiples envíos; cambio de pantalla; proveedor lento; cierre mientras responde.
 
@@ -41,6 +49,8 @@ Pregunta vacía o demasiado larga; historial manipulado; rutas y enlaces inventa
 - **FR-006**: Degradación a guías locales ante falta/fallo de IA; recuperación de errores de red y espera acotada.
 - **FR-007**: Inputs acotados, validación de salida y enlaces por catálogo; límite por usuario/empresa antes de llamar al proveedor.
 - **FR-008**: Abrir, cerrar, teclado, iniciar otra conversación y navegar funcionan en escritorio y móvil.
+- **FR-009**: Guías interactivas con controles versionados, progreso y resaltado que se ajusta al desplazamiento y tamaño de pantalla.
+- **FR-010**: Intención de pausar/reactivar IA de una conversación reconocida incluso con variantes y errores leves de escritura; usa los nombres exactos y el estado de la UI.
 
 ## Key Entities
 Guía versionada (título, resumen, palabras clave, pasos, ruta, permisos); mensaje temporal (autor, contenido); respuesta (explicación, guías, modo).
@@ -54,3 +64,4 @@ Ayuda interna para usuarios del CRM; no es el agente que responde a clientes por
 - **SC-003**: Fallo del proveedor y respuesta inválida terminan en guía útil; fallo de red permite reintentar sin perder la pregunta.
 - **SC-004**: Panel sin desbordamiento a 390×844 y 1440×1000; teclado y foco verificados.
 - **SC-005**: Typecheck, lint, build y tests verdes, con evidencia local guardada.
+- **SC-006**: E2E prueba selección, pausa explícita por el usuario, estado ya pausado/no disponible, navegación, cierre y móvil; empezar la guía no modifica la conversación ni envía mensajes.

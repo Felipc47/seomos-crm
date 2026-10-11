@@ -1,5 +1,15 @@
 # Verificación local — Chat de ayuda (029)
 
+## Revisión del 2026-10-11 — Aprender en la pantalla
+- Gate técnico: typecheck, lint, build y 49 archivos / 344 pruebas unitarias verdes.
+- `BASE_URL=http://localhost:3100 node tests/e2e/us39-help-tours.mjs`: 39 comprobaciones verdes. Ejercicio real: seleccionar un chat, señalar el interruptor exacto, pausa mediante clic del usuario, comprobación del estado y conservación de la IA del segundo chat. También estado ya pausado, control ausente, IA no disponible, pregunta/retoma, navegación, Escape, privacidad del contexto y móvil.
+- `BASE_URL=http://localhost:3100 node tests/e2e/us38-help-chat.mjs`: 68 comprobaciones verdes. Incluye la guía de Automatizaciones de Mailing junto a permisos, fallos del proveedor y red, formato inesperado y aislamiento originales.
+- Evidencia en `.artifacts/us39-help-tours/`: `result.json`, `desktop-pause-control.png`, `desktop-paused-confirmed.png`, `desktop-profile-control.png`, `mobile-pause-control.png`, `mobile-unavailable.png`. Revisión visual del resaltado preciso y coach compacto en 1440×1000 y 390×844.
+- Base local nueva y aislada `seomos_help_guided_029` en PostgreSQL :5433. Usa los mismos overrides de mocks de abajo y secretos locales de prueba. El guion de tours deja acabar el debounce de los entrantes con el agente apagado antes de preparar los chats; así evita que un handoff automático compita con el clic que está probando.
+- Pausa/reactivación y atención humana usan orientación determinista con el nombre real del control, sin llamadas al proveedor. Otros temas conservan el adaptador y su fallback.
+- No se añaden tablas, migraciones, dependencias ni credenciales. El contexto enviado al asistente se limita a estados enumerados; no contiene nombres, teléfonos, IDs de conversaciones ni mensajes de WhatsApp.
+- Publicación: pendiente de confirmar la actualización de producción.
+
 ## Resultado del 2026-10-09
 - `pnpm typecheck && pnpm lint && pnpm build && pnpm test`: verde; 49 archivos, 341 pruebas (10 específicas del chat).
 - `BASE_URL=http://localhost:3100 node tests/e2e/us38-help-chat.mjs`: 65 comprobaciones verdes, en dos ejecuciones completas.

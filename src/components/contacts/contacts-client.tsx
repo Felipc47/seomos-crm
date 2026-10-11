@@ -239,6 +239,7 @@ export function ContactsClient() {
           <Search className="h-4 w-4 shrink-0 text-faint" strokeWidth={2} />
           <input
             placeholder="Buscar por nombre o teléfono…"
+            data-help="contacts-search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="w-full bg-transparent text-[16px] outline-none placeholder:text-faint md:text-[13px]"
@@ -246,7 +247,7 @@ export function ContactsClient() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-10 pt-5 md:px-[30px]">
+      <div data-help="contacts-results" className="flex-1 overflow-y-auto px-4 pb-10 pt-5 md:px-[30px]">
         {contacts.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
             <p className="text-sm font-medium">Sin contactos</p>

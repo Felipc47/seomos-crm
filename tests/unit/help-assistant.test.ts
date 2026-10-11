@@ -26,7 +26,7 @@ describe("documentación de ayuda según acceso e intención", () => {
   });
   it("el editor solo recibe la operación de bandeja, agente y cuenta", () => {
     const guides = getHelpGuides({ role: "agent_editor", isSuperadmin: false, mailingEnabled: true });
-    expect(guides.map((guide) => guide.id)).toEqual(["inbox", "whatsapp-window", "handoff", "agent", "knowledge", "profile", "password"]);
+    expect(guides.map((guide) => guide.id)).toEqual(["inbox", "whatsapp-window", "pause-agent", "resume-agent", "handoff", "agent", "knowledge", "profile", "password"]);
   });
   it("marketing recibe Mailing operativo cuando está habilitado, sin configurar DNS", () => {
     const guides = getHelpGuides({ role: "marketing", isSuperadmin: false, mailingEnabled: true });
@@ -37,6 +37,15 @@ describe("documentación de ayuda según acceso e intención", () => {
     expect(helpRequestSchema.safeParse({ ...input, question: " " }).success).toBe(false);
     expect(helpRequestSchema.safeParse({ ...input, history: Array.from({ length: 7 }, () => ({ role: "user", content: "hola" })) }).success).toBe(false);
     expect(helpRequestSchema.safeParse({ ...input, role: "owner" }).success).toBe(false);
+    expect(helpRequestSchema.safeParse({ ...input, context: { conversation: "selected", name: "Dato privado" } }).success).toBe(false);
+    expect(helpRequestSchema.safeParse({ ...input, context: { conversation: "selected", ai: "inventado" } }).success).toBe(false);
+  });
+  it("distingue pausar un chat, reactivarlo y modificar el agente general", () => {
+    const guides = getHelpGuides(admin);
+    expect(findHelpGuides("comp uedo inactivar la ia en un chat especifico", "/inbox", guides)[0]?.id).toBe("pause-agent");
+    expect(findHelpGuides("encender la ia en esta conversacion", "/inbox", guides)[0]?.id).toBe("resume-agent");
+    expect(findHelpGuides("desactivar la ia en todos los chats de la empresa", "/inbox", guides)[0]?.id).toBe("agent");
+    expect(findHelpGuides("desactivar la ia en toda la empresa", "/inbox", getHelpGuides(commercial))).toEqual([]);
   });
 });
 
@@ -51,6 +60,31 @@ describe("respuesta fundamentada y degradación del proveedor", () => {
     vi.stubEnv("OPENROUTER_MODEL", "test-model");
   });
   afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+  it("orienta con nombres exactos y estado pausado sin llamar al proveedor", async () => {
+    const fetch = vi.fn(); vi.stubGlobal("fetch", fetch);
+    const reply = await answerHelpQuestion({ question: "inactivar ia en un chat", pathname: "/inbox", context: { conversation: "selected", ai: "paused" } }, commercial);
+    expect(reply.guides[0]?.id).toBe("pause-agent");
+    expect(reply.answer).toContain("ya muestra IA pausada");
+    expect(reply.guides[0]?.steps.join(" ")).toContain("IA en esta conversación");
+    expect(fetch).not.toHaveBeenCalled();
+    const followup = await answerHelpQuestion({ question: "No encuentro ese interruptor", pathname: "/inbox", history: [{ role: "user", content: "inactivar ia en un chat" }] }, commercial);
+    expect(followup.guides[0]?.id).toBe("pause-agent");
+    expect(fetch).not.toHaveBeenCalled();
+    vi.stubEnv("OPENROUTER_API_TOKEN", "");
+    const newTask = await answerHelpQuestion({ question: "Ahora quiero editar un contacto", pathname: "/inbox", history: [{ role: "user", content: "inactivar ia en un chat" }] }, commercial);
+    expect(newTask.guides[0]?.id).toBe("contacts");
+  });
+  it("distingue selección pendiente, bloqueo e IA no disponible", async () => {
+    const question = { question: "apagar ia de este chat", pathname: "/inbox" };
+    const noSelection = await answerHelpQuestion({ ...question, context: { conversation: "none" } }, commercial);
+    expect(noSelection.answer).toContain("Primero abre el chat");
+    const unavailable = await answerHelpQuestion({ ...question, context: { conversation: "selected", ai: "unavailable" } }, commercial);
+    expect(unavailable.answer).toContain("interruptor está deshabilitado");
+    const blocked = await answerHelpQuestion({ ...question, context: { conversation: "selected", ai: "blocked" } }, commercial);
+    expect(blocked.answer).toContain("Este chat está bloqueado");
+    const otherScreen = await answerHelpQuestion({ ...question, pathname: "/settings/profile", context: { conversation: "selected", ai: "paused" } }, commercial);
+    expect(otherScreen.answer).not.toContain("ya muestra");
+  });
   it("extrae JSON envuelto y solo expone enlaces del catálogo autorizado", async () => {
     const fetch = vi.fn().mockResolvedValue(completion('Respuesta:\n```json\n{"answer":"Puedes cambiar la etapa en el tablero.","guideIds":["pipeline"]}\n```'));
     vi.stubGlobal("fetch", fetch);

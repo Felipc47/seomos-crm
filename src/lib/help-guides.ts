@@ -28,10 +28,22 @@ export const HELP_GUIDES: HelpGuide[] = [
     steps: ["Abre la conversación y revisa si la ventana está cerrada.", "Selecciona una plantilla aprobada disponible en el compositor y completa sus variables.", "Revisa el mensaje antes de enviarlo. Una respuesta del cliente vuelve a abrir la ventana.", "Si no hay plantillas disponibles o falla la conexión, pide al administrador que revise las plantillas y la conexión de WhatsApp."],
   },
   {
+    id: "pause-agent", title: "Pausar la IA solo en este chat", href: "/inbox", access: "all",
+    question: "¿Cómo desactivo la IA en un chat específico?", keywords: "pausar desactivar inactivar apagar detener silenciar ia bot agente chat conversacion especifico manual",
+    summary: "Abre ese chat en Bandeja. En la cabecera, a la derecha del nombre del contacto, apaga el interruptor «IA en esta conversación». Debe pasar de IA activa a IA pausada; los otros chats siguen igual.",
+    steps: ["Abre en Bandeja la conversación donde quieres detener las respuestas automáticas.", "En la cabecera, a la derecha del nombre del contacto, localiza el interruptor IA en esta conversación junto al icono de destellos.", "Apaga ese interruptor y espera a que la cabecera muestre IA pausada. El cambio afecta solo a esta conversación.", "Para devolver el chat al agente, enciende el mismo interruptor cuando quieras reactivar la atención."],
+  },
+  {
+    id: "resume-agent", title: "Reactivar la IA en este chat", href: "/inbox", access: "all",
+    question: "¿Cómo reactivo la IA en una conversación?", keywords: "reactivar activar encender retomar devolver ia bot agente chat conversacion",
+    summary: "En ese chat de Bandeja, enciende el interruptor «IA en esta conversación» de la cabecera. Debe mostrar IA activa. Al reactivarlo puede retomar respuestas pendientes si la ventana de WhatsApp está abierta.",
+    steps: ["Abre la conversación que quieres devolver al agente.", "En la cabecera enciende IA en esta conversación y espera a que muestre IA activa.", "Si está deshabilitado y dice IA no disponible, el administrador debe revisar que el agente general esté activado y configurado.", "La reactivación puede retomar una respuesta pendiente con la ventana abierta; fuera de la ventana de 24 horas el agente no puede enviar texto libre."],
+  },
+  {
     id: "handoff", title: "Atender una conversación personalmente", href: "/inbox", access: "all",
     question: "¿Cómo tomo el control de una conversación?", keywords: "humano tomar control pausar agente conversacion atencion manual bot ia silencio",
-    summary: "La conversación permite alternar la atención del agente y la atención humana. Revisa ese estado para evitar respuestas automáticas mientras atiendes.",
-    steps: ["Abre la conversación que vas a atender en Bandeja.", "Revisa el control del agente en la conversación y pausa la atención automática si vas a responder personalmente.", "Responde desde el compositor y revisa el historial.", "Cuando termines, decide si reactivas el agente para esa conversación."],
+    summary: "En el chat de Bandeja, apaga «IA en esta conversación» en la cabecera. Cuando muestre IA pausada, puedes atender personalmente sin nuevas respuestas automáticas del agente.",
+    steps: ["Abre la conversación que vas a atender en Bandeja.", "Apaga el interruptor IA en esta conversación en la cabecera, junto al icono de destellos, y espera IA pausada.", "Escribe tu respuesta en Escribe una respuesta… y pulsa Enviar cuando hayas revisado el mensaje. Con la ventana cerrada, usa una plantilla aprobada.", "Cuando quieras devolver la atención al agente, enciende el mismo interruptor."],
   },
   {
     id: "contacts", title: "Encontrar y editar un contacto", href: "/contacts", access: "operations",
@@ -181,6 +193,16 @@ function normalize(text: string): string {
 const stopWords = new Set("como para puedo quiero donde esta este esto esa ese con una uno unos las los del que por tengo hacer necesito ayuda despues ahora cual cuando herramienta usar uso seomos funciona saber".split(" "));
 
 export function findHelpGuides(question: string, pathname: string, guides: HelpGuide[]): HelpGuide[] {
+  const normalized = normalize(question);
+  if (/\b(ia|bot|agente)\b/.test(normalized) && /todos|global|empresa/.test(normalized) && /desactiv|inactiv|apag|paus|reactiv|activ|encend/.test(normalized)) {
+    const general = guides.find((item) => item.id === "agent");
+    return general ? [general] : [];
+  }
+  if (/\b(ia|bot|agente)\b/.test(normalized) && (/chat|conversacion/.test(normalized) || pathname === "/inbox") && !/todos|global|empresa/.test(normalized)) {
+    const specific = /desactiv|inactiv|apag|paus|deten|silenci/.test(normalized) ? "pause-agent" : /reactiv|activ|encend|devolver/.test(normalized) ? "resume-agent" : null;
+    const guide = guides.find((item) => item.id === specific);
+    if (guide) return [guide];
+  }
   const terms = [...new Set(normalize(question).split(/[^a-z0-9]+/).filter((term) => term.length >= 3 && !stopWords.has(term)))];
   const ranked = guides.map((guide) => {
     const keywords = normalize(guide.keywords).split(" ");

@@ -334,7 +334,7 @@ function ProfileSection({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div data-help="agent-identity" className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="agent-name">Nombre del agente</Label>
             <Input
@@ -354,7 +354,7 @@ function ProfileSection({
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div data-help="agent-training" className="space-y-2">
           <div className="flex items-baseline justify-between gap-2">
             <Label>Tono</Label>
             <span
@@ -601,7 +601,7 @@ function ProfileSection({
           </div>
         </div>
 
-        <Button onClick={() => void onSave(form)}>Guardar comportamiento</Button>
+        <Button data-help="agent-save" onClick={() => void onSave(form)}>Guardar comportamiento</Button>
       </CardContent>
     </Card>
   );
@@ -678,7 +678,7 @@ function KbSection({
         )}
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2 rounded-md border p-3">
+        <div data-help="knowledge-qa" className="space-y-2 rounded-md border p-3">
           <p className="text-sm font-medium">Nueva pregunta / respuesta</p>
           <Input
             placeholder="Pregunta (p. ej. ¿Hacen envíos?)"
@@ -692,6 +692,7 @@ function KbSection({
             onChange={(e) => setAnswer(e.target.value)}
           />
           <Button
+            data-help="knowledge-add"
             size="sm"
             onClick={() => void addQa()}
             disabled={!question.trim() || !answer.trim()}

@@ -61,7 +61,9 @@ try {
   assert(await panel().getByLabel("Tu pregunta sobre el CRM").evaluate((element) => element === document.activeElement), "abrir enfoca la entrada");
   const first = await ask("¿Cómo respondo a un cliente?");
   assert(first.mode === "ai" && first.guides[0]?.href === "/inbox", "respuesta de IA fundamentada y enlace de Bandeja");
-  assert(await panel().getByRole("listitem").count() >= 3, "pasos observables en la conversación");
+  assert(await panel().getByRole("button", { name: "Guíame en pantalla", exact: true }).count() >= 1, "ofrece guía interactiva como acción principal");
+  await panel().getByText("Ver instrucciones", { exact: true }).first().click();
+  assert(await panel().getByRole("listitem").count() >= 3, "instrucciones completas disponibles sin repetirlas al abrir");
   await page.screenshot({ path: path.join(artifacts, "desktop-inbox.png") });
   const followup = await ask("¿Y después?");
   assert(followup.guides[0]?.id === first.guides[0]?.id, "el seguimiento conserva tema de conversación");
@@ -107,6 +109,17 @@ try {
   assert(await panel().getByRole("button", { name: "¿Cómo creo una campaña de correo?", exact: true }).isVisible(), "Mailing habilitado ofrece sugerencia contextual");
   const mailing = await ask("¿Cómo automatizo correos a los 7, 14 y 21 días?");
   assert(mailing.guides[0]?.id === "mailing-sequence", "explica automatización por días desde inscripción");
+  await panel().getByRole("button", { name: "Guíame en pantalla", exact: true }).last().click();
+  const mailingTour = page.getByRole("dialog", { name: "Guía en pantalla", exact: true });
+  await mailingTour.getByRole("heading", { name: "Abre Automatizaciones" }).waitFor();
+  await page.getByRole("button", { name: "Automatizaciones", exact: true }).click();
+  await mailingTour.getByRole("heading", { name: "Prepara el programa" }).waitFor();
+  assert(await page.locator('[data-help="mailing"][data-help-state="sequences"]').isVisible(), "guía de Mailing avanza tras abrir la pestaña real");
+  await mailingTour.getByRole("button", { name: "Continuar", exact: true }).click();
+  await mailingTour.getByRole("heading", { name: "Guarda antes de activar" }).waitFor();
+  assert(await page.locator('[data-help="mailing-save"]').isVisible(), "guía señala Guardar borrador sin iniciar envíos");
+  await mailingTour.getByRole("button", { name: "Cerrar guía", exact: true }).click();
+  await open();
   await page.screenshot({ path: path.join(artifacts, "desktop-mailing.png") });
   await page.setViewportSize({ width: 390, height: 844 });
   assert(await panel().evaluate((element) => { const box = element.getBoundingClientRect(); return box.left >= 0 && box.right <= innerWidth && box.top >= 0 && box.bottom <= innerHeight; }), "panel cabe completo en móvil");

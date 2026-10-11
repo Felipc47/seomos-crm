@@ -10,10 +10,17 @@ Entrada: `{ question: string (1..1000), pathname: string (hasta 100), history: [
 I: sin secretos ni datos de clientes en el prompt; sin logs del prompt/respuesta. II: único proveedor existente, opcional. III: sin tablas nuevas, lectura de habilitación con `scoped()`, permisos server-side. IV: sin mutaciones ni envíos. V/IX: gate técnico y Playwright local con mocks, incluyendo caminos infelices. VI: spec previa al código. VII: supuestos y coste anotados. VIII: guías de Mailing solo para empresas habilitadas. Conforme antes y después del diseño.
 
 ## Datos y privacidad
-Sin migraciones ni almacenamiento persistente. El historial desaparece al recargar/cerrar sesión; cerrar el panel conserva estado. Solo ruta conocida, rol y mensajes escritos en Ayuda viajan al proveedor. No inspecciona DOM ni recoge contenidos de formularios. React representa respuestas como texto; enlaces y pasos proceden del catálogo.
+Sin migraciones ni almacenamiento persistente. El historial desaparece al recargar/cerrar sesión; cerrar el panel conserva estado. Solo ruta conocida, estados enumerados de UI y mensajes escritos en Ayuda viajan al proveedor; los permisos se obtienen de la sesión. El recorrido observa solo marcadores versionados y su geometría local; no recoge texto de clientes ni contenidos de formularios. React representa respuestas como texto; enlaces, selectores y pasos proceden del catálogo.
 
 ## Verificación
 Unitarias para selección, aislamiento, rutas inventadas y fallos/salida del proveedor. E2E con base local aislada, Meta/IA mocks, Chrome: escritorio/móvil, navegación, contexto, foco, red fallida, fallo proveedor y roles de dos empresas. Evidencia `.artifacts/us38-help-chat/`. Detener dev antes de build para no compartir `.next`.
 
 ## Secuencia
 Catálogo → servicio/ruta → chat/layout → mocks y tests → gates → E2E y QA visual → actualizar estado. Implementación directa del flujo SDD; no se ejecutan scripts PowerShell no disponibles. No commit automático de cambios ajenos.
+
+## Revisión 2026-10-11 — Guía interactiva
+Extensión de 029. Catálogo `help-tours.ts` con pasos y selectores `data-help` controlados por código (no por el LLM). Componente `help-tour.tsx` mide solo esos elementos, dibuja un anillo sin interceptar clics y muestra un coach compacto. Los pasos de selección/pausa se validan con atributos de estado local; otros pasos de preparación avanzan con confirmación del usuario. Navegación con el router mantiene el layout y la guía. Ausencia de un control ofrece una explicación y regreso al chat, sin completar pasos ficticios.
+
+El chat recibe estados enumerados de Bandeja (selección, IA y ventana) sin datos de clientes. `helpRequestSchema` los acota; no alteran permisos ni autorizan acciones. Pausa/reactivación usan una intención determinista y documentación precisa para evitar consejos vagos aun sin proveedor. Las respuestas muestran una acción principal y un desplegable de instrucciones, en lugar de repetir listas completas.
+
+Verificación: ampliar unidades para intención/estados y E2E real con mocks y conversaciones locales. Verificar que la guía no pulsa controles, que cambia de paso tras la acción real, falla de forma útil ante IA no disponible/controles ausentes, y cabe en móvil. Sin nuevas credenciales, dependencia, tablas o migraciones. Cambios ajenos existentes se preservan.
