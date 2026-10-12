@@ -16,5 +16,14 @@
   "build": "passed",
   "migrationsChanged": false,
   "externalProvidersUsed": false,
-  "fullBrowserRegression": "running on isolated localhost:3101 candidate; prior evidence is labeled separately"
+  "fullBrowserRegression": {
+    "result": "passed",
+    "checks": 164,
+    "singleUninterruptedRun": true,
+    "desktopRoutes": 18,
+    "mobileRoutes": 7,
+    "baseURL": "http://127.0.0.1:3101",
+    "codeCommitTested": "9cc9089540a84c98ff8a26740bec86ee658ea9e6",
+    "productionOutboxUsed": false
+  }
 }

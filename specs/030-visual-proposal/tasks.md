@@ -61,7 +61,7 @@ La regresión actual se completó en dos tramos: el primer recorrido de escritor
 
 - [x] Identificar producción 1842682 saludable, imagen retenida y destino Coolify.
 - [x] Aislar 030 y excluir modificaciones ajenas; revisión AST sin bloqueantes.
-- [ ] Repetir gates y E2E del paquete selectivo.
+- [x] Repetir gates y E2E del paquete selectivo: 419 tests y 164 comprobaciones en una corrida nueva, sin errores.
 - [ ] Publicar PR y etiquetas de punto anterior/release.
 - [ ] Desplegar SHA integrado y comprobar producción.
 - [ ] Registrar SHA, deployment, pruebas y rollback en GitHub Release.

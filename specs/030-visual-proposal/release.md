@@ -26,6 +26,10 @@ Quedan fuera los cambios locales independientes del paquete de créditos a 700, 
 
 Coolify tenía autodeploy activado y git_commit_sha fijado al commit anterior. La promoción debe actualizar únicamente ese pin al SHA del commit integrado y desplegar esa misma revisión. La GitHub Release prod-visual030-2026-10-12 registrará el SHA final, PR, deployment, comprobaciones públicas y enlaces de reversión una vez verificados.
 
+## Verificación del candidato exacto
+
+El checkout selectivo pasó typecheck, lint, build y 419 tests. Su regresión en localhost:3101 completó **164 comprobaciones en una sola corrida**, sin reutilización ni interrupciones: 18 rutas de escritorio, siete móviles y flujos reales de agente, KB, agenda, asistente, bandeja y contactos. Cero errores JavaScript, 5xx inesperados o solicitudes externas; outbox de mocks vacío. Resultado: [release-result.json](evidence/release-result.json). Las capturas incluidas se actualizaron desde ese checkout. El servidor QA3101 se cerró al terminar.
+
 ## Cómo regresar
 
 ### Recuperación inmediata en Coolify
@@ -51,7 +55,7 @@ Abrir y revisar una PR hacia main, ejecutar los gates y hacer squash merge. Desp
 ## Validación y evidencia
 
 - Revisión del diff por AST: handlers, rutas, permisos, valores, disabled y atributos de ayuda/prueba conservados; cambio intencional del fallback de acento a DEFAULT_BRANDING.accent.
-- Gates de la integración local: typecheck, lint, build y 419 tests / 51 archivos. Se repiten sobre el paquete selectivo del release antes de promover.
+- Gates de la integración local: typecheck, lint, build y 419 tests / 51 archivos. Repetidos y aprobados sobre el paquete selectivo del release antes de promover.
 - Regresión local previa: 164 comprobaciones (18 rutas de escritorio, 7 móviles y flujos), más 14 de eliminación KB, 52 multiventana, 14 vistas agente/bandeja y 8 casos de compositor/Ayuda. Evidencia en [evidence](./evidence/).
 - La primera regresión se completó en dos tramos por un timeout de retirada visual de KB durante compilación local. El intento se conserva en interruption-kb-timeout.json y la repetición focalizada confirmó DELETE 200 y retirada del DOM en 1,25 s.
 - Los JSON y capturas contienen datos ficticios. Proveedores simulados, sin envíos de producción.
