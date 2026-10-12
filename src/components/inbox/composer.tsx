@@ -235,7 +235,7 @@ export function Composer({
           {templates.slice(0, 4).map((t) => (
             <button
               key={t.id}
-              className="rounded-full border bg-surface-2 px-3 py-1.5 text-xs font-bold text-mute transition-colors hover:border-brand-soft hover:bg-brand-tint hover:text-brand-text"
+              className="rounded-lg border bg-surface px-3 py-1.5 text-xs font-semibold text-mute transition-colors hover:border-border-strong hover:bg-surface-2 hover:text-foreground"
               onClick={() => {
                 const firstName = conversation.contact.name.split(" ")[0] ?? "";
                 setText(t.body.replace(/\{\{\s*1\s*\}\}/g, firstName));
@@ -250,9 +250,9 @@ export function Composer({
         </div>
       )}
       {recording && (
-        <div className="mb-2.5 flex items-center gap-3 rounded-[11px] border border-brand/40 bg-brand-tint px-3.5 py-2.5">
-          <span className="h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-brand" />
-          <span className="flex-1 text-[13px] font-bold">
+        <div className="mb-2.5 flex items-center gap-3 rounded-[11px] border border-border bg-surface-2 px-3.5 py-2.5">
+          <span className="h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-destructive" />
+          <span className="flex-1 text-[13px] font-semibold">
             Grabando nota de voz… {formatSecs(recSecs)}
           </span>
           <button
@@ -266,7 +266,7 @@ export function Composer({
           <button
             aria-label="Detener grabación"
             onClick={() => stopRecording(false)}
-            className="flex items-center gap-1.5 rounded-[9px] bg-brand px-3.5 py-1.5 text-[12.5px] font-bold text-white transition-colors hover:bg-brand-hover"
+            className="flex items-center gap-1.5 rounded-[9px] bg-brand px-3.5 py-1.5 text-[12.5px] font-semibold text-primary-foreground transition-colors hover:bg-brand-hover hover:text-brand-hover-foreground"
           >
             <Square className="h-3 w-3 fill-current" strokeWidth={2} />
             Detener
@@ -281,7 +281,7 @@ export function Composer({
             <Paperclip className="h-4 w-4 shrink-0 text-brand" strokeWidth={2} />
           )}
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[13px] font-bold">
+            <span className="block truncate text-[13px] font-semibold">
               {audioPreviewUrl ? "Nota de voz" : file.name}
             </span>
             <span className="block text-[11.5px] text-text-3">
@@ -310,7 +310,7 @@ export function Composer({
           </button>
         </div>
       )}
-      <div className="flex items-end gap-2.5 rounded-[14px] border bg-surface-2 py-2 pl-2 pr-2 transition-shadow focus-within:border-brand focus-within:bg-background focus-within:ring-[3px] focus-within:ring-brand-soft">
+      <div className="flex items-end gap-2.5 rounded-xl border bg-surface py-2 pl-2 pr-2 transition-shadow focus-within:border-brand focus-within:ring-2 focus-within:ring-brand-soft">
         <input
           ref={fileRef}
           type="file"
@@ -337,7 +337,7 @@ export function Composer({
           className={cn(
             "flex h-[42px] w-[38px] shrink-0 items-center justify-center rounded-[11px] transition-colors",
             recording
-              ? "bg-brand-tint text-brand"
+              ? "bg-surface-2 text-destructive"
               : "text-mute hover:bg-subtle hover:text-foreground"
           )}
         >
@@ -369,8 +369,8 @@ export function Composer({
           disabled={sending || (text.trim().length === 0 && !file)}
           aria-label="Enviar"
           className={cn(
-            "flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[11px] bg-brand text-white shadow-accent transition-opacity hover:bg-brand-hover",
-            (sending || (!text.trim() && !file)) && "opacity-40 shadow-none"
+            "flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[11px] bg-brand text-primary-foreground transition-colors hover:bg-brand-hover hover:text-brand-hover-foreground",
+            (sending || (!text.trim() && !file)) && "pointer-events-none bg-surface-2 text-faint shadow-none"
           )}
         >
           <Send className="h-[19px] w-[19px]" strokeWidth={2.2} />

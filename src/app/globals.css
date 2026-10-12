@@ -3,125 +3,118 @@
 @tailwind utilities;
 
 /*
-  Sistema de diseño "Seomos": paleta cálida (crema + naranja) con tema claro y
-  oscuro. Los tokens de acento (--accent*) los puede sobreescribir el
-  white-label de la organización (Configuración → Marca). El tema lo alterna la
-  clase `.dark` en <html> (ThemeProvider + script anti-flash).
+  SEOMOS: superficies neutras, naranja de marca para acciones y selección.
+  Los colores de estado conservan su significado. White-label sigue usando
+  --accent*; claro es el valor inicial y .dark la preferencia explícita.
 */
 @layer base {
   :root {
-    /* Superficies (claro) */
-    --bg: #f6f2ea; /* fondo general cálido */
-    --bg-subtle: #ffffff; /* paneles / surface */
-    --bg-panel: #faf7f1; /* surface-2: inputs, chips */
-    --bg-hover: #f1ece3;
+    color-scheme: light;
+    --workspace: #e9edf2;
+    --bg: #f7f8fa;
+    --bg-subtle: #ffffff;
+    --bg-panel: #f6f7f9;
+    --bg-hover: #eceff3;
     --surface: #ffffff;
-    --surface-2: #faf7f1;
+    --surface-2: #f1f3f6;
     --sidebar: #ffffff;
 
-    /* Texto */
-    --text: #0b0b0d;
-    --text-2: rgba(11, 11, 13, 0.62);
-    --text-3: rgba(11, 11, 13, 0.42);
-    --text-4: rgba(11, 11, 13, 0.32);
-    --mute: rgba(11, 11, 13, 0.6);
-    --faint: rgba(11, 11, 13, 0.4);
+    --text: #191d24;
+    --text-2: #515b6b;
+    --text-3: #636d7c;
+    --text-4: #737d8b;
+    --mute: #5c6675;
+    --faint: #6d7785;
+    --border: #e1e5eb;
+    --border-strong: #ccd2db;
 
-    /* Bordes */
-    --border: rgba(11, 11, 13, 0.11);
-    --border-strong: rgba(11, 11, 13, 0.2);
+    --chat-bg: #f4f5f7;
+    --bubble-out: #e9edf3;
+    --bubble-out-text: #263343;
 
-    /* Chat (burbuja saliente: verde WhatsApp del mock SEOMOS) */
-    --chat-bg: #f6f2ea;
-    --bubble-out: #dcf3e4;
-    --bubble-out-text: #0b0b0d;
-
-    /* Acento (naranja Seomos; white-label lo puede sobreescribir) */
     --accent: #e84b1d;
     --accent-hover: #c43d15;
-    --accent-soft: rgba(232, 75, 29, 0.14);
-    --accent-tint: rgba(232, 75, 29, 0.08);
+    --accent-contrast: #111418;
+    --accent-hover-contrast: #ffffff;
+    --accent-soft: rgba(232, 75, 29, 0.16);
+    /* La selección no tiñe de crema las superficies. */
+    --accent-tint: #f0f2f5;
     --accent-text: #b23a12;
-    --bg-active: var(--accent-tint);
+    --bg-active: #f0f2f5;
+    --accent-2: #6362a3;
 
-    /* Acento secundario (morado, usado en marcadores de IA) */
-    --accent-2: #5b358b;
+    --success: #18764d;
+    --warning: #94621d;
+    --danger: #c23648;
+    --danger-contrast: #ffffff;
+    --warning-bg: #f5f5f6;
+    --warning-border: #dedee2;
+    --warning-fg: #815518;
+    --success-bg: #edf5f0;
+    --success-border: #c8dfd2;
+    --success-fg: #216345;
+    --danger-bg: #fbedef;
+    --danger-border: #eecbd1;
+    --danger-fg: #a6293d;
 
-    /* Estado */
-    --success: #2fa35a;
-    --warning: #e8a13d;
-    --danger: #cf4322;
-
-    /* Callouts suaves de estado (fondo + borde + texto) */
-    --warning-bg: #faf7f0;
-    --warning-border: #ece2cf;
-    --warning-fg: #8a6d3b;
-    --success-bg: #eff7f1;
-    --success-border: #d8e8dd;
-    --success-fg: #3f6b52;
-    --danger-bg: #faf1f0;
-    --danger-border: #ecd4d2;
-    --danger-fg: #a2504c;
-
-    /* Radios y sombras */
-    --radius-sm: 9px;
-    --radius: 12px;
-    --radius-lg: 16px;
-    --shadow-sm: 0 1px 2px rgba(20, 20, 30, 0.05);
-    --shadow-md: 0 6px 20px -6px rgba(20, 20, 35, 0.12);
-    --shadow-pop: 0 12px 32px -8px rgba(20, 20, 35, 0.22);
-    --shadow-accent: 0 4px 12px rgba(232, 75, 29, 0.3);
-
-    /* Densidad de filas de conversación */
+    --radius-sm: 6px;
+    --radius: 8px;
+    --radius-lg: 12px;
+    --shadow-sm: 0 1px 2px rgba(20, 28, 40, 0.035);
+    --shadow-md: 0 6px 24px -8px rgba(20, 28, 40, 0.1);
+    --shadow-pop: 0 16px 48px -12px rgba(20, 28, 40, 0.22);
+    --shadow-accent: 0 1px 2px rgba(20, 28, 40, 0.06);
     --row-py: 11px;
   }
 
   .dark {
-    --bg: #0b0b0d;
-    --bg-subtle: #16161a;
-    --bg-panel: #1f1f26;
-    --bg-hover: #232330;
-    --surface: #16161a;
-    --surface-2: #1f1f26;
-    --sidebar: #0f0f12;
+    color-scheme: dark;
+    --workspace: #0b0d11;
+    --bg: #101216;
+    --bg-subtle: #181b21;
+    --bg-panel: #20242c;
+    --bg-hover: #292f39;
+    --surface: #181b21;
+    --surface-2: #20242c;
+    --sidebar: #15181d;
 
-    --text: #f6f2ea;
-    --text-2: rgba(246, 242, 234, 0.62);
-    --text-3: rgba(246, 242, 234, 0.42);
-    --text-4: rgba(246, 242, 234, 0.32);
-    --mute: rgba(246, 242, 234, 0.62);
-    --faint: rgba(246, 242, 234, 0.4);
+    --text: #edf0f5;
+    --text-2: #b9c1ce;
+    --text-3: #a0aabb;
+    --text-4: #909bad;
+    --mute: #a8b2c2;
+    --faint: #95a0b2;
+    --border: #2c323d;
+    --border-strong: #434d5c;
 
-    --border: rgba(246, 242, 234, 0.13);
-    --border-strong: rgba(246, 242, 234, 0.26);
+    --chat-bg: #101216;
+    --bubble-out: #25313e;
+    --bubble-out-text: #e4ecf5;
 
-    --chat-bg: #0b0b0d;
-    --bubble-out: #243024;
-    --bubble-out-text: #f6f2ea;
+    --accent: #e84b1d;
+    --accent-hover: #c43d15;
+    --accent-contrast: #111418;
+    --accent-hover-contrast: #ffffff;
+    --accent-soft: rgba(232, 75, 29, 0.22);
+    --accent-tint: #242932;
+    --accent-text: #ff9779;
+    --bg-active: #242932;
+    --accent-2: #aaa7e0;
 
-    --accent: #ee4321;
-    --accent-hover: #d63b1a;
-    --accent-soft: rgba(238, 67, 33, 0.2);
-    --accent-tint: rgba(238, 67, 33, 0.12);
-    --accent-text: #ff7a55;
-
-    --accent-2: #7b4fd0;
-
-    --success: #3ebd6b;
-    --warning: #e8a13d;
-    --danger: #e0563a;
-
-    --warning-bg: rgba(232, 161, 61, 0.12);
-    --warning-border: rgba(232, 161, 61, 0.28);
-    --warning-fg: #e8b877;
-    --success-bg: rgba(62, 189, 107, 0.12);
-    --success-border: rgba(62, 189, 107, 0.28);
-    --success-fg: #5fd08a;
-    --danger-bg: rgba(224, 86, 58, 0.12);
-    --danger-border: rgba(224, 86, 58, 0.3);
-    --danger-fg: #f0866a;
-
-    --shadow-accent: 0 4px 14px rgba(238, 67, 33, 0.35);
+    --success: #6dc49a;
+    --warning: #d3af70;
+    --danger: #f18293;
+    --danger-contrast: #111418;
+    --warning-bg: #25262a;
+    --warning-border: #494337;
+    --warning-fg: #d3af70;
+    --success-bg: #1d3028;
+    --success-border: #345747;
+    --success-fg: #8bd4ae;
+    --danger-bg: #34232b;
+    --danger-border: #633945;
+    --danger-fg: #f4a0af;
+    --shadow-accent: 0 1px 2px rgba(0, 0, 0, 0.18);
   }
 }
 
@@ -131,12 +124,22 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
+    font-feature-settings: "ss01" 1;
   }
   h1,
   h2,
   h3,
   h4 {
-    font-family: var(--font-poppins), var(--font-nunito), system-ui, sans-serif;
+    font-family: var(--font-manrope), system-ui, sans-serif;
+    letter-spacing: -0.025em;
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--text);
   }
   ::-webkit-scrollbar {
     width: 9px;
@@ -189,6 +192,39 @@
 }
 
 @layer components {
+  .crm-sidebar {
+    color-scheme: dark;
+    --sidebar: #15181d;
+    --surface: #1b1f26;
+    --surface-2: #272d36;
+    --border: #303641;
+    --border-strong: #414b5a;
+    --text: #f3f5f8;
+    --text-2: #c3cad5;
+    --text-3: #a5afbf;
+    --mute: #abb5c5;
+    --faint: #939fb0;
+    --accent-text: color-mix(in srgb, var(--accent) 45%, #fff);
+    color: var(--text);
+    background: var(--sidebar);
+  }
+
+  .crm-eyebrow {
+    @apply text-[10px] font-bold uppercase tracking-[0.16em] text-mute;
+  }
+
+  .crm-heading {
+    @apply font-display text-[26px] font-semibold leading-tight tracking-[-0.04em] md:text-[30px];
+  }
+
+  .crm-page-header {
+    @apply shrink-0 border-b bg-surface px-5 py-5 md:px-8 md:py-6;
+  }
+
+  .crm-toolbar {
+    @apply flex flex-wrap items-center gap-3 border-b bg-surface px-5 py-3 md:px-8;
+  }
+
   .public-hero-grid {
     background-image:
       linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),

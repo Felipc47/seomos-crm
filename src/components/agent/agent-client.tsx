@@ -5,6 +5,7 @@ import {
   ArrowRight,
   BadgeDollarSign,
   Briefcase,
+  BookOpen,
   CalendarClock,
   Check,
   ChevronDown,
@@ -149,13 +150,17 @@ export function AgentClient() {
   }
 
   return (
-    <div className="h-full overflow-y-auto">
-      <header className="flex flex-wrap items-center gap-x-3.5 gap-y-2 border-b bg-surface px-4 py-3 md:px-[30px] md:py-[18px]">
-        <Sparkles className="h-[22px] w-[22px] text-brand" strokeWidth={2} />
-        <h2 className="font-display text-[22px] font-bold">Agente de IA</h2>
-        <div className="ml-auto flex items-center gap-3">
-          {saved && <span className="text-xs text-primary">Guardado ✓</span>}
-          <span className="text-[13px] font-bold">
+    <div className="h-full overflow-y-auto bg-surface-2/50">
+      <header className="crm-page-header flex flex-wrap items-center gap-x-4 gap-y-4">
+        <div className="min-w-0 flex-1 basis-full sm:basis-0">
+          <p className="crm-eyebrow mb-2">Automatización · Inteligencia artificial</p>
+          <h2 className="crm-heading">Agente de IA</h2>
+          <p className="mt-2 text-[13px] text-mute">Tu equipo, con una forma propia de conversar.</p>
+        </div>
+        <div className="flex items-center gap-3 rounded-full border bg-surface px-4 py-2.5">
+          {saved && <span className="text-xs text-success-fg">Guardado ✓</span>}
+          <span className={cn("h-1.5 w-1.5 rounded-full", profile.enabled ? "bg-success" : "bg-faint")} />
+          <span className="text-xs font-semibold">
             {profile.enabled ? "Encendido" : "Apagado"}
           </span>
           <Switch
@@ -169,9 +174,10 @@ export function AgentClient() {
         </div>
       </header>
 
+      <div className="mx-auto max-w-[1480px] space-y-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
       {!aiConfigured && (
-        <div className="mx-6 mt-6 rounded-lg border border-brand-soft bg-brand-tint p-6 text-center">
-          <Sparkles className="mx-auto mb-2 h-8 w-8 text-primary" />
+        <div className="rounded-xl border bg-surface p-5 text-center sm:p-6">
+          <Sparkles className="mx-auto mb-3 h-6 w-6 text-brand" strokeWidth={1.8} />
           <p className="font-medium">Configura tu proveedor de IA para activar el agente</p>
           <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
             Agrega <code className="rounded bg-secondary px-1">OPENROUTER_API_TOKEN</code> y{" "}
@@ -182,11 +188,12 @@ export function AgentClient() {
         </div>
       )}
 
+      <div className={cn("grid gap-4", credits && "lg:grid-cols-[minmax(0,1fr)_260px]")}>
       {credits && (
         <section
           aria-label="Saldo de créditos de IA"
           className={cn(
-            "mx-6 mt-6 flex flex-col gap-3 rounded-xl border px-4 py-3.5 sm:flex-row sm:items-center",
+            "order-2 flex flex-col justify-center gap-3 rounded-2xl border p-5",
             credits.balance === 0
               ? "border-warning-border bg-warning-bg"
               : "bg-surface"
@@ -194,21 +201,21 @@ export function AgentClient() {
         >
           <span
             className={cn(
-              "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
               credits.balance === 0
                 ? "bg-warning/15 text-warning"
-                : "bg-brand-tint text-brand"
+                : "bg-surface-2 text-mute"
             )}
           >
-            <Coins className="h-5 w-5" strokeWidth={2} />
+            <Coins className="h-4 w-4" strokeWidth={1.8} />
           </span>
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-baseline gap-x-2">
-              <h3 className="font-display text-[15px] font-bold">
+            <div className="space-y-1.5">
+              <h3 className="crm-eyebrow">
                 Créditos de IA
               </h3>
-              <span className="text-[15px] font-extrabold tabular-nums">
-                {credits.balance.toLocaleString("es-CO")} disponibles
+              <span className="block font-display text-[28px] font-semibold tracking-tight tabular-nums">
+                {credits.balance.toLocaleString("es-CO")} <span className="text-[12px] font-medium tracking-normal text-mute">disponibles</span>
               </span>
             </div>
             <p className="mt-0.5 text-[12px] leading-relaxed text-text-3">
@@ -224,15 +231,18 @@ export function AgentClient() {
         </section>
       )}
 
-      <section className="mx-6 mt-6 flex flex-col gap-4 rounded-2xl border border-brand/20 bg-brand-tint p-4 sm:flex-row sm:items-center sm:p-5">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface text-brand">
-          <WandSparkles className="h-5 w-5" strokeWidth={2.2} />
-        </span>
+      <section className="order-1 flex flex-col items-start gap-4 rounded-2xl border bg-surface p-5 sm:p-6">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#20252d] text-brand">
+            <WandSparkles className="h-4 w-4" strokeWidth={1.8} />
+          </span>
+          <p className="crm-eyebrow">Asistente de configuración</p>
+        </div>
         <div className="min-w-0 flex-1">
-          <h3 className="font-display text-[16px] font-extrabold">
+          <h3 className="font-display text-[22px] font-semibold tracking-[-0.035em]">
             Configúralo con ayuda de IA
           </h3>
-          <p className="mt-1 max-w-[68ch] text-[13px] leading-5 text-mute">
+          <p className="mt-2 max-w-[58ch] text-[13px] leading-6 text-mute">
             Pega tu sitio o responde tres preguntas. Recibirás un borrador completo para
             revisar, sin guardar ni encender nada automáticamente.
           </p>
@@ -243,7 +253,7 @@ export function AgentClient() {
           disabled={!aiConfigured}
           data-help="agent-setup" onClick={() => setAssistantOpen(true)}
         >
-          Configurar con IA <ArrowRight className="h-4 w-4" />
+          Configurar con IA <ArrowRight className="h-4 w-4 text-brand" />
         </Button>
         {!aiConfigured && (
           <span className="text-xs font-semibold text-warning-fg sm:max-w-[180px]">
@@ -251,8 +261,9 @@ export function AgentClient() {
           </span>
         )}
       </section>
+      </div>
 
-      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-6 p-6 lg:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] items-start gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
         <ProfileSection profile={profile} onSave={saveProfile} appliedDraft={appliedDraft} />
         <KbSection
           entries={entries}
@@ -260,12 +271,13 @@ export function AgentClient() {
           onChanged={() => void refetch()}
           appliedDraft={appliedDraft}
         />
-        <div className="lg:col-span-2">
+        <div className="min-w-0 xl:col-span-2">
           <FollowUpSection />
         </div>
-        <div className="lg:col-span-2">
+        <div className="min-w-0 xl:col-span-2">
           <SchedulingSection />
         </div>
+      </div>
       </div>
       <AgentSetupAssistant
         open={assistantOpen}
@@ -326,14 +338,18 @@ function ProfileSection({
   const toneFull = form.tonePresets.length >= MAX_TONE_PRESETS;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Comportamiento</CardTitle>
-        <CardDescription>
+    <Card className="min-w-0 overflow-hidden rounded-2xl">
+      <CardHeader className="mb-6 border-b bg-surface px-5 py-6 sm:px-6">
+        <p className="crm-eyebrow mb-2">01 · Personalidad y entrenamiento</p>
+        <CardTitle className="flex items-center gap-2.5 text-[21px] tracking-[-0.03em]">
+          <Sparkles className="h-[18px] w-[18px] text-brand" strokeWidth={1.8} />
+          Comportamiento
+        </CardTitle>
+        <CardDescription className="leading-relaxed">
           Cómo se presenta y actúa el agente al responder a tus clientes.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-7 px-5 pb-5 sm:px-6 sm:pb-6">
         <div data-help="agent-identity" className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="agent-name">Nombre del agente</Label>
@@ -360,7 +376,7 @@ function ProfileSection({
             <span
               className={cn(
                 "text-[11px] font-semibold",
-                toneFull ? "text-brand" : "text-mute"
+                toneFull ? "text-brand-text" : "text-mute"
               )}
             >
               {form.tonePresets.length}/{MAX_TONE_PRESETS} elegidos
@@ -378,14 +394,14 @@ function ProfileSection({
                   title={preset.hint}
                   onClick={() => togglePreset(preset.id)}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-soft",
+                    "inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-[12px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     selected
-                      ? "border-brand/40 bg-brand-tint text-brand shadow-sm"
-                      : "bg-surface-2 text-foreground hover:border-foreground/20",
+                      ? "border-foreground bg-foreground text-background"
+                      : "bg-surface text-mute hover:border-foreground/20 hover:text-foreground",
                     blocked && "cursor-not-allowed opacity-40"
                   )}
                 >
-                  {selected && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+                  {selected && <Check className="h-3.5 w-3.5" strokeWidth={2} />}
                   {preset.label}
                 </button>
               );
@@ -409,7 +425,7 @@ function ProfileSection({
             Divide las instrucciones por tema: el agente recibe cada sección
             con su contexto y es mucho más fácil de mantener.
           </p>
-          <div className="space-y-2">
+          <div className="overflow-hidden rounded-xl border">
             {INSTRUCTION_SECTIONS.map((section) => {
               const Icon = SECTION_ICONS[section.key];
               const value = form.instructionSections[section.key] ?? "";
@@ -419,27 +435,27 @@ function ProfileSection({
                 <div
                   key={section.key}
                   className={cn(
-                    "overflow-hidden rounded-xl border transition-colors",
-                    open ? "border-brand/35 bg-background" : "bg-surface-2",
-                    filled && !open && "border-brand/20"
+                    "overflow-hidden border-b last:border-b-0 transition-colors",
+                    open ? "bg-surface-2" : "bg-surface",
+                    filled && !open && "border-border"
                   )}
                 >
                   <button
                     type="button"
                     aria-expanded={open}
                     onClick={() => setOpenSection(open ? null : section.key)}
-                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-soft"
+                    className="flex w-full items-center gap-3 px-3 py-3.5 text-left transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-soft"
                   >
                     <span
                       className={cn(
-                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border bg-surface text-mute shadow-sm",
-                        filled && "border-brand/25 text-brand"
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-mute",
+                        filled && "text-foreground"
                       )}
                     >
-                      <Icon className="h-4 w-4" strokeWidth={2.1} />
+                      <Icon className="h-4 w-4" strokeWidth={1.8} />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[13px] font-bold">
+                      <span className="block text-[13px] font-semibold">
                         {section.title}
                       </span>
                       <span className="block truncate text-[11px] text-mute">
@@ -449,7 +465,8 @@ function ProfileSection({
                       </span>
                     </span>
                     {filled && (
-                      <span className="rounded-full bg-brand-tint px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-brand">
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-mute">
+                        <span className="h-1 w-1 rounded-full bg-success" />
                         Listo
                       </span>
                     )}
@@ -481,13 +498,13 @@ function ProfileSection({
 
             <div
               className={cn(
-                "overflow-hidden rounded-xl border transition-colors",
+                "overflow-hidden border-b last:border-b-0 transition-colors",
                 openSection === "escalation"
-                  ? "border-brand/35 bg-background"
-                  : "bg-surface-2",
+                  ? "bg-surface-2"
+                  : "bg-surface",
                 (form.escalationRules ?? "").trim() &&
                   openSection !== "escalation" &&
-                  "border-brand/20"
+                  "border-border"
               )}
             >
               <button
@@ -498,19 +515,19 @@ function ProfileSection({
                     openSection === "escalation" ? null : "escalation"
                   )
                 }
-                className="flex w-full items-center gap-3 px-3 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-soft"
+                className="flex w-full items-center gap-3 px-3 py-3.5 text-left transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-soft"
               >
                 <span
                   className={cn(
-                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border bg-surface text-mute shadow-sm",
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-mute",
                     (form.escalationRules ?? "").trim() &&
-                      "border-brand/25 text-brand"
+                      "text-foreground"
                   )}
                 >
-                  <MessageCircleQuestion className="h-4 w-4" strokeWidth={2.1} />
+                  <MessageCircleQuestion className="h-4 w-4" strokeWidth={1.8} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[13px] font-bold">
+                  <span className="block text-[13px] font-semibold">
                     Escalado a humano
                   </span>
                   <span className="block truncate text-[11px] text-mute">
@@ -518,7 +535,8 @@ function ProfileSection({
                   </span>
                 </span>
                 {(form.escalationRules ?? "").trim() && (
-                  <span className="rounded-full bg-brand-tint px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-brand">
+                  <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-mute">
+                    <span className="h-1 w-1 rounded-full bg-success" />
                     Listo
                   </span>
                 )}
@@ -550,10 +568,10 @@ function ProfileSection({
               openSection === "legacy") && (
               <div
                 className={cn(
-                  "overflow-hidden rounded-xl border transition-colors",
+                  "overflow-hidden border-b last:border-b-0 transition-colors",
                   openSection === "legacy"
-                    ? "border-brand/35 bg-background"
-                    : "bg-surface-2 border-brand/20"
+                    ? "bg-surface-2"
+                    : "border-border bg-surface"
                 )}
               >
                 <button
@@ -562,13 +580,13 @@ function ProfileSection({
                   onClick={() =>
                     setOpenSection(openSection === "legacy" ? null : "legacy")
                   }
-                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-soft"
+                  className="flex w-full items-center gap-3 px-3 py-3.5 text-left transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-soft"
                 >
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border bg-surface text-brand shadow-sm">
-                    <FileText className="h-4 w-4" strokeWidth={2.1} />
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-mute">
+                    <FileText className="h-4 w-4" strokeWidth={1.8} />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[13px] font-bold">
+                    <span className="block text-[13px] font-semibold">
                       Otras instrucciones (texto libre)
                     </span>
                     <span className="block truncate text-[11px] text-mute">
@@ -601,7 +619,9 @@ function ProfileSection({
           </div>
         </div>
 
-        <Button data-help="agent-save" onClick={() => void onSave(form)}>Guardar comportamiento</Button>
+        <div className="border-t pt-5">
+          <Button data-help="agent-save" className="w-full sm:w-auto" onClick={() => void onSave(form)}>Guardar comportamiento</Button>
+        </div>
       </CardContent>
     </Card>
   );
@@ -654,12 +674,16 @@ function KbSection({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Knowledge base</CardTitle>
-            <CardDescription>
+    <Card className="min-w-0 overflow-hidden rounded-2xl">
+      <CardHeader className="mb-6 border-b bg-surface px-5 py-6 sm:px-6">
+        <p className="crm-eyebrow mb-2">02 · Conocimiento del negocio</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1 basis-48">
+            <CardTitle className="flex items-center gap-2.5 text-[21px] tracking-[-0.03em]">
+              <BookOpen className="h-[18px] w-[18px] shrink-0 text-brand" strokeWidth={1.8} />
+              Knowledge base
+            </CardTitle>
+            <CardDescription className="mt-1.5 leading-relaxed">
               La única fuente de verdad del agente: lo que no está aquí, no lo
               afirma.
             </CardDescription>
@@ -677,8 +701,8 @@ function KbSection({
           </p>
         )}
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div data-help="knowledge-qa" className="space-y-2 rounded-md border p-3">
+      <CardContent className="space-y-5 px-5 pb-5 sm:px-6 sm:pb-6">
+        <div data-help="knowledge-qa" className="space-y-3">
           <p className="text-sm font-medium">Nueva pregunta / respuesta</p>
           <Input
             placeholder="Pregunta (p. ej. ¿Hacen envíos?)"
@@ -701,7 +725,7 @@ function KbSection({
           </Button>
         </div>
 
-        <div data-help="knowledge-block" className="space-y-2 rounded-md border p-3">
+        <div data-help="knowledge-block" className="space-y-3 border-t pt-5">
           <p className="text-sm font-medium">Nuevo bloque de texto libre</p>
           <Textarea
             placeholder="Horarios, direcciones, políticas…"
@@ -714,10 +738,13 @@ function KbSection({
           </Button>
         </div>
 
-        <ul data-help="knowledge-list" className="space-y-2">
+        <ul data-help="knowledge-list" className="divide-y border-t">
           {entries.map((e) => (
-            <li key={e.id} className="flex items-start gap-2 rounded-md border p-3">
-              <div className="min-w-0 flex-1 text-sm">
+            <li key={e.id} className="flex items-start gap-3 py-4">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-mute">
+                {e.kind === "qa" ? <MessageCircleQuestion className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+              </span>
+              <div className="min-w-0 flex-1 break-words text-sm leading-relaxed">
                 {e.kind === "qa" ? (
                   <>
                     <p className="font-medium">{e.question}</p>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ACCENT_PRESETS, isValidHex, resolveAccentSet, type Branding } from "@/lib/branding";
+import { ACCENT_PRESETS, DEFAULT_BRANDING, accentForeground, isValidHex, resolveAccentSet, type Branding } from "@/lib/branding";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 export function BrandingClient() {
   const router = useRouter();
   const [name, setName] = useState("");
-  const [accent, setAccent] = useState("#e64a1c");
+  const [accent, setAccent] = useState(DEFAULT_BRANDING.accent);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,7 +112,7 @@ export function BrandingClient() {
               >
                 <input
                   type="color"
-                  value={isValidHex(accent) ? accent : "#e64a1c"}
+                  value={isValidHex(accent) ? accent : DEFAULT_BRANDING.accent}
                   onChange={(e) => setAccent(e.target.value)}
                   className="h-4 w-4 cursor-pointer appearance-none border-0 bg-transparent p-0"
                 />
@@ -120,17 +120,16 @@ export function BrandingClient() {
               </label>
             </div>
             <p className="text-xs text-text-3">
-              Con un color personalizado, los tonos derivados (hover, fondos
-              suaves) se calculan solos y se ajusta el contraste.
+              Con un color personalizado, los tonos de interacción y el texto se calculan solos y se ajusta el contraste.
             </p>
           </div>
 
           {/* Vista previa */}
-          <div className="rounded-md border p-4" style={{ background: previewSet.tint }}>
-            <div className="flex items-center gap-2.5">
+          <div className="rounded-lg border bg-surface-2 p-4">
+            <div className="flex flex-wrap items-center gap-2.5">
               <span
                 className="flex h-[30px] w-[30px] items-center justify-center rounded-sm text-[15px] font-bold text-white"
-                style={{ background: previewSet.accent }}
+                style={{ background: previewSet.accent, color: accentForeground(previewSet.accent) }}
               >
                 {(name.trim() || "Seomos CRM").charAt(0).toUpperCase()}
               </span>
@@ -143,7 +142,7 @@ export function BrandingClient() {
               <span className="flex-1" />
               <span
                 className="rounded-md px-3 py-1.5 text-xs font-medium text-white"
-                style={{ background: previewSet.accent }}
+                style={{ background: previewSet.accent, color: accentForeground(previewSet.accent) }}
               >
                 Botón de ejemplo
               </span>

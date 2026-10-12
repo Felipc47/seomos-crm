@@ -10,8 +10,9 @@ export default async function SettingsLayout({
   const isAdmin = session ? isOrgAdmin(session.role) : false;
   return (
     <div className="flex h-full flex-col">
-      <header className="border-b bg-surface px-4 py-3 md:px-[30px] md:py-[18px]">
-        <h2 className="font-display text-[22px] font-bold">Configuración</h2>
+      <header className="crm-page-header">
+        <p className="crm-eyebrow mb-2">Tu espacio de trabajo</p>
+        <h2 className="crm-heading">Configuración</h2>
       </header>
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <SettingsNav isAdmin={isAdmin} />

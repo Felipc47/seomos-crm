@@ -344,7 +344,7 @@ export default function Home() {
                 href={serviceUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-brand px-5 py-3.5 text-sm font-extrabold text-white shadow-accent transition-all hover:-translate-y-0.5 hover:bg-brand-hover"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-brand px-5 py-3.5 text-sm font-extrabold text-primary-foreground shadow-accent transition-all hover:-translate-y-0.5 hover:bg-brand-hover hover:text-brand-hover-foreground"
               >
                 Solicitar una demostración
                 <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
@@ -647,7 +647,7 @@ export default function Home() {
                 href={serviceUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-brand px-5 py-3.5 text-sm font-extrabold text-white shadow-accent transition-all hover:-translate-y-0.5 hover:bg-brand-hover"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-brand px-5 py-3.5 text-sm font-extrabold text-primary-foreground shadow-accent transition-all hover:-translate-y-0.5 hover:bg-brand-hover hover:text-brand-hover-foreground"
               >
                 Solicitar una demostración
                 <ArrowUpRight className="h-4 w-4" />

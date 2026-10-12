@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 
-/** Switch del mock SEOMOS: track redondo con thumb blanco deslizante. */
+/** Control binario accesible con foco visible en ambos temas. */
 export function Switch({
   checked,
   onCheckedChange,
@@ -28,7 +28,7 @@ export function Switch({
       disabled={disabled}
       onClick={() => onCheckedChange(!checked)}
       className={cn(
-        "flex shrink-0 items-center rounded-full p-[3px] transition-all duration-200",
+        "flex shrink-0 items-center rounded-full p-[3px] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         track,
         checked ? "justify-end bg-brand" : "justify-start bg-border-strong",
         disabled && "cursor-not-allowed opacity-50"

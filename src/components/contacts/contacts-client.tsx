@@ -161,18 +161,36 @@ export function ContactsClient() {
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex flex-wrap items-center gap-x-[18px] gap-y-2.5 border-b bg-surface px-4 py-3 md:px-[30px] md:py-[18px]">
-        <h2 className="font-display text-[22px] font-bold">Contactos</h2>
-        <div className="flex flex-wrap items-center gap-2">
+    <div className="flex h-full min-h-0 flex-col bg-surface">
+      <header className="shrink-0 px-5 pb-5 pt-6 md:px-8 md:pt-8">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-mute"><span className="h-1.5 w-1.5 rounded-full bg-brand" />Gestión comercial</p>
+            <h2 className="font-display text-[28px] font-bold leading-tight tracking-[-.045em] md:text-[32px]">Contactos</h2>
+            <p className="mt-2 hidden text-[13px] leading-5 text-mute sm:block">Las personas detrás de cada oportunidad.</p>
+          </div>
           <button
             data-help="contacts-new"
             onClick={() => setCreating(true)}
-            className="inline-flex items-center gap-1.5 rounded-[10px] bg-brand px-3 py-[8px] text-[12.5px] font-bold text-white transition-colors hover:bg-brand-hover"
+            className="inline-flex shrink-0 items-center gap-2 self-center rounded-lg bg-brand px-4 py-3 text-[12px] font-bold text-primary-foreground transition-colors hover:bg-brand-hover hover:text-brand-hover-foreground"
           >
             <Plus className="h-[15px] w-[15px]" strokeWidth={2.4} />
-            Nuevo
+            Nuevo<span className="sr-only sm:not-sr-only"> contacto</span>
           </button>
+        </div>
+      </header>
+      <div className="mx-5 flex shrink-0 flex-wrap items-center gap-3 border-y py-3 md:mx-8">
+        <div className="flex w-full items-center gap-2.5 rounded-lg border bg-surface px-3 py-2.5 transition-colors focus-within:border-brand focus-within:ring-[3px] focus-within:ring-brand-soft md:max-w-[280px] md:flex-1">
+          <Search className="h-4 w-4 shrink-0 text-faint" strokeWidth={1.8} />
+          <input
+            placeholder="Buscar por nombre o teléfono…"
+            data-help="contacts-search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-full bg-transparent text-[16px] outline-none placeholder:text-faint md:text-[12px]"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           <input
             ref={fileRef}
             type="file"
@@ -187,42 +205,46 @@ export function ContactsClient() {
             data-help="contacts-import"
             onClick={() => fileRef.current?.click()}
             disabled={importing}
-            className="inline-flex items-center gap-1.5 rounded-[10px] border bg-surface px-3 py-[8px] text-[12.5px] font-bold transition-colors hover:bg-surface-2 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2.5 text-[11px] font-semibold text-mute transition-colors hover:bg-surface-2 hover:text-foreground disabled:opacity-50"
           >
             <Upload className="h-[15px] w-[15px]" strokeWidth={2} />
-            {importing ? "Importando…" : "Importar CSV"}
+            <span className="sr-only sm:not-sr-only">{importing ? "Importando…" : "Importar CSV"}</span>
           </button>
           <button
             data-help="contacts-export"
             onClick={() => window.location.assign("/api/contacts/export")}
-            className="inline-flex items-center gap-1.5 rounded-[10px] border bg-surface px-3 py-[8px] text-[12.5px] font-bold transition-colors hover:bg-surface-2"
+            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2.5 text-[11px] font-semibold text-mute transition-colors hover:bg-surface-2 hover:text-foreground"
           >
             <Download className="h-[15px] w-[15px]" strokeWidth={2} />
-            Exportar CSV
+            <span className="sr-only sm:not-sr-only">Exportar CSV</span>
           </button>
           <a
             data-help="contacts-template"
             href="/plantilla-contactos.csv"
             download
             title="Descargar plantilla de ejemplo"
-            className="inline-flex items-center gap-1.5 rounded-[10px] border bg-surface px-3 py-[8px] text-[12.5px] font-bold text-mute transition-colors hover:bg-surface-2 hover:text-foreground"
+            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2.5 text-[11px] font-semibold text-mute transition-colors hover:bg-surface-2 hover:text-foreground"
           >
             <FileDown className="h-[15px] w-[15px]" strokeWidth={2} />
-            Plantilla
+            <span className="sr-only sm:not-sr-only">Plantilla</span>
           </a>
         </div>
-        <div className="ml-auto flex flex-wrap items-center justify-end gap-2.5">
+        <div className="ml-auto flex items-center gap-2.5">
           <ViewToggle
             value={view}
             options={CONTACT_VIEW_OPTIONS}
             onChange={setView}
             ariaLabel="Visualización de contactos"
           />
-          <select
+        </div>
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center gap-3 px-5 py-4 md:px-8">
+        <p className="mr-auto text-[12px] text-mute"><span className="font-semibold tabular-nums text-foreground">{visible.length}</span> contactos{query || stageFilter ? " encontrados" : " en esta vista"}</p>
+        <select
             value={stageFilter}
             onChange={(e) => setStageFilter(e.target.value)}
             aria-label="Filtrar por etapa del lead"
-            className="h-[38px] rounded-[10px] border bg-surface px-3 text-[12.5px] font-bold outline-none transition-colors hover:bg-surface-2 focus:border-brand"
+            className="h-8 max-w-[180px] rounded-lg border bg-surface px-2 text-[11px] font-semibold outline-none transition-colors hover:bg-surface-2 focus:border-brand"
           >
             <option value="">Todas las etapas</option>
             {stages.map((s) => (
@@ -231,27 +253,16 @@ export function ContactsClient() {
               </option>
             ))}
           </select>
-          <span className="text-[13px] font-bold">Ver archivados</span>
+          <span className="text-[11px] font-medium text-mute">Ver archivados</span>
           <Switch
             size="sm"
             checked={showArchived}
             onCheckedChange={setShowArchived}
             aria-label="Ver archivados"
           />
-        </div>
-        <div className="order-last flex w-full items-center gap-2 rounded-[10px] border bg-surface-2 px-3 py-[9px] transition-colors focus-within:border-brand focus-within:bg-background focus-within:ring-[3px] focus-within:ring-brand-soft md:order-none md:w-[320px]">
-          <Search className="h-4 w-4 shrink-0 text-faint" strokeWidth={2} />
-          <input
-            placeholder="Buscar por nombre o teléfono…"
-            data-help="contacts-search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="w-full bg-transparent text-[16px] outline-none placeholder:text-faint md:text-[13px]"
-          />
-        </div>
-      </header>
+      </div>
 
-      <div data-help="contacts-results" className="flex-1 overflow-y-auto px-4 pb-10 pt-5 md:px-[30px]">
+      <div data-help="contacts-results" className="min-h-0 flex-1 overflow-y-auto px-5 pb-8 md:px-8">
         {contacts.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
             <p className="text-sm font-medium">Sin contactos</p>
@@ -391,36 +402,50 @@ function ContactList({
   onDelete,
 }: ContactCollectionProps) {
   return (
-    <ul className="mx-auto flex max-w-[1000px] flex-col gap-3">
+    <div className="overflow-hidden rounded-xl border bg-surface">
+      <div className="hidden grid-cols-[minmax(240px,1fr)_minmax(130px,.4fr)_220px] gap-5 border-b bg-surface-2 px-5 py-3 text-[10px] font-semibold uppercase tracking-[.08em] text-mute lg:grid">
+        <span>Contacto</span><span>Etapa comercial</span><span className="text-right">Acciones</span>
+      </div>
+      <ul className="divide-y">
       {contacts.map((contact) => (
         <li
           key={contact.id}
           data-testid="contact-list-row"
-          className="flex flex-wrap items-center gap-3 rounded-[14px] border bg-surface px-4 py-3.5 transition-colors hover:border-brand/50 md:gap-4 md:px-5 md:py-4"
+          className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 transition-colors hover:bg-surface-2/60 lg:grid-cols-[minmax(240px,1fr)_minmax(130px,.4fr)_220px] lg:gap-5 lg:px-5"
         >
-          <ContactAvatar name={contact.name} seed={contact.id} size="lg" />
-          <ContactIdentity
-            contact={contact}
-            className="flex-1"
-            showNotesInline
-          />
-          {contact.stage && (
+          <div className="flex min-w-0 items-center gap-3">
+            <ContactAvatar name={contact.name} seed={contact.id} size="md" />
+            <ContactIdentity
+              contact={contact}
+              className="flex-1"
+              showNotesInline
+            />
+          </div>
+          <div className="min-w-0">
+          {contact.stage ? (
             <StageTag
               name={contact.stage.name}
               color={stageColor(contact.stage)}
-              className="shrink-0"
+              className="max-w-full"
             />
+          ) : (
+            <span className="text-[11px] text-faint">Sin etapa</span>
           )}
-          <ContactActions
-            contact={contact}
-            onDetail={onDetail}
-            onEdit={onEdit}
-            onToggleArchived={onToggleArchived}
-            onDelete={onDelete}
-          />
+          </div>
+          <div className="col-span-2 border-t pt-2.5 lg:col-span-1 lg:border-t-0 lg:pt-0">
+            <ContactActions
+              contact={contact}
+              compact
+              onDetail={onDetail}
+              onEdit={onEdit}
+              onToggleArchived={onToggleArchived}
+              onDelete={onDelete}
+            />
+          </div>
         </li>
       ))}
-    </ul>
+      </ul>
+    </div>
   );
 }
 
@@ -432,12 +457,12 @@ function ContactGrid({
   onDelete,
 }: ContactCollectionProps) {
   return (
-    <ul className="mx-auto grid max-w-[1180px] grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
       {contacts.map((contact) => (
         <li
           key={contact.id}
           data-testid="contact-grid-card"
-          className="flex min-w-0 flex-col rounded-[16px] border bg-surface p-4 transition-all hover:-translate-y-0.5 hover:border-brand/50 hover:shadow-sm"
+          className="flex min-w-0 flex-col rounded-xl border bg-surface p-5 transition-all hover:border-border-strong hover:shadow-sm"
         >
           <div className="flex min-w-0 items-start gap-3">
             <ContactAvatar name={contact.name} seed={contact.id} size="lg" />
@@ -486,7 +511,7 @@ function ContactIdentity({
   return (
     <div className={`min-w-0 ${className ?? ""}`}>
       <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-        <span className="min-w-0 truncate font-display text-base font-semibold">
+        <span className="min-w-0 truncate font-display text-[13px] font-bold tracking-[-.015em]">
           {contact.name}
         </span>
         {contact.archivedAt && <Badge variant="secondary">Archivado</Badge>}
@@ -496,8 +521,8 @@ function ContactIdentity({
           </Badge>
         )}
       </div>
-      <p className="truncate text-[13px] text-mute">
-        <span className="font-bold text-foreground">
+      <p className="mt-1 truncate text-[11px] text-mute">
+        <span className="tabular-nums">
           {formatPhone(contact.phone)}
         </span>
         {showNotesInline && contact.notes
@@ -525,13 +550,13 @@ function ContactActions({
   compact?: boolean;
 }) {
   const actionClass =
-    "flex h-[38px] w-[38px] items-center justify-center rounded-[9px] border bg-surface-2 text-mute transition-colors hover:text-foreground";
+    "flex h-[36px] w-[36px] items-center justify-center rounded-lg text-mute transition-colors hover:bg-surface-2 hover:text-foreground";
   return (
     <div
       className={
         compact
-          ? "flex flex-wrap items-center justify-end gap-2"
-          : "ml-auto flex shrink-0 items-center gap-2"
+          ? "flex flex-wrap items-center justify-end gap-1"
+          : "ml-auto flex shrink-0 items-center gap-1"
       }
     >
       <button
@@ -549,7 +574,7 @@ function ContactActions({
         className={
           compact
             ? actionClass
-            : "h-[38px] rounded-[9px] bg-brand px-4 text-[13px] font-bold text-white transition-colors hover:bg-brand-hover"
+            : "h-[38px] rounded-[9px] border border-border-strong bg-surface px-4 text-[13px] font-semibold text-foreground transition-colors hover:bg-surface-2"
         }
       >
         {compact ? (
@@ -582,7 +607,7 @@ function ContactActions({
         aria-label={`Eliminar ${contact.name}`}
         title="Eliminar"
         onClick={() => onDelete(contact)}
-        className="flex h-[38px] w-[38px] items-center justify-center rounded-[9px] border border-brand/40 bg-brand-tint text-brand transition-colors hover:bg-brand-soft"
+        className="flex h-[36px] w-[36px] items-center justify-center rounded-lg text-mute transition-colors hover:bg-danger-bg hover:text-destructive"
       >
         <Trash2 className="h-[17px] w-[17px]" strokeWidth={2} />
       </button>
@@ -910,7 +935,7 @@ function ContactDetailPanel({
       <footer className="flex items-center gap-2 border-t px-[22px] py-[14px]">
         <Link
           href={`/inbox?contact=${contact.id}`}
-          className="inline-flex flex-1 items-center justify-center gap-2 rounded-[10px] bg-brand px-4 py-[10px] text-[13px] font-bold text-white transition-colors hover:bg-brand-hover"
+          className="inline-flex flex-1 items-center justify-center gap-2 rounded-[10px] bg-brand px-4 py-[10px] text-[13px] font-bold text-primary-foreground transition-colors hover:bg-brand-hover hover:text-brand-hover-foreground"
         >
           <MessageCircle className="h-4 w-4" strokeWidth={2.2} />
           Abrir chat

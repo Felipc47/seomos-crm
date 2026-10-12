@@ -26,7 +26,7 @@ const config: Config = {
         faint: "var(--faint)",
         primary: {
           DEFAULT: "var(--accent)",
-          foreground: "#ffffff",
+          foreground: "var(--accent-contrast)",
         },
         secondary: {
           DEFAULT: "var(--bg-panel)",
@@ -34,7 +34,7 @@ const config: Config = {
         },
         destructive: {
           DEFAULT: "var(--danger)",
-          foreground: "#ffffff",
+          foreground: "var(--danger-contrast)",
         },
         muted: {
           DEFAULT: "var(--bg-panel)",
@@ -58,6 +58,7 @@ const config: Config = {
           soft: "var(--accent-soft)",
           tint: "var(--accent-tint)",
           text: "var(--accent-text)",
+          "hover-foreground": "var(--accent-hover-contrast)",
         },
         "accent-2": "var(--accent-2)",
         "text-2": "var(--text-2)",
@@ -68,6 +69,15 @@ const config: Config = {
         "bubble-out-text": "var(--bubble-out-text)",
         success: "var(--success)",
         warning: "var(--warning)",
+        "warning-bg": "var(--warning-bg)",
+        "warning-border": "var(--warning-border)",
+        "warning-fg": "var(--warning-fg)",
+        "success-bg": "var(--success-bg)",
+        "success-border": "var(--success-border)",
+        "success-fg": "var(--success-fg)",
+        "danger-bg": "var(--danger-bg)",
+        "danger-border": "var(--danger-border)",
+        "danger-fg": "var(--danger-fg)",
       },
       borderRadius: {
         sm: "var(--radius-sm)",
@@ -81,8 +91,8 @@ const config: Config = {
         accent: "var(--shadow-accent)",
       },
       fontFamily: {
-        sans: ["var(--font-nunito)", "-apple-system", "sans-serif"],
-        display: ["var(--font-poppins)", "var(--font-nunito)", "sans-serif"],
+        sans: ["var(--font-manrope)", "-apple-system", "sans-serif"],
+        display: ["var(--font-manrope)", "-apple-system", "sans-serif"],
       },
     },
   },

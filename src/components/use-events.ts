@@ -1,79 +1,18 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { sseClient, type EventHandlers } from "@/lib/sse-client";
 
-export type EventHandlers = {
-  onMessageNew?: (data: { conversationId: string; message: unknown }) => void;
-  onMessageStatus?: (data: {
-    conversationId: string;
-    messageId: string;
-    status: string;
-  }) => void;
-  onConversationUpdated?: (data: { conversation: unknown }) => void;
-  onLabRun?: (data: {
-    runId: string;
-    status: string;
-    progress: { done: number; total: number };
-    score?: number | null;
-  }) => void;
-  onCampaignProgress?: (data: {
-    campaignId: string;
-    status: string;
-    progress: { total: number; pending: number; sent: number; failed: number };
-  }) => void;
-  onNotificationNew?: (data: { notification: unknown }) => void;
-  /** Se llama tras RECONECTAR (no en la conexión inicial): catch-up con refetch. */
-  onReconnect?: () => void;
-};
+export type { EventHandlers } from "@/lib/sse-client";
 
 /**
- * Suscripción SSE de la bandeja (contrato sse.md). EventSource reconecta
- * solo; el servidor no garantiza replay, así que al reconectar el consumidor
- * debe refetch con `since=` (onReconnect).
+ * Suscripción SSE compartida entre los componentes de la pestaña (contrato
+ * sse.md). EventSource reconecta solo; el servidor no garantiza replay, así
+ * que cada consumidor debe refetch con `since=` al reconectar (onReconnect).
  */
 export function useEvents(handlers: EventHandlers): void {
   const handlersRef = useRef(handlers);
   handlersRef.current = handlers;
 
-  useEffect(() => {
-    const source = new EventSource("/api/events");
-    let hadError = false;
-
-    const listen = <T,>(type: string, handler: (data: T) => void) => {
-      source.addEventListener(type, (ev) => {
-        try {
-          handler(JSON.parse((ev as MessageEvent).data) as T);
-        } catch {
-          // evento malformado: ignorar
-        }
-      });
-    };
-
-    listen("message.new", (d) => handlersRef.current.onMessageNew?.(d as never));
-    listen("message.status", (d) =>
-      handlersRef.current.onMessageStatus?.(d as never)
-    );
-    listen("conversation.updated", (d) =>
-      handlersRef.current.onConversationUpdated?.(d as never)
-    );
-    listen("lab.run", (d) => handlersRef.current.onLabRun?.(d as never));
-    listen("campaign.progress", (d) =>
-      handlersRef.current.onCampaignProgress?.(d as never)
-    );
-    listen("notification.new", (d) =>
-      handlersRef.current.onNotificationNew?.(d as never)
-    );
-
-    source.onerror = () => {
-      hadError = true;
-    };
-    source.onopen = () => {
-      if (hadError) {
-        hadError = false;
-        handlersRef.current.onReconnect?.();
-      }
-    };
-
-    return () => source.close();
-  }, []);
+  useEffect(() => sseClient.subscribe(() => handlersRef.current), []);
 }

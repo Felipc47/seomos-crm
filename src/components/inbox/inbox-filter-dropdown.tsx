@@ -65,15 +65,15 @@ export function InboxFilterDropdown({
         aria-controls={`${id}-menu`}
         onClick={() => onOpenChange(!open)}
         className={cn(
-          "group flex h-[50px] w-full min-w-0 items-center gap-2 rounded-xl border bg-surface-2 px-2.5 text-left transition-all hover:border-foreground/15 hover:bg-background focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-soft",
-          open && "border-brand/40 bg-background ring-[3px] ring-brand-soft",
-          active && !open && "border-brand/25 bg-brand-tint/55"
+          "group flex h-[50px] w-full min-w-0 items-center gap-2 rounded-xl border bg-surface-2 px-2.5 text-left transition-colors hover:border-border-strong hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-soft",
+          open && "border-brand bg-surface ring-2 ring-brand-soft",
+          active && !open && "border-border-strong bg-surface"
         )}
       >
         <span
           className={cn(
             "flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border bg-surface text-mute shadow-sm transition-colors",
-            active && "border-brand/20 text-brand"
+            active && "border-border text-brand"
           )}
         >
           {selected.icon ? (
@@ -86,10 +86,10 @@ export function InboxFilterDropdown({
           )}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[9.5px] font-extrabold uppercase tracking-[.08em] text-faint">
+          <span className="block text-[9.5px] font-semibold uppercase tracking-[.08em] text-faint">
             {label}
           </span>
-          <span className="mt-0.5 block truncate text-[12.5px] font-bold text-foreground">
+          <span className="mt-0.5 block truncate text-[12.5px] font-semibold text-foreground">
             {selected.shortLabel ?? selected.label}
           </span>
         </span>
@@ -114,11 +114,11 @@ export function InboxFilterDropdown({
             role="menu"
             aria-label={ariaLabel}
             className={cn(
-              "absolute top-full z-30 mt-2 w-[calc(200%+0.5rem)] overflow-hidden rounded-2xl border bg-surface p-1.5 shadow-[0_18px_50px_rgba(24,20,15,.16)] animate-[fade-in_.12s_ease]",
+              "absolute top-full z-30 mt-2 w-[calc(200%+0.5rem)] overflow-hidden rounded-2xl border bg-surface p-1.5 shadow-pop animate-[fade-in_.12s_ease]",
               align === "left" ? "left-0" : "right-0"
             )}
           >
-            <div className="px-2.5 pb-1.5 pt-1 text-[10px] font-extrabold uppercase tracking-[.09em] text-faint">
+            <div className="px-2.5 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[.09em] text-faint">
               Filtrar por {label.toLowerCase()}
             </div>
             <div className="max-h-64 overflow-y-auto">
@@ -140,13 +140,13 @@ export function InboxFilterDropdown({
                     }}
                     className={cn(
                       "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-soft disabled:cursor-not-allowed disabled:opacity-40",
-                      checked && "bg-brand-tint"
+                      checked && "bg-surface-2"
                     )}
                   >
                     <span
                       className={cn(
                         "flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border bg-surface-2 text-mute",
-                        checked && "border-brand/20 bg-surface text-brand"
+                        checked && "border-border bg-surface text-brand"
                       )}
                     >
                       {OptionIcon ? (
@@ -159,7 +159,7 @@ export function InboxFilterDropdown({
                       )}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[12.5px] font-bold">
+                      <span className="block truncate text-[12.5px] font-semibold">
                         {option.label}
                       </span>
                       {option.description && (
@@ -171,7 +171,7 @@ export function InboxFilterDropdown({
                     <span
                       className={cn(
                         "flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors",
-                        checked ? "bg-brand text-white" : "text-transparent"
+                        checked ? "bg-surface text-brand" : "text-transparent"
                       )}
                     >
                       <Check className="h-3 w-3" strokeWidth={2.8} />

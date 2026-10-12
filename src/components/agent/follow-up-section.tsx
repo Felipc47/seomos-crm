@@ -21,7 +21,7 @@ import { useToast } from "@/components/ui/toast";
 type TemplateOption = { id: string; name: string; language: string; status: string };
 
 const selectCls =
-  "flex h-11 w-full max-w-sm rounded-xl border border-border bg-surface-2 px-3.5 text-sm font-medium focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-soft";
+  "flex h-11 w-full min-w-0 max-w-sm rounded-lg border border-border bg-surface px-3 text-sm focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export function FollowUpSection() {
   const toast = useToast();
@@ -72,15 +72,16 @@ export function FollowUpSection() {
   const approved = templates.filter((t) => t.status === "approved");
 
   return (
-    <Card data-help="agent-followup">
-      <CardHeader>
+    <Card data-help="agent-followup" className="grid min-w-0 overflow-hidden rounded-2xl xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+      <CardHeader className="border-b bg-surface-2/60 px-5 py-6 sm:px-6 xl:border-b-0 xl:border-r">
+        <p className="crm-eyebrow mb-3">03 · Continuidad de la conversación</p>
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <AlarmClock className="h-5 w-5 text-brand" />
+          <div className="min-w-0">
+            <CardTitle className="flex items-center gap-2.5 text-[19px] leading-snug tracking-[-0.025em]">
+              <AlarmClock className="h-[18px] w-[18px] shrink-0 text-brand" strokeWidth={1.8} />
               Seguimiento automático
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="mt-3 max-w-[65ch] text-[12px] leading-6">
               Si un cliente pide que lo contacten luego, o no responde al primer
               mensaje, queda en «En calificación» con seguimiento programado y
               el sistema hace dos intentos (a las 12 horas y un día hábil
@@ -95,8 +96,8 @@ export function FollowUpSection() {
           />
         </div>
       </CardHeader>
-      <CardContent>
-        <label className="mb-1.5 block text-sm font-medium">
+      <CardContent className="flex min-w-0 flex-col justify-center px-5 py-6 sm:px-6">
+        <label className="mb-2 block text-[13px] font-medium">
           Plantilla de seguimiento (ventana de 24h cerrada)
         </label>
         <select
@@ -113,7 +114,7 @@ export function FollowUpSection() {
           ))}
         </select>
         {enabled && !templateId && (
-          <p className="mt-2 text-xs text-warning">
+          <p className="mt-3 max-w-[75ch] border-l-2 border-warning-border pl-3 text-xs leading-5 text-warning-fg">
             Sin plantilla, los seguimientos fuera de la ventana de 24h de
             WhatsApp (incluidos los contactos que no respondieron) se omiten:
             WhatsApp solo permite plantillas aprobadas en ese caso. Elige una
@@ -122,7 +123,7 @@ export function FollowUpSection() {
           </p>
         )}
         {approved.length === 0 && (
-          <p className="mt-2 text-xs text-muted-foreground">
+          <p className="mt-3 text-xs leading-5 text-muted-foreground">
             Necesitas al menos una plantilla aprobada por Meta (sección
             Plantillas).
           </p>

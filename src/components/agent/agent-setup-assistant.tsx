@@ -109,12 +109,13 @@ export function AgentSetupAssistant({
 
   return (
     <SlideOver onClose={onClose} ariaLabel="Configurar agente con IA">
-      <header className="flex shrink-0 items-center gap-3 border-b px-4 py-3.5 sm:px-5">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-tint text-brand">
-          <WandSparkles className="h-5 w-5" strokeWidth={2.2} />
+      <header className="flex shrink-0 items-center gap-3 border-b bg-surface px-4 py-5 sm:px-6">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#20252d] text-brand">
+          <WandSparkles className="h-5 w-5" strokeWidth={1.8} />
         </span>
         <div className="min-w-0 flex-1">
-          <h2 className="font-display text-[17px] font-bold leading-tight">
+          <p className="crm-eyebrow mb-1">Agente de IA</p>
+          <h2 className="font-display text-[20px] font-semibold leading-tight tracking-[-0.035em]">
             Configurar con IA
           </h2>
           <p className="mt-0.5 truncate text-xs text-mute">
@@ -130,9 +131,9 @@ export function AgentSetupAssistant({
         <DraftPreview result={result} onBack={() => setResult(null)} onApply={applyDraft} />
       ) : (
         <>
-          <main className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-5">
-            <div className="mb-6 max-w-[65ch]">
-              <h3 className="text-balance font-display text-[22px] font-extrabold leading-tight tracking-[-0.02em]">
+          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-7 sm:px-6">
+            <div className="mb-7 max-w-[65ch] border-b pb-6">
+              <h3 className="text-balance font-display text-[26px] font-semibold leading-snug tracking-[-0.04em]">
                 Cuéntanos lo esencial. La IA ordena el resto.
               </h3>
               <p className="mt-2 text-sm leading-6 text-mute">
@@ -141,7 +142,7 @@ export function AgentSetupAssistant({
               </p>
             </div>
 
-            <div className="space-y-5">
+            <div className="space-y-6">
               <div className="space-y-1.5">
                 <Label htmlFor="assistant-website" className="flex items-center gap-2">
                   <Globe2 className="h-4 w-4 text-brand" /> Sitio web
@@ -166,7 +167,7 @@ export function AgentSetupAssistant({
 
               <div className="flex items-center gap-3" aria-hidden="true">
                 <span className="h-px flex-1 bg-border" />
-                <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-faint">o</span>
+                <span className="text-[11px] font-medium text-faint">o</span>
                 <span className="h-px flex-1 bg-border" />
               </div>
 
@@ -187,7 +188,7 @@ export function AgentSetupAssistant({
               </div>
 
               <fieldset className="space-y-2.5">
-                <legend className="text-sm font-bold">¿Qué debe lograr principalmente?</legend>
+                <legend className="text-sm font-semibold">¿Qué debe lograr principalmente?</legend>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {GOALS.map((option) => {
                     const selected = goal === option.id;
@@ -198,22 +199,22 @@ export function AgentSetupAssistant({
                         aria-pressed={selected}
                         onClick={() => setGoal(option.id)}
                         className={cn(
-                          "flex min-h-[66px] items-start gap-2.5 rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-soft",
+                          "flex min-h-[78px] items-start gap-2.5 rounded-xl border p-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                           selected
-                            ? "border-brand/40 bg-brand-tint"
-                            : "bg-surface-2 hover:border-border-strong"
+                            ? "border-foreground/35 bg-surface-2 shadow-[inset_0_-2px_0_var(--accent)]"
+                            : "bg-surface hover:border-border-strong hover:bg-surface-2/50"
                         )}
                       >
                         <span
                           className={cn(
                             "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
-                            selected ? "border-brand bg-brand text-white" : "border-border-strong"
+                            selected ? "border-brand bg-brand text-primary-foreground" : "border-border-strong"
                           )}
                         >
                           {selected && <Check className="h-3 w-3" strokeWidth={3} />}
                         </span>
                         <span>
-                          <span className="block text-[13px] font-bold">{option.label}</span>
+                          <span className="block text-[13px] font-semibold">{option.label}</span>
                           <span className="mt-0.5 block text-[11px] leading-4 text-mute">
                             {option.description}
                           </span>
@@ -240,7 +241,7 @@ export function AgentSetupAssistant({
             </div>
           </main>
 
-          <footer className="shrink-0 border-t bg-surface px-4 py-3.5 sm:px-5">
+          <footer className="shrink-0 border-t bg-surface px-4 py-4 sm:px-6">
             {error && (
               <div
                 id="assistant-error"
@@ -288,7 +289,7 @@ function DraftPreview({
 
   return (
     <>
-      <main className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-5">
+      <main className="min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6">
         <div className="flex items-start gap-3 rounded-xl bg-success-bg p-3.5 text-success-fg">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-success/15">
             <Check className="h-4 w-4" strokeWidth={2.5} />
@@ -311,17 +312,17 @@ function DraftPreview({
 
         <section className="mt-6 border-b pb-5">
           <div className="flex items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand">
-              <Bot className="h-5 w-5" />
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#20252d] text-brand">
+              <Bot className="h-5 w-5" strokeWidth={1.8} />
             </span>
             <div className="min-w-0">
-              <h3 className="font-display text-[18px] font-extrabold">{draft.name}</h3>
+              <h3 className="font-display text-[18px] font-semibold tracking-tight">{draft.name}</h3>
               <p className="mt-1 text-sm leading-5 text-mute">{draft.greeting}</p>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {toneLabels.map((label) => (
                   <span
                     key={label}
-                    className="rounded-full bg-brand-tint px-2.5 py-1 text-[11px] font-bold text-brand"
+                    className="rounded-md border bg-surface-2 px-2.5 py-1 text-[11px] font-medium text-foreground"
                   >
                     {label}
                   </span>
@@ -332,26 +333,26 @@ function DraftPreview({
         </section>
 
         <section className="py-5">
-          <h3 className="font-display text-[15px] font-bold">Instrucciones preparadas</h3>
+          <h3 className="font-display text-[15px] font-semibold">Instrucciones preparadas</h3>
           <p className="mt-1 text-xs text-mute">Abre una sección para revisar el texto completo.</p>
           <div className="mt-3 divide-y rounded-xl border bg-surface-2">
             {INSTRUCTION_SECTIONS.map((section) => (
               <details key={section.key} className="group px-3.5 py-3 open:bg-surface">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 pr-1 text-[13px] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-soft">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 pr-1 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   <span>{section.title}</span>
                   <ChevronDown className="h-4 w-4 shrink-0 text-faint transition-transform group-open:rotate-180" />
                 </summary>
-                <p className="mt-2 whitespace-pre-wrap text-[12px] leading-5 text-mute">
+                <p className="mt-2 whitespace-pre-wrap break-words text-[12px] leading-5 text-mute">
                   {draft.instructionSections[section.key]}
                 </p>
               </details>
             ))}
             <details className="group px-3.5 py-3 open:bg-surface">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-2 pr-1 text-[13px] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-soft">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-2 pr-1 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                 <span>Escalado a humano</span>
                 <ChevronDown className="h-4 w-4 shrink-0 text-faint transition-transform group-open:rotate-180" />
               </summary>
-              <p className="mt-2 whitespace-pre-wrap text-[12px] leading-5 text-mute">
+              <p className="mt-2 whitespace-pre-wrap break-words text-[12px] leading-5 text-mute">
                 {draft.escalationRules}
               </p>
             </details>
@@ -359,14 +360,14 @@ function DraftPreview({
         </section>
 
         <section className="border-t pt-5">
-          <h3 className="font-display text-[15px] font-bold">Conocimiento del negocio</h3>
-          <p className="mt-2 whitespace-pre-wrap rounded-xl bg-surface-2 p-3 text-[12px] leading-5 text-mute">
+          <h3 className="font-display text-[15px] font-semibold">Conocimiento del negocio</h3>
+          <p className="mt-2 whitespace-pre-wrap break-words rounded-xl border bg-surface-2 p-4 text-[12px] leading-5 text-mute">
             {draft.knowledgeBlock}
           </p>
         </section>
       </main>
 
-      <footer className="shrink-0 border-t bg-surface px-4 py-3.5 sm:px-5">
+      <footer className="shrink-0 border-t bg-surface px-4 py-4 sm:px-6">
         <div className="flex gap-2.5">
           <Button variant="secondary" size="lg" onClick={onBack} aria-label="Volver a editar respuestas">
             <ArrowLeft className="h-4 w-4" />

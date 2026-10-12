@@ -33,7 +33,7 @@ type State = {
 };
 
 const selectCls =
-  "flex h-11 w-full rounded-xl border border-border bg-surface-2 px-3.5 text-sm font-medium focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-soft";
+  "flex h-11 w-full min-w-0 rounded-lg border border-border bg-surface px-3 text-sm focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 function minutesLabel(minutes: number): string {
   const h = Math.floor(minutes / 60);
@@ -93,28 +93,29 @@ export function SchedulingSection() {
   }
 
   return (
-    <Card data-help="agent-scheduling">
-      <CardHeader>
-        <div className="flex items-center justify-between gap-3">
+    <Card data-help="agent-scheduling" className="min-w-0 overflow-hidden rounded-2xl">
+      <CardHeader className="mb-6 border-b bg-surface-2/60 px-5 py-6 sm:px-6">
+        <p className="crm-eyebrow mb-2">04 · Disponibilidad del equipo</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <CalendarClock className="h-5 w-5 text-brand" strokeWidth={2} />
-            <CardTitle>Agendamiento</CardTitle>
+            <CalendarClock className="h-[18px] w-[18px] shrink-0 text-brand" strokeWidth={1.8} />
+            <CardTitle className="text-[21px] tracking-[-0.03em]">Agendamiento</CardTitle>
           </div>
           {state.connection ? (
-            <Badge variant="success">
+            <Badge variant="success" className="max-w-full whitespace-normal break-all">
               Calendar: {state.connection.accountEmail}
             </Badge>
           ) : (
             <Badge variant="warning">Calendar sin conectar</Badge>
           )}
         </div>
-        <CardDescription>
+        <CardDescription className="mt-1 max-w-[90ch] text-[13px] leading-6">
           Reglas con las que el agente ofrece y agenda reuniones. El sistema
           las aplica SIEMPRE, por encima de las instrucciones de texto — no
           hace falta repetirlas arriba.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5 px-5 pb-5 sm:px-6 sm:pb-6">
         {!state.connection && (
           <p className="rounded-xl border border-[color:var(--warning-border)] bg-[color:var(--warning-bg)] p-3 text-[13px] leading-relaxed text-[color:var(--warning-fg)]">
             Sin una cuenta de Google conectada el agente no ofrece agendar.{" "}
@@ -126,7 +127,7 @@ export function SchedulingSection() {
             </Link>
           </p>
         )}
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="space-y-1.5">
             <Label htmlFor="sch-start">Inicio de jornada</Label>
             <select
@@ -188,7 +189,7 @@ export function SchedulingSection() {
             </select>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="border-l-2 border-brand/70 bg-surface-2/60 px-4 py-3 text-xs leading-6 text-muted-foreground">
           Hoy: el agente ofrece reuniones de lunes a viernes de{" "}
           <strong className="text-foreground">{minutesLabel(workStart)}</strong>{" "}
           a <strong className="text-foreground">{minutesLabel(workEnd)}</strong>
@@ -198,7 +199,7 @@ export function SchedulingSection() {
           </strong>{" "}
           después del contacto (al inicio de la jornada).
         </p>
-        <Button disabled={saving} onClick={() => void save()}>
+        <Button className="w-full sm:w-auto" disabled={saving} onClick={() => void save()}>
           {saving ? "Guardando…" : "Guardar agendamiento"}
         </Button>
       </CardContent>

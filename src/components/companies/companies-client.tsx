@@ -502,7 +502,7 @@ function DeleteCompanyDialog({
             disabled={!match || busy}
             onClick={() => void confirm()}
             className={cn(
-              "rounded-[10px] bg-destructive px-4 py-2 text-[13px] font-bold text-white transition-opacity",
+              "rounded-[10px] bg-destructive px-4 py-2 text-[13px] font-bold text-destructive-foreground transition-opacity",
               (!match || busy) && "opacity-40"
             )}
           >
@@ -633,11 +633,12 @@ export function CompaniesClient() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-3xl px-5 py-8 md:px-8">
-        <div className="mb-6 flex items-center justify-between gap-3">
+      <div className="mx-auto max-w-5xl px-5 py-8 md:px-8">
+        <div className="mb-7 flex flex-wrap items-center justify-between gap-5">
           <div>
-            <h1 className="font-display text-[24px] font-bold">Empresas</h1>
-            <p className="text-[13px] text-text-3">
+            <p className="crm-eyebrow mb-2">Administración</p>
+            <h1 className="crm-heading">Empresas</h1>
+            <p className="mt-2 max-w-lg text-[13px] leading-relaxed text-text-3">
               Cada empresa tiene su espacio aislado: su WhatsApp, su bot, su
               equipo y sus datos.
             </p>

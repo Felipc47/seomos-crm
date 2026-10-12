@@ -68,7 +68,7 @@ export function LeadClosureDialog({
           <button
             onClick={() => reason && onConfirm(reason)}
             disabled={!reason || busy}
-            className="flex-1 rounded-xl bg-brand py-3 text-sm font-bold text-white transition-colors hover:bg-brand-hover disabled:opacity-50"
+            className="flex-1 rounded-xl bg-brand py-3 text-sm font-bold text-primary-foreground transition-colors hover:bg-brand-hover hover:text-brand-hover-foreground disabled:opacity-50"
           >
             {busy ? "Guardando…" : "Confirmar"}
           </button>

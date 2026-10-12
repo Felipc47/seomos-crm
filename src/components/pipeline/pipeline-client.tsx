@@ -16,6 +16,8 @@ import {
 } from "@dnd-kit/core";
 import {
   AlarmClock,
+  ArrowUpRight,
+  Clock3,
   Columns3,
   LayoutList,
   MessageCircle,
@@ -207,21 +209,32 @@ export function PipelineClient() {
   }, [leads, match, stages]);
 
   return (
-    <div data-help="pipeline" className="flex h-full flex-col">
-      <header className="flex flex-wrap items-center gap-x-4 gap-y-2.5 border-b bg-surface px-4 py-3 md:px-7 md:py-[18px]">
-        <h2 className="font-display text-[22px] font-bold">
-          Etapas del prospecto
-        </h2>
-        <div className="order-last flex w-full items-center gap-2 rounded-[10px] border bg-surface-2 px-3 py-[8px] transition-colors focus-within:border-brand focus-within:bg-background focus-within:ring-[3px] focus-within:ring-brand-soft md:order-none md:w-auto md:max-w-[300px] md:flex-1">
+    <div data-help="pipeline" className="flex h-full min-h-0 flex-col bg-surface">
+      <header className="shrink-0 px-5 pb-4 pt-4 md:px-8 md:pb-5 md:pt-8">
+        <div className="flex flex-wrap items-start justify-between gap-3 md:gap-5">
+          <div>
+            <p className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-mute"><span className="h-1.5 w-1.5 rounded-full bg-brand" />Gestión comercial</p>
+            <h2 className="font-display text-[26px] font-bold leading-tight tracking-[-.045em] md:text-[32px]">Etapas del prospecto</h2>
+            <p className="mt-2 hidden max-w-lg text-[13px] leading-5 text-mute md:block">Cada oportunidad, su siguiente paso.</p>
+          </div>
+          <dl className="flex w-full items-center gap-4 self-center md:w-auto md:gap-7 md:rounded-xl md:border md:bg-surface md:px-5 md:py-3">
+            <div className="flex items-baseline gap-1.5 md:block"><dt className="text-[10px] font-medium text-mute">Prospectos</dt><dd className="text-[15px] font-semibold leading-none tracking-tight tabular-nums md:mt-1 md:text-[23px]">{leads.length}</dd></div>
+            <div className="flex items-baseline gap-1.5 border-l pl-4 md:block md:pl-7"><dt className="text-[10px] font-medium text-mute">Ganados</dt><dd className="text-[15px] font-semibold leading-none tracking-tight tabular-nums md:mt-1 md:text-[23px]">{leads.filter((lead) => stages.some((stage) => stage.id === lead.stageId && stage.kind === "won")).length}</dd></div>
+            <div className="flex items-baseline gap-1.5 border-l pl-4 md:block md:pl-7"><dt className="text-[10px] font-medium text-mute">Con seguimiento</dt><dd className="text-[15px] font-semibold leading-none tracking-tight tabular-nums md:mt-1 md:text-[23px]">{leads.filter((lead) => lead.followUpDueAt).length}</dd></div>
+          </dl>
+        </div>
+      </header>
+      <div className="mx-5 flex shrink-0 items-center gap-2 border-y py-2.5 md:mx-8 md:gap-3 md:py-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border bg-surface px-3 py-2.5 transition-colors focus-within:border-brand focus-within:ring-[3px] focus-within:ring-brand-soft sm:max-w-[300px]">
           <Search className="h-4 w-4 shrink-0 text-faint" strokeWidth={2} />
           <input
-            data-help="pipeline-search" placeholder="Buscar lead…"
+            data-help="pipeline-search" placeholder="Buscar prospecto…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full bg-transparent text-[16px] outline-none placeholder:text-faint md:text-[13px]"
+            className="min-w-0 w-full bg-transparent text-[16px] outline-none placeholder:text-faint md:text-[13px]"
           />
         </div>
-        <div className="ml-auto flex shrink-0 items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2 md:gap-3">
           <ViewToggle
             value={view}
             options={PIPELINE_VIEW_OPTIONS}
@@ -230,22 +243,24 @@ export function PipelineClient() {
           />
           <button
             data-help="pipeline-manage" onClick={() => setManaging(true)}
-            className="inline-flex shrink-0 items-center gap-2 rounded-[10px] border bg-surface px-2.5 py-[9px] text-[13px] font-bold transition-colors hover:bg-surface-2 sm:px-[15px]"
+            aria-label="Gestionar etapas"
+            title="Gestionar etapas"
+            className="inline-flex shrink-0 items-center gap-2 rounded-lg border bg-surface px-3 py-2.5 text-[12px] font-semibold transition-colors hover:bg-surface-2 sm:px-4"
           >
             <SlidersHorizontal className="h-4 w-4" strokeWidth={2} />
             <span className="hidden sm:inline">Gestionar etapas</span>
           </button>
         </div>
-      </header>
+      </div>
 
       {view === "board" ? (
-        <div className="flex-1 overflow-x-auto overflow-y-hidden px-4 py-4 md:px-6 md:py-[22px]">
+        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-5 py-5 md:px-8 md:py-6">
           <DndContext
             sensors={sensors}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
           >
-            <div className="flex h-full min-w-min items-stretch gap-[18px]">
+            <div className="flex h-full min-w-min items-stretch gap-4">
               {stages.map((stage) => (
                 <StageColumn
                   key={stage.id}
@@ -262,7 +277,7 @@ export function PipelineClient() {
           </DndContext>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto px-4 py-4 md:px-7 md:py-[22px]">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 md:px-8 md:py-6">
           <PipelineList
             leads={visibleLeads}
             stages={stages}
@@ -334,8 +349,8 @@ function PipelineList({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1180px]">
-      <div className="mb-2 hidden grid-cols-[minmax(210px,1.6fr)_minmax(130px,.8fr)_minmax(170px,1fr)_minmax(130px,.8fr)_minmax(150px,.9fr)_86px] gap-4 px-4 text-[11px] font-extrabold uppercase tracking-[.06em] text-faint lg:grid">
+    <div className="w-full overflow-hidden rounded-xl border bg-surface">
+      <div className="hidden grid-cols-[minmax(180px,1.6fr)_minmax(110px,.8fr)_minmax(150px,1fr)_minmax(110px,.8fr)_minmax(120px,.9fr)_86px] gap-4 border-b bg-surface-2 px-5 py-3 text-[10px] font-semibold uppercase tracking-[.08em] text-mute xl:grid">
         <span>Prospecto</span>
         <span>Teléfono</span>
         <span>Etapa</span>
@@ -343,14 +358,14 @@ function PipelineList({
         <span>Seguimiento</span>
         <span className="sr-only">Acciones</span>
       </div>
-      <div className="space-y-2.5">
+      <div className="divide-y">
         {leads.map((lead) => {
           const reason = closureReasonLabel(lead.closureReason);
           return (
             <article
               key={lead.id}
               data-testid="lead-list-row"
-              className="grid gap-3 rounded-[14px] border bg-surface p-4 transition-colors hover:border-brand/50 lg:grid-cols-[minmax(210px,1.6fr)_minmax(130px,.8fr)_minmax(170px,1fr)_minmax(130px,.8fr)_minmax(150px,.9fr)_86px] lg:items-center lg:gap-4"
+              className="grid gap-3 bg-surface px-5 py-4 transition-colors hover:bg-surface-2/60 xl:grid-cols-[minmax(180px,1.6fr)_minmax(110px,.8fr)_minmax(150px,1fr)_minmax(110px,.8fr)_minmax(120px,.9fr)_86px] xl:items-center xl:gap-4"
             >
               <div className="flex min-w-0 items-center gap-3">
                 <ContactAvatar
@@ -376,14 +391,14 @@ function PipelineList({
               </div>
 
               <p className="truncate text-[12px] font-bold text-mute">
-                <span className="mr-1 font-semibold text-faint lg:hidden">
+                <span className="mr-1 font-semibold text-faint xl:hidden">
                   Teléfono:
                 </span>
                 {formatPhone(lead.contact.phone)}
               </p>
 
               <label className="min-w-0">
-                <span className="mb-1 block text-[11px] font-semibold text-faint lg:sr-only">
+                <span className="mb-1 block text-[11px] font-semibold text-faint xl:sr-only">
                   Etapa
                 </span>
                 <select
@@ -407,14 +422,14 @@ function PipelineList({
               </label>
 
               <p className="text-[12px] font-semibold text-mute">
-                <span className="mr-1 text-faint lg:hidden">Actividad:</span>
+                <span className="mr-1 text-faint xl:hidden">Actividad:</span>
                 {lead.lastActivityAt
                   ? formatTime(lead.lastActivityAt)
                   : "Sin actividad"}
               </p>
 
               {lead.followUpDueAt ? (
-                <p className="flex items-center gap-1.5 text-[12px] font-bold text-[#80619E]">
+                <p className="flex items-center gap-1.5 text-[12px] font-medium text-mute">
                   <AlarmClock className="h-3.5 w-3.5 shrink-0" />
                   {formatTime(lead.followUpDueAt)}
                 </p>
@@ -437,7 +452,7 @@ function PipelineList({
                     href={`/inbox?contact=${lead.contact.id}`}
                     aria-label={`Abrir conversación de ${lead.contact.name}`}
                     title="Abrir WhatsApp"
-                    className="flex h-[38px] w-[38px] items-center justify-center rounded-[9px] bg-[rgba(62,189,107,.14)] text-[#2FA35A] transition-colors hover:bg-[rgba(62,189,107,.24)]"
+                    className="flex h-[38px] w-[38px] items-center justify-center rounded-[9px] border bg-surface text-success transition-colors hover:bg-success-bg"
                   >
                     <MessageCircle className="h-[17px] w-[17px]" strokeWidth={2.2} />
                   </Link>
@@ -468,24 +483,23 @@ function StageColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex h-full w-[280px] shrink-0 flex-col rounded-2xl border-[1.5px] p-1.5 transition-colors md:w-[300px]",
-        isOver ? "border-dashed border-brand" : "border-transparent"
+        "flex h-full w-[280px] shrink-0 flex-col rounded-[14px] border bg-surface-2 p-2.5 transition-colors md:w-[290px]",
+        isOver ? "border-dashed border-brand" : "border-border"
       )}
-      style={isOver ? { background: "color-mix(in srgb, var(--accent) 6%, transparent)" } : undefined}
     >
-      <div className="flex items-center gap-2.5 px-1 pb-3.5 pt-0.5">
+      <div className="flex items-center gap-2.5 px-1.5 pb-4 pt-2">
         <span
-          className="h-[11px] w-[11px] shrink-0 rounded-full"
+          className="h-2 w-2 shrink-0 rounded-full"
           style={{ background: color }}
         />
-        <span className="font-display text-[15px] font-semibold">
+        <span className="font-display text-[13px] font-bold tracking-[-.015em]">
           {stage.name}
         </span>
-        <span className="ml-auto rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-extrabold text-mute">
+        <span className="ml-auto rounded-md border bg-surface px-2 py-0.5 text-[11px] font-semibold tabular-nums text-mute">
           {leads.length}
         </span>
       </div>
-      <div className="flex flex-1 flex-col gap-[11px] overflow-y-auto px-[3px] pb-10 pt-0.5">
+      <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pb-3">
         {leads.map((lead) => (
           <DraggableLead key={lead.id} lead={lead} onEdit={onEdit} />
         ))}
@@ -530,29 +544,26 @@ function LeadCard({
     <div
       data-testid="lead-board-card"
       className={cn(
-        "cursor-grab rounded-[13px] border bg-surface p-[13px] shadow-sm transition-shadow",
+        "group cursor-grab rounded-[11px] border bg-surface p-3.5 shadow-[0_2px_3px_rgba(0,0,0,.025)] transition-all hover:border-border-strong hover:shadow-sm",
         overlay && "rotate-2 shadow-pop"
       )}
     >
-      <div className="flex items-center gap-[11px]">
+      <div className="flex items-center gap-2.5">
         <ContactAvatar name={lead.contact.name} seed={lead.contact.id} size="md" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold">{lead.contact.name}</p>
-          <p className="text-[11.5px] font-semibold text-faint">
-            {lead.lastActivityAt
-              ? `Actividad: ${formatTime(lead.lastActivityAt)}`
-              : "Sin actividad"}
-          </p>
+          <p className="truncate text-[13px] font-bold tracking-[-.015em]">{lead.contact.name}</p>
+          <p className="mt-0.5 truncate text-[11px] tabular-nums text-mute">{formatPhone(lead.contact.phone)}</p>
         </div>
       </div>
       <LeadAssignmentBadges
         service={lead.service}
         assignee={lead.assignee}
-        className="mt-2.5"
+        className="mt-3"
       />
-      <div className="mt-[11px] flex items-center gap-2">
-        <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-mute">
-          {formatPhone(lead.contact.phone)}
+      <div className="mt-3 flex items-center gap-1.5 border-t pt-2.5">
+        <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-[10px] text-mute">
+          <Clock3 className="h-3 w-3 shrink-0" />
+          {lead.lastActivityAt ? formatTime(lead.lastActivityAt) : "Sin actividad"}
         </span>
         {onEdit && (
           <button
@@ -564,7 +575,7 @@ function LeadCard({
             }}
             aria-label={`Editar ${lead.contact.name}`}
             title="Editar prospecto"
-            className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg border bg-surface-2 text-mute transition-colors hover:border-brand hover:text-brand"
+            className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-md text-mute transition-colors hover:bg-surface-2 hover:text-foreground"
           >
             <Pencil className="h-3.5 w-3.5" strokeWidth={2.2} />
           </button>
@@ -575,20 +586,20 @@ function LeadCard({
             onPointerDown={(e) => e.stopPropagation()}
             aria-label="Abrir conversación de WhatsApp"
             title="Abrir WhatsApp"
-            className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg bg-[rgba(62,189,107,.14)] text-[#2FA35A] transition-colors hover:bg-[rgba(62,189,107,.24)]"
+            className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-md border bg-surface text-mute transition-colors hover:bg-surface-2 hover:text-brand"
           >
-            <MessageCircle className="h-4 w-4" strokeWidth={2.2} />
+            <ArrowUpRight className="h-4 w-4" strokeWidth={1.8} />
           </Link>
         )}
       </div>
       {lead.followUpDueAt && (
-        <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-[rgba(154,123,184,.12)] px-2 py-1.5 text-[11px] font-bold text-[#80619E]">
+        <div className="mt-2.5 flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1.5 text-[10px] font-medium text-mute">
           <AlarmClock className="h-3.5 w-3.5" />
           Seguimiento {formatTime(lead.followUpDueAt)}
         </div>
       )}
       {reason && (
-        <p className="mt-2 truncate rounded-lg bg-surface-2 px-2 py-1.5 text-[11px] font-bold text-mute">
+        <p className="mt-2 truncate rounded-md bg-surface-2 px-2 py-1.5 text-[10px] font-medium text-mute">
           Motivo: {reason}
         </p>
       )}
@@ -625,7 +636,7 @@ function AddStageColumn({ onCreated }: { onCreated: () => void }) {
   }
 
   return (
-    <div className="w-[280px] shrink-0 md:w-[300px]">
+    <div className="w-[240px] shrink-0">
       {adding ? (
         <div className="rounded-[14px] border-[1.5px] border-brand bg-surface p-3.5">
           <input
@@ -643,7 +654,7 @@ function AddStageColumn({ onCreated }: { onCreated: () => void }) {
             <button
               onClick={() => void create()}
               disabled={saving || !name.trim()}
-              className="flex-1 rounded-[9px] bg-brand py-[9px] text-[13px] font-bold text-white transition-colors hover:bg-brand-hover disabled:opacity-50"
+              className="flex-1 rounded-[9px] bg-brand py-[9px] text-[13px] font-bold text-primary-foreground transition-colors hover:bg-brand-hover hover:text-brand-hover-foreground disabled:opacity-50"
             >
               Crear etapa
             </button>

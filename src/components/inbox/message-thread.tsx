@@ -52,11 +52,11 @@ function DocumentAttachment({ m }: { m: MessageDto }) {
         onClick={() => void download()}
         className="mb-1 flex items-center gap-2.5 rounded-xl border bg-surface-2 px-3.5 py-2.5 text-left transition-colors hover:bg-subtle"
       >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-tint text-brand">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface text-brand">
           <FileText className="h-[18px] w-[18px]" strokeWidth={2} />
         </span>
         <span className="min-w-0">
-          <span className="block truncate text-[13px] font-bold">
+          <span className="block truncate text-[13px] font-semibold">
             {m.mediaFilename ?? "Documento"}
           </span>
           <span className="block text-[11.5px] text-text-3">
@@ -87,11 +87,11 @@ function VideoAttachment({ m }: { m: MessageDto }) {
           onClick={() => setState("shown")}
           className="mb-1 flex items-center gap-2.5 rounded-xl border bg-surface-2 px-3.5 py-2.5 text-left transition-colors hover:bg-subtle"
         >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-tint text-brand">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface text-brand">
             <Play className="ml-0.5 h-[18px] w-[18px] fill-current" strokeWidth={2} />
           </span>
           <span>
-            <span className="block text-[13px] font-bold">Video</span>
+            <span className="block text-[13px] font-semibold">Video</span>
             <span className="block text-[11.5px] text-text-3">
               Presiona para descargar
             </span>
@@ -127,16 +127,16 @@ function VoiceNote({ m }: { m: MessageDto }) {
   const [state, setState] = useState<"idle" | "playing" | "error">("idle");
   return (
     <span className="block">
-      <span className="mb-0.5 inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-text-3">
+      <span className="mb-0.5 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-3">
         <Mic className="h-3 w-3" strokeWidth={2} />
         Nota de voz
       </span>
       {m.hasMedia && state === "idle" && (
         <button
           onClick={() => setState("playing")}
-          className="mb-1 flex items-center gap-2 rounded-full border bg-surface-2 py-1.5 pl-2.5 pr-3.5 text-[12.5px] font-bold text-text-2 transition-colors hover:bg-subtle"
+          className="mb-1 flex items-center gap-2 rounded-full border bg-surface-2 py-1.5 pl-2.5 pr-3.5 text-[12.5px] font-semibold text-text-2 transition-colors hover:bg-subtle"
         >
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand text-white">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand text-primary-foreground">
             <Play className="ml-0.5 h-3 w-3 fill-current" strokeWidth={2} />
           </span>
           Reproducir
@@ -235,7 +235,7 @@ export function MessageThread({ messages }: { messages: MessageDto[] }) {
   return (
     <div
       ref={scrollRef}
-      className="flex flex-1 flex-col gap-[3px] overflow-y-auto bg-chat px-[6%] py-5"
+      className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto bg-chat px-4 py-6 md:px-[6%]"
     >
       {messages.map((m, i) => {
         const prev = messages[i - 1];
@@ -250,25 +250,27 @@ export function MessageThread({ messages }: { messages: MessageDto[] }) {
         return (
           <div key={m.id}>
             {newDay && (
-              <div className="my-3 flex justify-center">
-                <span className="rounded-full border bg-background px-3 py-1 text-[11.5px] font-semibold text-text-2 shadow-sm">
+              <div className="my-5 flex items-center justify-center gap-4">
+                <span className="h-px w-10 bg-border" />
+                <span className="text-[10px] font-medium tracking-wide text-mute">
                   {dayLabel(m.createdAt)}
                 </span>
+                <span className="h-px w-10 bg-border" />
               </div>
             )}
             <div
               className={cn(
                 "flex",
                 out ? "justify-end" : "justify-start",
-                grouped ? "mt-[3px]" : "mt-2.5"
+                grouped ? "mt-0.5" : "mt-4"
               )}
             >
               <div
                 className={cn(
-                  "max-w-[86%] rounded-2xl px-[15px] pb-1.5 pt-2 text-sm leading-[1.45] md:max-w-[74%]",
+                  "max-w-[88%] rounded-2xl px-4 pb-2 pt-3 text-[13px] leading-[1.7] md:max-w-[78%] xl:max-w-[72%]",
                   out
                     ? "bg-bubble-out text-bubble-out-text"
-                    : "border border-border bg-surface shadow-sm",
+                    : "border border-border/80 bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.025)]",
                   !grouped && (out ? "rounded-br-[5px]" : "rounded-bl-[5px]")
                 )}
               >
@@ -312,7 +314,7 @@ export function MessageThread({ messages }: { messages: MessageDto[] }) {
                 <span className="float-right ml-2 mt-1 flex items-center gap-1">
                   {m.aiGenerated && (
                     <span
-                      className="inline-flex items-center gap-0.5 text-[10px] font-extrabold text-accent-2"
+                      className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-accent-2"
                       title="Respuesta generada por IA"
                     >
                       <Sparkles className="h-3 w-3" strokeWidth={2} /> IA

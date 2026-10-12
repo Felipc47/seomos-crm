@@ -96,10 +96,10 @@ export function HelpTour({ tour, index, onStep, onClose, onQuestion }: {
   return <>
     {box && !completed && !blocked && <div data-testid="help-target-highlight" aria-hidden="true" className="pointer-events-none fixed z-[45] rounded-xl border-[3px] border-brand shadow-[0_0_0_5px_color-mix(in_srgb,var(--accent)_18%,transparent)] transition-[top,left,width,height] duration-150 motion-reduce:transition-none"
       style={{ top: box.top - 3, left: box.left - 3, width: box.width + 6, height: box.height + 6 }}>
-      <span className="absolute -left-2 -top-3 flex h-6 w-6 items-center justify-center rounded-full bg-brand text-xs font-bold text-white shadow">{index + 1}</span>
+      <span className="absolute -left-2 -top-3 flex h-6 w-6 items-center justify-center rounded-full bg-brand text-xs font-bold text-primary-foreground shadow">{index + 1}</span>
     </div>}
     <section role="dialog" aria-label="Guía en pantalla" aria-describedby="help-tour-text" data-testid="help-tour" className={`fixed right-3 z-50 w-[calc(100%-1.5rem)] max-w-[360px] overflow-hidden rounded-2xl border border-brand/30 bg-surface shadow-2xl md:right-6 ${dockTop ? "top-3 md:top-6" : "bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6"}`}>
-      <header className="flex items-start gap-2 border-b bg-brand/5 px-4 py-3">
+      <header className="flex items-start gap-2 border-b bg-surface-2 px-4 py-3">
         <Crosshair className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden />
         <div className="min-w-0 flex-1"><p className="truncate text-xs font-bold">{tour.title}</p><p className="mt-1 text-[11px] text-mute">{completed ? tour.observed ? "Comprobado en esta pantalla" : "Tú decides qué guardar o enviar" : `Paso ${index + 1} de ${tour.steps.length}`}</p></div>
         <button type="button" aria-label="Cerrar guía" onClick={onClose} className="-mr-1 rounded-lg p-1 text-mute hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-ring"><X className="h-4 w-4" aria-hidden /></button>

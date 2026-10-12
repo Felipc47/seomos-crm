@@ -108,10 +108,19 @@ export function resolveAccentSet(accentHex: string): AccentSet {
   };
 }
 
+/** Mayor contraste entre blanco y negro: al menos 4,58:1 sobre un hex válido. */
+export function accentForeground(color: string): string {
+  const l = luminance(hexToRgb(color));
+  return (l + 0.05) / 0.05 >= 1.05 / (l + 0.05) ? "#000000" : "#ffffff";
+}
+
 /** CSS de variables para inyectar en el <head> (SSR, sin flash). */
 export function accentCssVariables(accentHex: string): string {
   const s = resolveAccentSet(accentHex);
-  return `:root{--accent:${s.accent};--accent-hover:${s.hover};--accent-soft:${s.soft};--accent-tint:${s.tint};--accent-text:${s.text};}`;
+  // Se conserva el acento propio en ambos temas; los paneles permanecen
+  // neutros y el texto de marca se aclara sobre las superficies oscuras.
+  const darkText = rgbToHex(mix(hexToRgb(s.accent), WHITE, 0.55));
+  return `:root,.dark{--accent:${s.accent};--accent-hover:${s.hover};--accent-contrast:${accentForeground(s.accent)};--accent-hover-contrast:${accentForeground(s.hover)};--accent-soft:${s.accent}29;--accent-text:${s.text};}.dark{--accent-text:${darkText};}`;
 }
 
 export function normalizeBranding(input: Partial<Branding> | null): Branding {

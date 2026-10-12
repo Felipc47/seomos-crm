@@ -1,0 +1,19 @@
+{
+  "checks": [
+    "agent-desktop-light visible, populated, no horizontal overflow",
+    "agent-desktop-dark visible, populated, no horizontal overflow",
+    "agent-desktop-training visible, populated, no horizontal overflow",
+    "agent-desktop-assistant visible, populated, no horizontal overflow",
+    "inbox-desktop-list visible, populated, no horizontal overflow",
+    "inbox-desktop-light visible, populated, no horizontal overflow",
+    "inbox-desktop-dark visible, populated, no horizontal overflow",
+    "agent-mobile-light visible, populated, no horizontal overflow",
+    "agent-mobile-dark visible, populated, no horizontal overflow",
+    "agent-mobile-training visible, populated, no horizontal overflow",
+    "agent-mobile-assistant visible, populated, no horizontal overflow",
+    "inbox-mobile-list visible, populated, no horizontal overflow",
+    "inbox-mobile-light visible, populated, no horizontal overflow",
+    "inbox-mobile-dark visible, populated, no horizontal overflow"
+  ],
+  "errors": []
+}

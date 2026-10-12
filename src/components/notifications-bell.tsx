@@ -85,9 +85,9 @@ export function NotificationsBell({
         onClick={() => void toggle()}
         aria-label={`Notificaciones${unread > 0 ? ` (${unread} sin leer)` : ""}`}
         className={cn(
-          "relative",
+          "relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand",
           variant === "sidebar"
-            ? "flex w-full items-center gap-2.5 rounded-xl border border-border bg-surface px-3 py-2.5 text-[13px] font-bold text-foreground transition-colors hover:bg-surface-2"
+            ? "flex min-h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-semibold text-mute transition-colors hover:bg-surface-2 hover:text-foreground"
             : "rounded-lg border border-border bg-surface p-2 text-foreground transition-colors hover:bg-surface-2"
         )}
       >
@@ -99,7 +99,7 @@ export function NotificationsBell({
         {unread > 0 && (
           <span
             className={cn(
-              "flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1 text-[10px] font-extrabold text-white",
+              "flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1 text-[10px] font-semibold text-primary-foreground",
               variant === "sidebar" ? "ml-auto" : "absolute -right-1.5 -top-1.5"
             )}
           >
@@ -119,7 +119,7 @@ export function NotificationsBell({
                 : "right-3 top-14"
             )}
           >
-            <p className="px-3 py-2 text-[12px] font-extrabold uppercase tracking-wide text-text-3">
+            <p className="px-3 py-2 text-[12px] font-semibold uppercase tracking-wide text-text-3">
               Notificaciones
             </p>
             {items.length === 0 ? (
@@ -137,11 +137,11 @@ export function NotificationsBell({
                       }}
                       className={cn(
                         "w-full rounded-[11px] px-3 py-2.5 text-left transition-colors hover:bg-subtle",
-                        !n.readAt && "bg-brand-tint"
+                        !n.readAt && "bg-surface-2 shadow-[inset_2px_0_0_var(--accent)]"
                       )}
                     >
                       <span className="flex items-baseline justify-between gap-2">
-                        <span className="text-[13px] font-bold">{n.title}</span>
+                        <span className="text-[13px] font-semibold">{n.title}</span>
                         <span className="shrink-0 text-[10.5px] text-faint">
                           {timeAgo(n.createdAt)}
                         </span>
@@ -161,7 +161,7 @@ export function NotificationsBell({
                 setOpen(false);
                 router.push("/notifications");
               }}
-              className="mt-1 w-full rounded-[11px] border-t border-border px-3 py-2.5 text-center text-[12.5px] font-bold text-brand transition-colors hover:bg-subtle"
+              className="mt-1 w-full rounded-[11px] border-t border-border px-3 py-2.5 text-center text-[12.5px] font-semibold text-brand-text transition-colors hover:bg-subtle"
             >
               Ver todas las notificaciones
             </button>

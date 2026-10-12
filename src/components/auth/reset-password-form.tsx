@@ -76,7 +76,7 @@ export function ResetPasswordForm({
         <CardContent>
           <Link
             href="/login"
-            className="inline-flex h-10 w-full items-center justify-center rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground shadow-accent transition-colors hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex h-10 w-full items-center justify-center rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground shadow-accent transition-colors hover:bg-brand-hover hover:text-brand-hover-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Ir al acceso
           </Link>
@@ -101,7 +101,7 @@ export function ResetPasswordForm({
         <CardContent>
           <Link
             href="/forgot-password"
-            className="inline-flex h-10 w-full items-center justify-center rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground shadow-accent transition-colors hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex h-10 w-full items-center justify-center rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground shadow-accent transition-colors hover:bg-brand-hover hover:text-brand-hover-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Solicitar un enlace nuevo
           </Link>

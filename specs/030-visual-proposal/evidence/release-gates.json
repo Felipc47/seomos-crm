@@ -1,0 +1,29 @@
+{
+  "verifiedAt": "2026-10-12T21:31:29.898265+00:00",
+  "scope": "isolated release worktree based on 18426826e0158a2c13704cefacb3d8744434e2cc",
+  "commands": [
+    "tsc --noEmit",
+    "eslint .",
+    "vitest run",
+    "next build"
+  ],
+  "execution": "Installed local executables matching package.json scripts; pnpm auto-install stopped before execution on a symlinked node_modules and was not forced. No dependency changes.",
+  "exitCode": 0,
+  "unitTestFiles": 51,
+  "unitTestsPassed": 419,
+  "typecheck": "passed",
+  "lint": "passed",
+  "build": "passed",
+  "migrationsChanged": false,
+  "externalProvidersUsed": false,
+  "fullBrowserRegression": {
+    "result": "passed",
+    "checks": 164,
+    "singleUninterruptedRun": true,
+    "desktopRoutes": 18,
+    "mobileRoutes": 7,
+    "baseURL": "http://127.0.0.1:3101",
+    "codeCommitTested": "9cc9089540a84c98ff8a26740bec86ee658ea9e6",
+    "productionOutboxUsed": false
+  }
+}
