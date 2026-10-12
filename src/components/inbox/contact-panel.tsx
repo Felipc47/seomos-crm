@@ -201,7 +201,7 @@ export function ContactPanel({
           <p className="truncate font-display text-lg font-semibold">
             {conversation.contact.name}
           </p>
-          <p className="text-[13px] font-bold text-mute">
+          <p className="text-[13px] font-semibold text-mute">
             {formatPhone(conversation.contact.phone)}
           </p>
         </div>
@@ -228,12 +228,12 @@ export function ContactPanel({
               assignee={conversation.assignee}
             />
             {closureReason && (
-              <span className="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-bold text-mute">
+              <span className="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-semibold text-mute">
                 {closureReasonLabel(closureReason)}
               </span>
             )}
             {followUpDueAt && (
-              <span className="rounded-full bg-[rgba(154,123,184,.12)] px-2.5 py-1 text-xs font-bold text-[#80619E]">
+              <span className="rounded-full border bg-surface-2 px-2.5 py-1 text-xs font-semibold text-mute">
                 Seguimiento programado
               </span>
             )}
@@ -245,7 +245,7 @@ export function ContactPanel({
             <span className="shrink-0 text-[13px] font-semibold text-mute">
               Teléfono
             </span>
-            <span className="text-right text-sm font-bold">
+            <span className="text-right text-sm font-semibold">
               {formatPhone(conversation.contact.phone)}
             </span>
           </div>
@@ -253,7 +253,7 @@ export function ContactPanel({
             <span className="shrink-0 text-[13px] font-semibold text-mute">
               Correo
             </span>
-            <span className="min-w-0 truncate text-right text-sm font-bold">
+            <span className="min-w-0 truncate text-right text-sm font-semibold">
               {contactEmail ?? (
                 <span className="font-semibold text-faint">
                   Sin correo aún
@@ -265,7 +265,7 @@ export function ContactPanel({
 
         <button
           onClick={() => setScheduling(true)}
-          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border py-3 text-sm font-bold transition-colors hover:border-brand hover:text-brand"
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border py-3 text-sm font-semibold transition-colors hover:border-border-strong hover:bg-surface-2 hover:text-foreground"
         >
           <CalendarPlus className="h-4 w-4" strokeWidth={2.2} />
           Agendar reunión
@@ -296,7 +296,7 @@ export function ContactPanel({
         <div className="mt-4 rounded-xl border bg-surface-2/60 px-3.5 py-3">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[13px] font-bold">IA en esta conversación</p>
+              <p className="text-[13px] font-semibold">IA en esta conversación</p>
               <p className="text-[11px] text-text-3">
                 {agentAvailability === null
                   ? "Consultando agente…"
@@ -352,7 +352,7 @@ export function ContactPanel({
         {/* Stepper de etapa del mock: dot 22px del color de la etapa */}
         {stages.length > 0 && leadId && (
           <>
-            <p className="mb-3 mt-6 text-[11px] font-extrabold uppercase tracking-[.6px] text-faint">
+            <p className="mb-3 mt-6 text-[11px] font-semibold uppercase tracking-[.6px] text-faint">
               Etapa del pipeline
             </p>
             <div className="flex flex-col gap-0.5">
@@ -385,7 +385,7 @@ export function ContactPanel({
                       className={cn(
                         "text-sm",
                         active
-                          ? "font-extrabold text-foreground"
+                          ? "font-semibold text-foreground"
                           : "font-semibold text-mute"
                       )}
                     >
@@ -401,7 +401,7 @@ export function ContactPanel({
         {/* Ficha del lead (IA): se regenera tras cada mensaje del cliente */}
         {aiProfile && (
           <>
-            <p className="mb-2.5 mt-6 flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-[.6px] text-faint">
+            <p className="mb-2.5 mt-6 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[.6px] text-faint">
               <Sparkles className="h-3 w-3" strokeWidth={2.2} />
               Ficha del lead (IA)
             </p>
@@ -425,7 +425,7 @@ export function ContactPanel({
               )}
               {aiProfile.needs.length > 0 && (
                 <div>
-                  <p className="text-[11px] font-bold text-faint">Necesita</p>
+                  <p className="text-[11px] font-semibold text-faint">Necesita</p>
                   <ul className="mt-0.5 list-disc space-y-0.5 pl-4 text-text-2">
                     {aiProfile.needs.map((n, i) => (
                       <li key={i} className="leading-snug">
@@ -446,7 +446,7 @@ export function ContactPanel({
         )}
 
         {/* Notas */}
-        <p className="mb-2.5 mt-6 text-[11px] font-extrabold uppercase tracking-[.6px] text-faint">
+        <p className="mb-2.5 mt-6 text-[11px] font-semibold uppercase tracking-[.6px] text-faint">
           Notas
         </p>
         <Textarea
@@ -472,7 +472,7 @@ export function ContactPanel({
         <div className="flex gap-2.5">
           <button
             onClick={() => setEditing(true)}
-            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand py-3 text-sm font-bold text-white shadow-accent transition-colors hover:bg-brand-hover"
+            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-brand-hover hover:text-brand-hover-foreground"
           >
             <Pencil className="h-4 w-4" strokeWidth={2.2} />
             Editar
@@ -491,7 +491,7 @@ export function ContactPanel({
             aria-label="Eliminar contacto"
             disabled={busy}
             onClick={() => setConfirming("delete")}
-            className="flex w-12 shrink-0 items-center justify-center rounded-xl border border-brand/40 text-brand transition-colors hover:bg-brand-tint disabled:opacity-50"
+            className="flex w-12 shrink-0 items-center justify-center rounded-xl border border-destructive/30 text-destructive transition-colors hover:bg-destructive/5 disabled:opacity-50"
           >
             <Trash2 className="h-[17px] w-[17px]" strokeWidth={2} />
           </button>
@@ -575,7 +575,7 @@ export function ContactPanel({
 function ProfileRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex gap-2">
-      <span className="shrink-0 text-[11px] font-bold text-faint">{label}</span>
+      <span className="shrink-0 text-[11px] font-semibold text-faint">{label}</span>
       <span className="leading-snug text-text-2">{value}</span>
     </div>
   );

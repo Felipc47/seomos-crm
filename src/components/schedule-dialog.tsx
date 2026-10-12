@@ -193,7 +193,7 @@ export function ScheduleDialog({
           <button
             onClick={() => void schedule()}
             disabled={!canSave || saving}
-            className="flex-1 rounded-xl bg-brand py-3 text-sm font-bold text-white shadow-accent transition-colors hover:bg-brand-hover disabled:opacity-50"
+            className="flex-1 rounded-xl bg-brand py-3 text-sm font-bold text-primary-foreground shadow-accent transition-colors hover:bg-brand-hover hover:text-brand-hover-foreground disabled:opacity-50"
           >
             {saving ? "Agendando…" : "Agendar y enviar invitaciones"}
           </button>

@@ -20,7 +20,7 @@ export default async function AppLayout({
 
   return (
     <ToastProvider>
-      <div className="flex h-dvh flex-col overflow-hidden bg-background md:flex-row">
+      <div className="flex h-dvh flex-col overflow-hidden bg-[var(--workspace)] md:flex-row">
         <AppNav
           branding={branding}
           userName={authSession?.user.name ?? "Usuario"}
@@ -29,7 +29,7 @@ export default async function AppLayout({
           isSuperadmin={session.isSuperadmin}
           mailingEnabled={mailingEnabled}
         />
-        <main className="min-w-0 flex-1 overflow-hidden">{children}</main>
+        <main className="min-h-0 min-w-0 flex-1 overflow-hidden bg-background md:my-3 md:mr-3 md:rounded-[20px] md:border md:shadow-sm">{children}</main>
         <HelpChat role={session.role} isSuperadmin={session.isSuperadmin} mailingEnabled={mailingEnabled} />
       </div>
     </ToastProvider>

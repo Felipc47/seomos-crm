@@ -251,7 +251,7 @@ export function CampaignsClient() {
     .slice(0, 100);
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(280px,.7fr)]">
       <Card data-help="campaign-create">
         <CardHeader>
           <CardTitle>Nueva campaña</CardTitle>
@@ -568,7 +568,7 @@ export function CampaignsClient() {
         </CardContent>
       </Card>
 
-      <Card data-help="campaign-list">
+      <Card data-help="campaign-list" className="xl:sticky xl:top-0">
         <CardHeader>
           <CardTitle>Campañas</CardTitle>
           <CardDescription>
@@ -703,6 +703,6 @@ export function CampaignsClient() {
 
 function chipClass(active: boolean): string {
   return active
-    ? "rounded-full border border-transparent bg-brand px-3 py-1.5 text-[13px] font-bold text-white"
+    ? "rounded-full border border-transparent bg-brand px-3 py-1.5 text-[13px] font-bold text-primary-foreground"
     : "rounded-full border border-border bg-surface px-3 py-1.5 text-[13px] font-bold text-mute hover:bg-surface-2 hover:text-foreground";
 }

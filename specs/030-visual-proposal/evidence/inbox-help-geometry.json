@@ -1,0 +1,607 @@
+{
+  "cases": 8,
+  "checks": [
+    {
+      "size": "desktop",
+      "mode": "light",
+      "state": "empty",
+      "geometry": {
+        "help": {
+          "left": 1384.015625,
+          "right": 1488,
+          "top": 867.5,
+          "bottom": 915.5,
+          "width": 103.984375,
+          "height": 48
+        },
+        "composer": {
+          "left": 611,
+          "right": 1499,
+          "top": 927.5,
+          "bottom": 1037,
+          "width": 888,
+          "height": 109.5
+        },
+        "send": {
+          "left": 1430,
+          "right": 1472,
+          "top": 949.5,
+          "bottom": 991.5,
+          "width": 42,
+          "height": 42
+        },
+        "gap": 12,
+        "overlapComposer": false,
+        "overlapSend": false,
+        "sendCenterUsable": false,
+        "overflow": false,
+        "disabledSend": true,
+        "sendBg": "rgb(241, 243, 246)",
+        "sendOpacity": "1"
+      },
+      "afterClose": {
+        "help": {
+          "left": 1384.015625,
+          "right": 1488,
+          "top": 867.5,
+          "bottom": 915.5,
+          "width": 103.984375,
+          "height": 48
+        },
+        "composer": {
+          "left": 611,
+          "right": 1499,
+          "top": 927.5,
+          "bottom": 1037,
+          "width": 888,
+          "height": 109.5
+        },
+        "send": {
+          "left": 1430,
+          "right": 1472,
+          "top": 949.5,
+          "bottom": 991.5,
+          "width": 42,
+          "height": 42
+        },
+        "gap": 12,
+        "overlapComposer": false,
+        "overlapSend": false,
+        "sendCenterUsable": false,
+        "overflow": false,
+        "disabledSend": true,
+        "sendBg": "rgb(241, 243, 246)",
+        "sendOpacity": "1"
+      },
+      "helpOpenClose": true,
+      "draftPreserved": true
+    },
+    {
+      "size": "desktop",
+      "mode": "light",
+      "state": "multiline",
+      "geometry": {
+        "help": {
+          "left": 1384.015625,
+          "right": 1488,
+          "top": 829.5,
+          "bottom": 877.5,
+          "width": 103.984375,
+          "height": 48
+        },
+        "composer": {
+          "left": 611,
+          "right": 1499,
+          "top": 889.5,
+          "bottom": 1037,
+          "width": 888,
+          "height": 147.5
+        },
+        "send": {
+          "left": 1430,
+          "right": 1472,
+          "top": 949.5,
+          "bottom": 991.5,
+          "width": 42,
+          "height": 42
+        },
+        "gap": 12,
+        "overlapComposer": false,
+        "overlapSend": false,
+        "sendCenterUsable": true,
+        "overflow": false,
+        "disabledSend": false,
+        "sendBg": "rgb(232, 75, 29)",
+        "sendOpacity": "1"
+      },
+      "afterClose": {
+        "help": {
+          "left": 1384.015625,
+          "right": 1488,
+          "top": 829.5,
+          "bottom": 877.5,
+          "width": 103.984375,
+          "height": 48
+        },
+        "composer": {
+          "left": 611,
+          "right": 1499,
+          "top": 889.5,
+          "bottom": 1037,
+          "width": 888,
+          "height": 147.5
+        },
+        "send": {
+          "left": 1430,
+          "right": 1472,
+          "top": 949.5,
+          "bottom": 991.5,
+          "width": 42,
+          "height": 42
+        },
+        "gap": 12,
+        "overlapComposer": false,
+        "overlapSend": false,
+        "sendCenterUsable": true,
+        "overflow": false,
+        "disabledSend": false,
+        "sendBg": "rgb(232, 75, 29)",
+        "sendOpacity": "1"
+      },
+      "helpOpenClose": true,
+      "draftPreserved": true
+    },
+    {
+      "size": "desktop",
+      "mode": "dark",
+      "state": "empty",
+      "geometry": {
+        "help": {
+          "left": 1384.015625,
+          "right": 1488,
+          "top": 867.5,
+          "bottom": 915.5,
+          "width": 103.984375,
+          "height": 48
+        },
+        "composer": {
+          "left": 611,
+          "right": 1499,
+          "top": 927.5,
+          "bottom": 1037,
+          "width": 888,
+          "height": 109.5
+        },
+        "send": {
+          "left": 1430,
+          "right": 1472,
+          "top": 949.5,
+          "bottom": 991.5,
+          "width": 42,
+          "height": 42
+        },
+        "gap": 12,
+        "overlapComposer": false,
+        "overlapSend": false,
+        "sendCenterUsable": false,
+        "overflow": false,
+        "disabledSend": true,
+        "sendBg": "rgb(32, 36, 44)",
+        "sendOpacity": "1"
+      },
+      "afterClose": {
+        "help": {
+          "left": 1384.015625,
+          "right": 1488,
+          "top": 867.5,
+          "bottom": 915.5,
+          "width": 103.984375,
+          "height": 48
+        },
+        "composer": {
+          "left": 611,
+          "right": 1499,
+          "top": 927.5,
+          "bottom": 1037,
+          "width": 888,
+          "height": 109.5
+        },
+        "send": {
+          "left": 1430,
+          "right": 1472,
+          "top": 949.5,
+          "bottom": 991.5,
+          "width": 42,
+          "height": 42
+        },
+        "gap": 12,
+        "overlapComposer": false,
+        "overlapSend": false,
+        "sendCenterUsable": false,
+        "overflow": false,
+        "disabledSend": true,
+        "sendBg": "rgb(32, 36, 44)",
+        "sendOpacity": "1"
+      },
+      "helpOpenClose": true,
+      "draftPreserved": true
+    },
+    {
+      "size": "desktop",
+      "mode": "dark",
+      "state": "multiline",
+      "geometry": {
+        "help": {
+          "left": 1384.015625,
+          "right": 1488,
+          "top": 829.5,
+          "bottom": 877.5,
+          "width": 103.984375,
+          "height": 48
+        },
+        "composer": {
+          "left": 611,
+          "right": 1499,
+          "top": 889.5,
+          "bottom": 1037,
+          "width": 888,
+          "height": 147.5
+        },
+        "send": {
+          "left": 1430,
+          "right": 1472,
+          "top": 949.5,
+          "bottom": 991.5,
+          "width": 42,
+          "height": 42
+        },
+        "gap": 12,
+        "overlapComposer": false,
+        "overlapSend": false,
+        "sendCenterUsable": true,
+        "overflow": false,
+        "disabledSend": false,
+        "sendBg": "rgb(232, 75, 29)",
+        "sendOpacity": "1"
+      },
+      "afterClose": {
+        "help": {
+          "left": 1384.015625,
+          "right": 1488,
+          "top": 829.5,
+          "bottom": 877.5,
+          "width": 103.984375,
+          "height": 48
+        },
+        "composer": {
+          "left": 611,
+          "right": 1499,
+          "top": 889.5,
+          "bottom": 1037,
+          "width": 888,
+          "height": 147.5
+        },
+        "send": {
+          "left": 1430,
+          "right": 1472,
+          "top": 949.5,
+          "bottom": 991.5,
+          "width": 42,
+          "height": 42
+        },
+        "gap": 12,
+        "overlapComposer": false,
+        "overlapSend": false,
+        "sendCenterUsable": true,
+        "overflow": false,
+        "disabledSend": false,
+        "sendBg": "rgb(232, 75, 29)",
+        "sendOpacity": "1"
+      },
+      "helpOpenClose": true,
+      "draftPreserved": true
+    },
+    {
+      "size": "mobile",
+      "mode": "light",
+      "state": "empty",
+      "geometry": {
+        "help": {
+          "left": 270.015625,
+          "right": 374,
+          "top": 614.5,
+          "bottom": 662.5,
+          "width": 103.984375,
+          "height": 48
+        },
+        "composer": {
+          "left": 0,
+          "right": 390,
+          "top": 674.5,
+          "bottom": 784,
+          "width": 390,
+          "height": 109.5
+        },
+        "send": {
+          "left": 321,
+          "right": 363,
+          "top": 696.5,
+          "bottom": 738.5,
+          "width": 42,
+          "height": 42
+        },
+        "gap": 12,
+        "overlapComposer": false,
+        "overlapSend": false,
+        "sendCenterUsable": false,
+        "overflow": false,
+        "disabledSend": true,
+        "sendBg": "rgb(241, 243, 246)",
+        "sendOpacity": "1"
+      },
+      "afterClose": {
+        "help": {
+          "left": 270.015625,
+          "right": 374,
+          "top": 614.5,
+          "bottom": 662.5,
+          "width": 103.984375,
+          "height": 48
+        },
+        "composer": {
+          "left": 0,
+          "right": 390,
+          "top": 674.5,
+          "bottom": 784,
+          "width": 390,
+          "height": 109.5
+        },
+        "send": {
+          "left": 321,
+          "right": 363,
+          "top": 696.5,
+          "bottom": 738.5,
+          "width": 42,
+          "height": 42
+        },
+        "gap": 12,
+        "overlapComposer": false,
+        "overlapSend": false,
+        "sendCenterUsable": false,
+        "overflow": false,
+        "disabledSend": true,
+        "sendBg": "rgb(241, 243, 246)",
+        "sendOpacity": "1"
+      },
+      "helpOpenClose": true,
+      "draftPreserved": true
+    },
+    {
+      "size": "mobile",
+      "mode": "light",
+      "state": "multiline",
+      "geometry": {
+        "help": {
+          "left": 270.015625,
+          "right": 374,
+          "top": 536.5,
+          "bottom": 584.5,
+          "width": 103.984375,
+          "height": 48
+        },
+        "composer": {
+          "left": 0,
+          "right": 390,
+          "top": 596.5,
+          "bottom": 784,
+          "width": 390,
+          "height": 187.5
+        },
+        "send": {
+          "left": 321,
+          "right": 363,
+          "top": 696.5,
+          "bottom": 738.5,
+          "width": 42,
+          "height": 42
+        },
+        "gap": 12,
+        "overlapComposer": false,
+        "overlapSend": false,
+        "sendCenterUsable": true,
+        "overflow": false,
+        "disabledSend": false,
+        "sendBg": "rgb(232, 75, 29)",
+        "sendOpacity": "1"
+      },
+      "afterClose": {
+        "help": {
+          "left": 270.015625,
+          "right": 374,
+          "top": 536.5,
+          "bottom": 584.5,
+          "width": 103.984375,
+          "height": 48
+        },
+        "composer": {
+          "left": 0,
+          "right": 390,
+          "top": 596.5,
+          "bottom": 784,
+          "width": 390,
+          "height": 187.5
+        },
+        "send": {
+          "left": 321,
+          "right": 363,
+          "top": 696.5,
+          "bottom": 738.5,
+          "width": 42,
+          "height": 42
+        },
+        "gap": 12,
+        "overlapComposer": false,
+        "overlapSend": false,
+        "sendCenterUsable": true,
+        "overflow": false,
+        "disabledSend": false,
+        "sendBg": "rgb(232, 75, 29)",
+        "sendOpacity": "1"
+      },
+      "helpOpenClose": true,
+      "draftPreserved": true
+    },
+    {
+      "size": "mobile",
+      "mode": "dark",
+      "state": "empty",
+      "geometry": {
+        "help": {
+          "left": 270.015625,
+          "right": 374,
+          "top": 614.5,
+          "bottom": 662.5,
+          "width": 103.984375,
+          "height": 48
+        },
+        "composer": {
+          "left": 0,
+          "right": 390,
+          "top": 674.5,
+          "bottom": 784,
+          "width": 390,
+          "height": 109.5
+        },
+        "send": {
+          "left": 321,
+          "right": 363,
+          "top": 696.5,
+          "bottom": 738.5,
+          "width": 42,
+          "height": 42
+        },
+        "gap": 12,
+        "overlapComposer": false,
+        "overlapSend": false,
+        "sendCenterUsable": false,
+        "overflow": false,
+        "disabledSend": true,
+        "sendBg": "rgb(32, 36, 44)",
+        "sendOpacity": "1"
+      },
+      "afterClose": {
+        "help": {
+          "left": 270.015625,
+          "right": 374,
+          "top": 614.5,
+          "bottom": 662.5,
+          "width": 103.984375,
+          "height": 48
+        },
+        "composer": {
+          "left": 0,
+          "right": 390,
+          "top": 674.5,
+          "bottom": 784,
+          "width": 390,
+          "height": 109.5
+        },
+        "send": {
+          "left": 321,
+          "right": 363,
+          "top": 696.5,
+          "bottom": 738.5,
+          "width": 42,
+          "height": 42
+        },
+        "gap": 12,
+        "overlapComposer": false,
+        "overlapSend": false,
+        "sendCenterUsable": false,
+        "overflow": false,
+        "disabledSend": true,
+        "sendBg": "rgb(32, 36, 44)",
+        "sendOpacity": "1"
+      },
+      "helpOpenClose": true,
+      "draftPreserved": true
+    },
+    {
+      "size": "mobile",
+      "mode": "dark",
+      "state": "multiline",
+      "geometry": {
+        "help": {
+          "left": 270.015625,
+          "right": 374,
+          "top": 536.5,
+          "bottom": 584.5,
+          "width": 103.984375,
+          "height": 48
+        },
+        "composer": {
+          "left": 0,
+          "right": 390,
+          "top": 596.5,
+          "bottom": 784,
+          "width": 390,
+          "height": 187.5
+        },
+        "send": {
+          "left": 321,
+          "right": 363,
+          "top": 696.5,
+          "bottom": 738.5,
+          "width": 42,
+          "height": 42
+        },
+        "gap": 12,
+        "overlapComposer": false,
+        "overlapSend": false,
+        "sendCenterUsable": true,
+        "overflow": false,
+        "disabledSend": false,
+        "sendBg": "rgb(232, 75, 29)",
+        "sendOpacity": "1"
+      },
+      "afterClose": {
+        "help": {
+          "left": 270.015625,
+          "right": 374,
+          "top": 536.5,
+          "bottom": 584.5,
+          "width": 103.984375,
+          "height": 48
+        },
+        "composer": {
+          "left": 0,
+          "right": 390,
+          "top": 596.5,
+          "bottom": 784,
+          "width": 390,
+          "height": 187.5
+        },
+        "send": {
+          "left": 321,
+          "right": 363,
+          "top": 696.5,
+          "bottom": 738.5,
+          "width": 42,
+          "height": 42
+        },
+        "gap": 12,
+        "overlapComposer": false,
+        "overlapSend": false,
+        "sendCenterUsable": true,
+        "overflow": false,
+        "disabledSend": false,
+        "sendBg": "rgb(232, 75, 29)",
+        "sendOpacity": "1"
+      },
+      "helpOpenClose": true,
+      "draftPreserved": true
+    }
+  ],
+  "errors": [],
+  "sends": []
+}

@@ -1,0 +1,196 @@
+{
+  "startedAt": "2026-10-12T19:35:46.692Z",
+  "baseURL": "http://127.0.0.1:3100",
+  "checks": [
+    "API /api/auth/get-session disponible",
+    "Sesión pertenece exclusivamente a la cuenta local ficticia",
+    "API /api/dev/wa-mock/outbox disponible",
+    "API /api/contacts disponible",
+    "API /api/agent/profile disponible",
+    "API /api/campaigns disponible",
+    "API /api/conversations disponible",
+    "Conversaciones demo pobladas",
+    "Pestaña 1: inbox responde HTTP 200",
+    "Pestaña 1: 8 conversaciones visibles",
+    "Pestaña 2: inbox responde HTTP 200",
+    "Pestaña 2: 8 conversaciones visibles",
+    "Pestaña 3: inbox responde HTTP 200",
+    "Pestaña 3: 8 conversaciones visibles",
+    "Tres inbox simultáneos: una conexión SSE activa y confirmada por pestaña",
+    "Pestaña 3 inicial: fetch desde navegador responde sin bloqueo",
+    "Pestaña 2 inicial: fetch desde navegador responde sin bloqueo",
+    "Pestaña 1 inicial: fetch desde navegador responde sin bloqueo",
+    "Cambio reversible de anclado=true aceptado",
+    "Anclado=true: tres bandejas actualizadas por SSE sin recarga",
+    "Cambio reversible de anclado=false aceptado",
+    "Anclado=false: tres bandejas actualizadas por SSE sin recarga",
+    "Campañas: campo responde con otras dos bandejas abiertas",
+    "Campañas: borrador descartado",
+    "Campañas con dos inbox: una conexión SSE activa y confirmada por pestaña",
+    "Campañas: fetch desde navegador responde sin bloqueo",
+    "Contactos: modal y campos funcionan",
+    "Contactos: cancelar cierra el modal sin guardar",
+    "Contactos con dos inbox: una conexión SSE activa y confirmada por pestaña",
+    "Contactos: fetch desde navegador responde sin bloqueo",
+    "Agente: configuración editable",
+    "Agente: asistente abre y acepta texto",
+    "Agente: asistente se cancela correctamente",
+    "Agente con dos inbox: una conexión SSE activa y confirmada por pestaña",
+    "Pestaña 3 final: fetch desde navegador responde sin bloqueo",
+    "Pestaña 1 final: fetch desde navegador responde sin bloqueo",
+    "Pestaña 2 final: fetch desde navegador responde sin bloqueo",
+    "API /api/contacts disponible",
+    "API /api/agent/profile disponible",
+    "API /api/campaigns disponible",
+    "API /api/dev/wa-mock/outbox disponible",
+    "Contactos conservados al cancelar",
+    "Configuración de IA conservada al cancelar",
+    "Campañas conservadas; ningún envío creado",
+    "Outbox mock conservado sin enviar mensajes",
+    "API /api/conversations disponible",
+    "Conversación restaurada a su estado de anclado original",
+    "Sin errores JavaScript",
+    "Sin fallos de red inesperados",
+    "Sin errores de servidor ni chunks",
+    "Ninguna petición de navegador fuera del entorno local",
+    "Contexto y navegador cerrados; ninguna conexión SSE de QA queda activa"
+  ],
+  "tabs": [
+    {
+      "index": 1,
+      "openedSse": 1,
+      "confirmedSse": 1,
+      "closedSse": 0,
+      "peakActiveSse": 1,
+      "sseClosedByPageTeardown": 1
+    },
+    {
+      "index": 2,
+      "openedSse": 1,
+      "confirmedSse": 1,
+      "closedSse": 0,
+      "peakActiveSse": 1,
+      "sseClosedByPageTeardown": 1
+    },
+    {
+      "index": 3,
+      "openedSse": 1,
+      "confirmedSse": 1,
+      "closedSse": 0,
+      "peakActiveSse": 1,
+      "sseClosedByPageTeardown": 1
+    }
+  ],
+  "apiTimings": [
+    {
+      "label": "Pestaña 3 inicial",
+      "status": 200,
+      "count": 8,
+      "elapsedMs": 22
+    },
+    {
+      "label": "Pestaña 2 inicial",
+      "status": 200,
+      "count": 8,
+      "elapsedMs": 38
+    },
+    {
+      "label": "Pestaña 1 inicial",
+      "status": 200,
+      "count": 8,
+      "elapsedMs": 57
+    },
+    {
+      "label": "Campañas",
+      "status": 200,
+      "count": 8,
+      "elapsedMs": 7660
+    },
+    {
+      "label": "Contactos",
+      "status": 200,
+      "count": 8,
+      "elapsedMs": 38
+    },
+    {
+      "label": "Pestaña 3 final",
+      "status": 200,
+      "count": 8,
+      "elapsedMs": 3814
+    },
+    {
+      "label": "Pestaña 1 final",
+      "status": 200,
+      "count": 8,
+      "elapsedMs": 3866
+    },
+    {
+      "label": "Pestaña 2 final",
+      "status": 200,
+      "count": 8,
+      "elapsedMs": 3884
+    }
+  ],
+  "fanout": [
+    {
+      "tab": 2,
+      "pinned": true,
+      "elapsedMs": 275
+    },
+    {
+      "tab": 1,
+      "pinned": true,
+      "elapsedMs": 369
+    },
+    {
+      "tab": 3,
+      "pinned": true,
+      "elapsedMs": 369
+    },
+    {
+      "tab": 3,
+      "pinned": false,
+      "elapsedMs": 213
+    },
+    {
+      "tab": 2,
+      "pinned": false,
+      "elapsedMs": 213
+    },
+    {
+      "tab": 1,
+      "pinned": false,
+      "elapsedMs": 213
+    }
+  ],
+  "errors": [],
+  "failedRequests": [],
+  "unexpectedResponses": [],
+  "externalRequests": [],
+  "screenshots": [
+    "sse-three-tabs-inbox.png",
+    "sse-campaign-controls.png",
+    "sse-contact-controls.png",
+    "sse-agent-assistant-controls.png"
+  ],
+  "documentRequestsBeforeFanout": [
+    1,
+    1,
+    1
+  ],
+  "activeSseBeforeClose": [
+    1,
+    1,
+    1
+  ],
+  "tabsClosed": true,
+  "browserDisconnected": true,
+  "activeSseAfterClose": [
+    0,
+    0,
+    0
+  ],
+  "completedAt": "2026-10-12T19:36:33.586Z",
+  "success": true,
+  "totalChecks": 52
+}

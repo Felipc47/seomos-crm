@@ -6,6 +6,7 @@ import {
   ArrowRightLeft,
   ChevronLeft,
   ChevronRight,
+  MessagesSquare,
   ShieldBan,
 } from "lucide-react";
 import { InboxContactAvatar } from "./inbox-contact-avatar";
@@ -533,7 +534,7 @@ export function InboxClient() {
   );
 
   return (
-    <div className="flex h-full" data-help="inbox"
+    <div className="flex h-full min-h-0 overflow-hidden" data-help="inbox"
       data-help-state={selected ? "selected" : "empty"}
       data-help-ai={!selected ? undefined : selected.contact.blockedAt ? "blocked" : agentAvailability === null ? "loading" : !agentAvailability.enabled || !agentAvailability.aiConfigured ? "unavailable" : aiUpdatingId === selected.id ? "loading" : !selected.aiEnabled || selected.handoffAt ? "paused" : "active"}
       data-help-window={selected ? selected.windowOpen ? "open" : "closed" : undefined}>
@@ -542,7 +543,7 @@ export function InboxClient() {
       <section
         data-help="conversation-list"
         className={cn(
-          "w-full shrink-0 overflow-hidden md:w-[400px] md:border-r",
+          "w-full shrink-0 overflow-hidden md:w-[340px] md:border-r xl:w-[380px]",
           selected && "hidden md:block"
         )}
       >
@@ -564,13 +565,13 @@ export function InboxClient() {
 
       <section
         className={cn(
-          "min-w-0 flex-1 flex-col",
+          "min-h-0 min-w-0 flex-1 flex-col",
           selected ? "flex" : "hidden md:flex"
         )}
       >
         {selected ? (
           <>
-            <header className="flex items-center gap-3 border-b bg-surface px-3 py-[15px] md:px-[22px]">
+            <header className="flex shrink-0 items-center gap-2 border-b bg-surface px-3 py-4 md:gap-3 md:px-6 md:py-5">
               <button
                 onClick={() => setSelectedId(null)}
                 aria-label="Volver a la bandeja"
@@ -585,14 +586,14 @@ export function InboxClient() {
                 country={selected.contact.country}
               />
               <div className="min-w-0 flex-1">
-                <p className="truncate font-display text-base font-semibold leading-tight">
+                <p className="truncate font-display text-[16px] font-semibold leading-tight tracking-[-0.025em] md:text-[18px]">
                   {selected.contact.name}
                 </p>
                 <p
                   className={
                     selected.windowOpen
-                      ? "text-xs font-bold text-success"
-                      : "text-xs text-text-3"
+                      ? "mt-1 text-[11px] font-medium text-success"
+                      : "mt-1 text-[11px] text-text-3"
                   }
                 >
                   {selected.windowOpen
@@ -602,7 +603,7 @@ export function InboxClient() {
               </div>
               {selected.contact.blockedAt ? (
                 <span
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] border border-destructive/20 bg-destructive/5 px-2.5 py-2 text-xs font-bold text-destructive"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] border border-destructive/20 bg-destructive/5 px-2.5 py-2 text-xs font-semibold text-destructive"
                   title="La IA y todos los envíos están bloqueados"
                 >
                   <ShieldBan className="h-4 w-4" strokeWidth={2.2} />
@@ -634,7 +635,7 @@ export function InboxClient() {
                 type="button"
                 onClick={() => setTransferConversationId(selected.id)}
                 aria-label="Transferir chat"
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] border bg-surface p-[9px] text-[13px] font-bold transition-colors hover:bg-surface-2 xl:px-[13px]"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border bg-surface p-[9px] text-[12px] font-medium text-mute transition-colors hover:bg-surface-2 hover:text-foreground xl:px-3"
               >
                 <ArrowRightLeft className="h-[16px] w-[16px]" strokeWidth={2.2} />
                 <span className="hidden xl:inline">Transferir</span>
@@ -643,9 +644,9 @@ export function InboxClient() {
                 data-help="chat-details"
                 onClick={() => setDetailOpen(true)}
                 aria-label="Ver detalles del contacto"
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] border bg-surface p-[9px] text-[13px] font-bold transition-colors hover:bg-surface-2 lg:px-[15px]"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border bg-surface p-[9px] text-[12px] font-medium text-mute transition-colors hover:bg-surface-2 hover:text-foreground xl:px-3"
               >
-                <span className="hidden lg:inline">Ver detalles</span>
+                <span className="hidden xl:inline">Ver detalles</span>
                 <ChevronRight className="h-[15px] w-[15px]" strokeWidth={2.2} />
               </button>
             </header>
@@ -658,7 +659,7 @@ export function InboxClient() {
                     strokeWidth={2.2}
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold">Contacto bloqueado</p>
+                    <p className="text-sm font-semibold">Contacto bloqueado</p>
                     <p className="mt-0.5 text-xs leading-relaxed text-mute">
                       La IA, mensajes, plantillas, campañas y seguimientos no
                       pueden escribirle.
@@ -671,7 +672,7 @@ export function InboxClient() {
                         onClick={() =>
                           requestConversationAction("block", [selected.id])
                         }
-                        className="rounded-xl bg-brand px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-hover"
+                        className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-brand-hover hover:text-brand-hover-foreground"
                       >
                         Reintentar con Meta
                       </button>
@@ -681,7 +682,7 @@ export function InboxClient() {
                       onClick={() =>
                         requestConversationAction("unblock", [selected.id])
                       }
-                      className="rounded-xl border bg-surface px-4 py-2.5 text-sm font-bold transition-colors hover:bg-subtle"
+                      className="rounded-xl border bg-surface px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-subtle"
                     >
                       Desbloquear
                     </button>
@@ -702,8 +703,13 @@ export function InboxClient() {
             )}
           </>
         ) : (
-          <div className="flex flex-1 items-center justify-center bg-chat text-sm text-text-3">
-            Elige una conversación para ver el hilo
+          <div className="flex flex-1 flex-col items-center justify-center bg-chat px-8 py-10 text-center">
+            <span className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border bg-surface shadow-sm">
+              <MessagesSquare className="h-7 w-7 text-brand" strokeWidth={1.5} />
+            </span>
+            <p className="crm-eyebrow mb-2">Tu centro de conversaciones</p>
+            <p className="font-display text-[25px] font-semibold tracking-[-0.035em]">Cada conversación, en su lugar.</p>
+            <p className="mt-3 max-w-xs text-[13px] leading-6 text-mute">Elige una conversación para ver el hilo</p>
           </div>
         )}
       </section>

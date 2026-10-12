@@ -1,0 +1,20 @@
+{
+  "verifiedAt": "2026-10-12T21:31:29.898265+00:00",
+  "scope": "isolated release worktree based on 18426826e0158a2c13704cefacb3d8744434e2cc",
+  "commands": [
+    "tsc --noEmit",
+    "eslint .",
+    "vitest run",
+    "next build"
+  ],
+  "execution": "Installed local executables matching package.json scripts; pnpm auto-install stopped before execution on a symlinked node_modules and was not forced. No dependency changes.",
+  "exitCode": 0,
+  "unitTestFiles": 51,
+  "unitTestsPassed": 419,
+  "typecheck": "passed",
+  "lint": "passed",
+  "build": "passed",
+  "migrationsChanged": false,
+  "externalProvidersUsed": false,
+  "fullBrowserRegression": "running on isolated localhost:3101 candidate; prior evidence is labeled separately"
+}

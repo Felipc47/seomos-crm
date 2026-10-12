@@ -12,8 +12,10 @@ export default async function TemplatesPage() {
   const canApprove = session.isSuperadmin || canApproveTemplates(session.role);
   return (
     <div className="flex h-full flex-col">
-      <header className="border-b bg-surface px-4 py-3 md:px-[30px] md:py-[18px]">
-        <h2 className="font-display text-[22px] font-bold">Plantillas</h2>
+      <header className="crm-page-header">
+        <p className="crm-eyebrow mb-2">Automatización · Biblioteca</p>
+        <h2 className="crm-heading">Plantillas</h2>
+        <p className="mt-2 text-[13px] text-mute">Mensajes reutilizables para cada momento de la conversación.</p>
       </header>
       <div className="min-w-0 flex-1 overflow-y-auto px-4 py-5 md:px-[34px] md:py-[26px]">
         <div className="mx-auto max-w-[900px]">

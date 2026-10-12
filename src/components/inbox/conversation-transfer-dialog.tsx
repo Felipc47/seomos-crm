@@ -49,15 +49,15 @@ export function ConversationTransferDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="conversation-transfer-title"
-        className="w-full max-w-[460px] animate-[pop-in_.2s_ease] rounded-2xl bg-surface p-6 shadow-[0_24px_70px_rgba(0,0,0,.38)]"
+        className="w-full max-w-[460px] animate-[pop-in_.2s_ease] rounded-2xl bg-surface p-6 shadow-pop"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="mb-4 flex h-[52px] w-[52px] items-center justify-center rounded-[14px] bg-brand-soft">
+        <div className="mb-4 flex h-[52px] w-[52px] items-center justify-center rounded-[14px] bg-surface-2">
           <ArrowRightLeft className="h-[26px] w-[26px] text-brand" strokeWidth={2} />
         </div>
         <h3
           id="conversation-transfer-title"
-          className="font-display text-[19px] font-bold"
+          className="font-display text-[19px] font-semibold"
         >
           Transferir conversación
         </h3>
@@ -67,7 +67,7 @@ export function ConversationTransferDialog({
         </p>
 
         <label className="mt-5 block">
-          <span className="mb-1.5 block text-[12.5px] font-bold">
+          <span className="mb-1.5 block text-[12.5px] font-semibold">
             Nuevo responsable
           </span>
           <select
@@ -97,7 +97,7 @@ export function ConversationTransferDialog({
             type="button"
             disabled={busy || memberId === currentId}
             onClick={() => onConfirm(memberId || null)}
-            className="flex-1 rounded-xl bg-brand py-3 text-sm font-bold text-white transition-colors hover:bg-brand-hover disabled:opacity-50"
+            className="flex-1 rounded-xl bg-brand py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-brand-hover hover:text-brand-hover-foreground disabled:opacity-50"
           >
             {busy ? "Transfiriendo…" : "Transferir"}
           </button>
@@ -105,7 +105,7 @@ export function ConversationTransferDialog({
             type="button"
             disabled={busy}
             onClick={onCancel}
-            className="flex-1 rounded-xl border py-3 text-sm font-bold transition-colors hover:bg-surface-2 disabled:opacity-50"
+            className="flex-1 rounded-xl border py-3 text-sm font-semibold transition-colors hover:bg-surface-2 disabled:opacity-50"
           >
             Cancelar
           </button>

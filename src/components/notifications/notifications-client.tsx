@@ -111,10 +111,14 @@ export function NotificationsClient() {
   }
 
   return (
-    <div data-help="notifications-feed" className="flex flex-col gap-5">
+    <div data-help="notifications-feed" className="flex h-full flex-col gap-6 overflow-y-auto p-5 md:p-8">
+      <header>
+        <p className="crm-eyebrow mb-2">Actividad del equipo</p>
+        <h1 className="crm-heading">Notificaciones</h1>
+      </header>
       <Card>
         <CardHeader>
-          <CardTitle>Notificaciones</CardTitle>
+          <CardTitle>Últimos avisos</CardTitle>
           <CardDescription>
             Todo lo que ha pasado mientras no mirabas: campañas, plantillas,
             leads y asignaciones. Abrir esta página lo marca como leído.

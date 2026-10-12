@@ -63,7 +63,7 @@ export function AiConversationHeaderControl({
       className={cn(
         "inline-flex shrink-0 items-center gap-2 rounded-[10px] border px-2 py-1.5 transition-colors",
         active && ready
-          ? "border-[rgba(37,211,102,.3)] bg-[rgba(37,211,102,.08)]"
+          ? "border-[var(--success-border)] bg-[var(--success-bg)]"
           : "bg-surface-2"
       )}
       title={label}
@@ -73,14 +73,14 @@ export function AiConversationHeaderControl({
       <Sparkles
         className={cn(
           "h-4 w-4 shrink-0",
-          active && ready ? "text-brand-text" : "text-mute"
+          active && ready ? "text-[var(--success-fg)]" : "text-mute"
         )}
         strokeWidth={2}
       />
       <span
         className={cn(
           "hidden whitespace-nowrap text-xs font-bold xl:inline",
-          active && ready ? "text-brand-text" : "text-mute"
+          active && ready ? "text-[var(--success-fg)]" : "text-mute"
         )}
       >
         {label}

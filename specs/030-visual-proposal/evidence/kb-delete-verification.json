@@ -1,0 +1,32 @@
+{
+  "startedAt": "2026-10-12T19:48:46.607Z",
+  "checks": [
+    "Cuenta ficticia local confirmada",
+    "Mocks locales confirmados",
+    "Crear bloque devuelve HTTP201",
+    "Bloque creado aparece en la lista real",
+    "Papelera obtiene DELETE HTTP200",
+    "UI refetch de KB obtiene HTTP200",
+    "Entrada retirada del DOM sin recargar",
+    "KB vuelve exactamente al contenido inicial",
+    "dashboard: fuente final responde HTTP200",
+    "dashboard: captura final en claro con datos cargados",
+    "pipeline: fuente final responde HTTP200",
+    "pipeline: captura final en claro con datos cargados",
+    "Sin errores JS ni HTTP5xx",
+    "Ninguna petición externa"
+  ],
+  "timings": {
+    "postResponseMs": 881,
+    "postRenderedMs": 1013,
+    "deleteResponseMs": 1182,
+    "refetchResponseMs": 1224,
+    "domRemovedMs": 1245
+  },
+  "errors": [],
+  "unexpectedResponses": [],
+  "externalRequests": [],
+  "completedAt": "2026-10-12T19:48:59.744Z",
+  "success": true,
+  "totalChecks": 14
+}

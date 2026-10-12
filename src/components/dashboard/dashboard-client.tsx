@@ -85,30 +85,30 @@ function MetricCard({
   testId: string;
 }) {
   const toneClass = {
-    brand: "bg-brand-tint text-brand",
-    success: "bg-[var(--success-bg)] text-success",
-    warning: "bg-[var(--warning-bg)] text-warning",
-    neutral: "bg-surface-2 text-mute",
+    brand: "text-brand",
+    success: "text-success",
+    warning: "text-warning",
+    neutral: "text-mute",
   }[tone];
   return (
     <article
       data-testid={testId}
-      className="relative overflow-hidden rounded-[18px] border bg-surface p-4 shadow-sm sm:p-5"
+      className="relative overflow-hidden bg-surface p-5 sm:p-6"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] font-extrabold uppercase tracking-[0.09em] text-mute">
+          <p className="text-[11px] font-medium text-mute">
             {label}
           </p>
-          <p className="mt-2 font-display text-[28px] font-bold leading-none sm:text-[32px]">
+          <p className="mt-4 font-display text-[36px] font-semibold leading-none tracking-[-0.06em] tabular-nums sm:text-[40px]">
             {value}
           </p>
         </div>
-        <span className={cn("rounded-[12px] p-2.5", toneClass)}>
-          <Icon className="h-[20px] w-[20px]" strokeWidth={1.9} />
+        <span className={cn("pt-0.5", toneClass)}>
+          <Icon className="h-[17px] w-[17px]" strokeWidth={1.6} />
         </span>
       </div>
-      <p className="mt-3 text-[12px] font-semibold text-mute">{helper}</p>
+      <p className="mt-4 text-[10px] leading-relaxed text-mute">{helper}</p>
     </article>
   );
 }
@@ -150,7 +150,7 @@ function TrendChart({ data }: { data: DashboardMetricsDto["trend"] }) {
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap gap-4 text-[12px] font-bold text-mute">
+      <div className="mb-4 flex flex-wrap gap-4 text-[12px] font-semibold text-mute">
         <span className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-brand" /> Leads nuevos
         </span>
@@ -278,12 +278,12 @@ function BreakdownList({
         <li key={row.id ?? row.name}>
           <div className="mb-1.5 flex items-end justify-between gap-3">
             <div className="min-w-0">
-              <p className="truncate text-[13px] font-bold">{row.name}</p>
+              <p className="truncate text-[13px] font-semibold">{row.name}</p>
               <p className="text-[11px] font-semibold text-mute">
                 {row.wonCount} {row.wonCount === 1 ? "cliente" : "clientes"}
               </p>
             </div>
-            <span className="shrink-0 text-[13px] font-extrabold">
+            <span className="shrink-0 text-[13px] font-semibold">
               {row.count} <span className="text-[11px] text-mute">({row.percentage}%)</span>
             </span>
           </div>
@@ -311,10 +311,10 @@ function Panel({
   className?: string;
 }) {
   return (
-    <section className={cn("rounded-[18px] border bg-surface p-4 shadow-sm sm:p-5", className)}>
-      <div className="mb-5">
-        <h2 className="font-display text-[17px] font-bold">{title}</h2>
-        <p className="mt-1 text-[12px] font-semibold leading-relaxed text-mute">
+    <section className={cn("rounded-2xl border bg-surface p-5 sm:p-6", className)}>
+      <div className="mb-7">
+        <h2 className="font-display text-[18px] font-semibold tracking-tight">{title}</h2>
+        <p className="mt-1.5 text-[12px] leading-relaxed text-mute">
           {description}
         </p>
       </div>
@@ -471,28 +471,24 @@ export function DashboardClient() {
 
   return (
     <div data-help="dashboard" className="h-full overflow-y-auto bg-background" data-testid="dashboard-page">
-      <div className="mx-auto max-w-[1500px] p-4 sm:p-6 lg:p-8">
-        <header className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+      <div className="mx-auto max-w-[1600px] p-5 sm:p-7 lg:p-8">
+        <header className="mb-7 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <div className="flex items-center gap-2.5">
-              <span className="rounded-[11px] bg-brand-tint p-2 text-brand">
-                <ChartNoAxesCombined className="h-5 w-5" strokeWidth={2} />
-              </span>
-              <h1 className="font-display text-[24px] font-bold tracking-tight sm:text-[28px]">
-                Dashboard
-              </h1>
-            </div>
-            <p className="mt-2 max-w-2xl text-[13px] font-semibold text-mute">
-              Una vista clara del embudo, las reuniones y la distribución comercial.
+            <p className="crm-eyebrow mb-3 flex items-center gap-2">
+              <ChartNoAxesCombined className="h-3.5 w-3.5 text-brand" strokeWidth={1.8} /> Rendimiento comercial
+            </p>
+            <h1 className="font-display text-[30px] font-semibold leading-tight tracking-[-0.045em] sm:text-[36px]">Dashboard</h1>
+            <p className="mt-2 max-w-2xl text-[13px] text-mute">
+              Tu operación comercial, en perspectiva.
             </p>
             {data && (
-              <p className="mt-1 text-[12px] font-bold text-brand" data-testid="dashboard-range-label">
+              <p className="mt-2 text-[11px] text-mute" data-testid="dashboard-range-label">
                 {rangeLabel(data)} · {data.range.timezone}
               </p>
             )}
           </div>
 
-          <div className="rounded-[16px] border bg-surface p-2 shadow-sm">
+          <div className="rounded-xl border bg-surface p-1">
             <div className="flex flex-wrap items-center gap-1.5" aria-label="Rango del Dashboard">
               {PRESETS.map((preset) => {
                 const active = preset.id === "custom"
@@ -505,9 +501,9 @@ export function DashboardClient() {
                     aria-pressed={active}
                     onClick={() => applyPreset(preset.id)}
                     className={cn(
-                      "rounded-[10px] px-3 py-2 text-[12px] font-extrabold transition-colors",
+                      "rounded-lg px-3 py-2 text-[12px] font-semibold transition-colors",
                       active
-                        ? "bg-brand text-white shadow-accent"
+                        ? "bg-foreground text-surface"
                         : "text-mute hover:bg-surface-2 hover:text-foreground"
                     )}
                   >
@@ -527,28 +523,28 @@ export function DashboardClient() {
             </div>
             {editingCustom && (
               <div className="mt-2 grid gap-2 border-t pt-2 sm:grid-cols-[1fr_1fr_auto]">
-                <label className="text-[10px] font-extrabold uppercase tracking-wide text-mute">
+                <label className="text-[10px] font-semibold uppercase tracking-wide text-mute">
                   Desde
                   <input
                     type="date"
                     value={customFrom}
                     onChange={(event) => setCustomFrom(event.target.value)}
-                    className="mt-1 block h-9 w-full rounded-[9px] border bg-surface-2 px-2.5 text-[12px] font-bold text-foreground outline-none focus:border-brand"
+                    className="mt-1 block h-9 w-full rounded-[9px] border bg-surface-2 px-2.5 text-[12px] font-semibold text-foreground outline-none focus:border-brand"
                   />
                 </label>
-                <label className="text-[10px] font-extrabold uppercase tracking-wide text-mute">
+                <label className="text-[10px] font-semibold uppercase tracking-wide text-mute">
                   Hasta
                   <input
                     type="date"
                     value={customTo}
                     onChange={(event) => setCustomTo(event.target.value)}
-                    className="mt-1 block h-9 w-full rounded-[9px] border bg-surface-2 px-2.5 text-[12px] font-bold text-foreground outline-none focus:border-brand"
+                    className="mt-1 block h-9 w-full rounded-[9px] border bg-surface-2 px-2.5 text-[12px] font-semibold text-foreground outline-none focus:border-brand"
                   />
                 </label>
                 <button
                   type="button"
                   onClick={applyCustom}
-                  className="self-end rounded-[9px] bg-brand px-4 py-2.5 text-[12px] font-extrabold text-white transition-colors hover:bg-brand-hover"
+                  className="self-end rounded-[9px] bg-brand px-4 py-2.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-brand-hover hover:text-brand-hover-foreground"
                 >
                   Aplicar
                 </button>
@@ -558,7 +554,7 @@ export function DashboardClient() {
         </header>
 
         {error && (
-          <div role="alert" className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-[var(--danger-border)] bg-[var(--danger-bg)] px-4 py-3 text-[13px] font-bold text-[var(--danger-fg)]">
+          <div role="alert" className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-[var(--danger-border)] bg-[var(--danger-bg)] px-4 py-3 text-[13px] font-semibold text-[var(--danger-fg)]">
             <span>{error}</span>
             <button
               type="button"
@@ -578,13 +574,13 @@ export function DashboardClient() {
           </div>
         ) : data ? (
           <>
-            <div className={cn("grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6", loading && "opacity-60")}>
+            <div className={cn("grid grid-cols-2 gap-px overflow-hidden rounded-2xl border bg-border lg:grid-cols-3 xl:grid-cols-6", loading && "opacity-60")}>
               {summaryCards.map((card) => (
                 <MetricCard key={card.label} {...card} />
               ))}
             </div>
 
-            <div className="mt-4 grid gap-4 xl:grid-cols-[1.45fr_1fr]">
+            <div className="mt-6 grid gap-5 xl:grid-cols-[1.65fr_1fr]">
               <Panel
                 title="Tendencia del periodo"
                 description="Leads creados y reuniones programadas por día."
@@ -599,8 +595,8 @@ export function DashboardClient() {
                   {data.funnel.map((stage) => (
                     <li key={stage.id} data-testid={`dashboard-stage-${stage.id}`}>
                       <div className="mb-1.5 flex items-center justify-between gap-3 text-[12px]">
-                        <span className="min-w-0 truncate font-bold">{stage.name}</span>
-                        <span className="shrink-0 font-extrabold">
+                        <span className="min-w-0 truncate font-semibold">{stage.name}</span>
+                        <span className="shrink-0 font-semibold">
                           {stage.count} <span className="text-[10px] text-mute">({stage.percentage}%)</span>
                         </span>
                       </div>
@@ -624,7 +620,7 @@ export function DashboardClient() {
               </Panel>
             </div>
 
-            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <div className="mt-5 grid gap-5 lg:grid-cols-2">
               <Panel
                 title="Demanda por servicio"
                 description="Cómo se distribuyen los leads nuevos entre la oferta del negocio."

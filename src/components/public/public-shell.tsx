@@ -52,7 +52,7 @@ export function PublicHeader() {
 
         <Link
           href="/login"
-          className="ml-auto rounded-xl bg-brand px-4 py-2.5 text-sm font-extrabold text-white shadow-accent transition-all hover:-translate-y-0.5 hover:bg-brand-hover lg:ml-2"
+          className="ml-auto rounded-xl bg-brand px-4 py-2.5 text-sm font-extrabold text-primary-foreground shadow-accent transition-all hover:-translate-y-0.5 hover:bg-brand-hover hover:text-brand-hover-foreground lg:ml-2"
         >
           Iniciar sesión
         </Link>

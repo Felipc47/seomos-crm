@@ -420,12 +420,13 @@ export function ConversationList({
   }
 
   return (
-    <div className="flex h-full flex-col bg-surface">
-      <header className="px-5 pb-3 pt-5">
-        <div className="mb-3.5 flex items-center justify-between gap-3">
+    <div className="flex h-full min-h-0 flex-col bg-surface">
+      <header className="shrink-0 border-b px-4 pb-4 pt-5 xl:px-5 xl:pt-6">
+        <p className="crm-eyebrow mb-2">WhatsApp · Conversaciones</p>
+        <div className="mb-5 flex items-center justify-between gap-3">
           <div className="flex items-baseline gap-2">
-            <h2 className="font-display text-[21px] font-bold">Bandeja</h2>
-            <span className="text-[13px] font-extrabold text-mute">
+            <h2 className="crm-heading">Bandeja</h2>
+            <span className="ml-1 rounded-md bg-surface-2 px-2 py-0.5 text-[12px] font-medium tabular-nums text-mute">
               {conversations.filter((c) => !c.archivedAt).length}
             </span>
           </div>
@@ -434,8 +435,8 @@ export function ConversationList({
             type="button"
               onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
               className={cn(
-                "inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-bold transition-colors hover:bg-subtle",
-                selecting && "border-brand bg-brand-tint text-brand-text"
+                "inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-[11px] font-medium text-mute transition-colors hover:bg-subtle hover:text-foreground",
+                selecting && "bg-surface-2 text-foreground"
               )}
             >
               <ListChecks className="h-4 w-4" strokeWidth={2} />
@@ -443,7 +444,7 @@ export function ConversationList({
             </button>
           )}
         </div>
-        <div className="flex items-center gap-2 rounded-[11px] border bg-surface-2 px-3 py-[10px] transition-colors focus-within:border-brand focus-within:bg-background focus-within:ring-[3px] focus-within:ring-brand-soft">
+        <div className="flex items-center gap-2 rounded-xl border border-transparent bg-surface-2 px-3 py-[11px] transition-colors focus-within:border-brand/60 focus-within:bg-surface focus-within:ring-2 focus-within:ring-brand-soft">
           <Search className="h-4 w-4 shrink-0 text-faint" strokeWidth={2} />
           <input
             placeholder="Buscar conversación…"
@@ -453,7 +454,7 @@ export function ConversationList({
             className="w-full bg-transparent text-[16px] outline-none placeholder:text-faint md:text-[13.5px]"
           />
         </div>
-        <div className="mt-3.5 flex gap-2">
+        <div className="mt-4 flex items-center justify-between gap-1 border-b">
           {(
             [
               { id: "all", label: "Todas", count: inboxed.length },
@@ -465,19 +466,19 @@ export function ConversationList({
               key={f.id}
               onClick={() => setFilter(f.id)}
               className={cn(
-                "flex items-center gap-1.5 rounded-full px-[15px] py-2 text-[13px] font-extrabold transition-colors",
+                "relative flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap px-1.5 pb-3 pt-1 text-[11px] font-semibold transition-colors xl:px-2 xl:text-[12px]",
                 filter === f.id
-                  ? "bg-foreground text-background"
-                  : "bg-surface-2 text-mute hover:bg-subtle"
+                  ? "text-foreground after:absolute after:inset-x-1 after:-bottom-px after:h-0.5 after:rounded-full after:bg-brand"
+                  : "text-mute hover:text-foreground"
               )}
             >
               {f.label}
-              <span className="opacity-70">{f.count}</span>
+              <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-mute">{f.count}</span>
             </button>
           ))}
         </div>
         <div className="mt-3 flex h-4 items-center justify-between px-0.5">
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[.09em] text-faint">
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[.1em] text-faint">
             <SlidersHorizontal className="h-3 w-3" strokeWidth={2.2} />
             Filtros
           </span>
@@ -589,7 +590,7 @@ export function ConversationList({
         )}
       </header>
 
-      <div className="flex-1 overflow-y-auto px-3 pb-4 pt-1">
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4 pt-2">
         {loading ? (
           <p className="p-6 text-center text-xs text-text-3">Cargando…</p>
         ) : conversations.length === 0 ? (
@@ -609,7 +610,7 @@ export function ConversationList({
                 <li
                   key={c.id}
                   data-testid={`inbox-conversation-${c.id}`}
-                  className="group relative mb-0.5"
+                  className="group relative border-b border-border/60 last:border-b-0"
                 >
                   <button
                     onClick={() =>
@@ -617,11 +618,11 @@ export function ConversationList({
                     }
                     aria-pressed={selecting ? selectedSet.has(c.id) : undefined}
                     className={cn(
-                      "flex w-full items-start gap-3 rounded-[13px] px-3 py-[13px] text-left transition-colors",
+                      "flex w-full items-start gap-3 rounded-lg px-3 py-4 text-left transition-colors",
                       selecting && selectedSet.has(c.id)
-                        ? "bg-brand-tint ring-1 ring-inset ring-brand/40"
+                        ? "bg-surface-2 ring-1 ring-inset ring-brand/40"
                         : active
-                        ? "bg-brand-tint shadow-[inset_3px_0_0_var(--accent)]"
+                        ? "bg-surface-2 shadow-[inset_2px_0_0_var(--accent)]"
                         : "hover:bg-subtle"
                     )}
                   >
@@ -657,7 +658,7 @@ export function ConversationList({
                             ? "bg-destructive"
                             : c.windowOpen
                               ? "bg-success"
-                              : "bg-[#B4ADA0]"
+                              : "bg-text-4"
                         )}
                       />
                     </span>
@@ -665,7 +666,7 @@ export function ConversationList({
                       <span className="flex items-baseline justify-between gap-2 pr-6">
                         <span
                           className={cn(
-                            "truncate text-[14.5px] font-bold",
+                            "truncate text-[13px] font-bold",
                             !unread && "font-semibold"
                           )}
                         >
@@ -682,7 +683,7 @@ export function ConversationList({
                           <span
                             className={cn(
                               "text-[11px] font-semibold",
-                              unread ? "text-brand" : "text-faint"
+                              unread ? "text-foreground" : "text-faint"
                             )}
                           >
                             {formatTime(c.lastMessageAt)}
@@ -692,14 +693,14 @@ export function ConversationList({
                       <span className="mt-0.5 flex items-center justify-between gap-2">
                         <span
                           className={cn(
-                            "truncate text-[13px]",
+                            "truncate text-[12px] leading-5",
                             unread ? "font-medium text-text-2" : "text-mute"
                           )}
                         >
                           {previewText(c.preview)}
                         </span>
                         {unread && (
-                          <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-brand px-1.5 text-[10.5px] font-semibold text-white">
+                          <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-brand px-1.5 text-[10.5px] font-semibold text-primary-foreground">
                             {c.unreadCount}
                           </span>
                         )}

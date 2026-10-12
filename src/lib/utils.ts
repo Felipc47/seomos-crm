@@ -19,8 +19,8 @@ const AVATAR_COLORS = [
   "bg-[#5b7291]", // steel
   "bg-[#647082]", // slate
   "bg-[#6f8378]", // sage
-  "bg-[#8c7d68]", // taupe
-  "bg-[#9c7169]", // clay
+  "bg-[#596b82]", // blue slate
+  "bg-[#67658b]", // muted indigo
   "bg-[#77708c]", // dusk
   "bg-[#4f7d78]", // tealm
   "bg-[#6b7280]", // graphite

@@ -94,12 +94,12 @@ export function ConversationActionDialog({
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="conversation-action-title"
-        className="w-full max-w-[440px] animate-[pop-in_.2s_ease] rounded-2xl bg-surface p-6 shadow-[0_24px_70px_rgba(0,0,0,.38)]"
+        className="w-full max-w-[440px] animate-[pop-in_.2s_ease] rounded-2xl bg-surface p-6 shadow-pop"
         onClick={(event) => event.stopPropagation()}
       >
         <div
           className={`mb-4 flex h-[52px] w-[52px] items-center justify-center rounded-[14px] ${
-            content.danger ? "bg-destructive/10" : "bg-brand-soft"
+            content.danger ? "bg-destructive/10" : "bg-surface-2"
           }`}
         >
           <Icon
@@ -111,7 +111,7 @@ export function ConversationActionDialog({
         </div>
         <h3
           id="conversation-action-title"
-          className="font-display text-[19px] font-bold"
+          className="font-display text-[19px] font-semibold"
         >
           {content.title}
         </h3>
@@ -122,7 +122,7 @@ export function ConversationActionDialog({
         {pending.action === "report" && (
           <div className="mt-5 space-y-4">
             <label className="block">
-              <span className="mb-1.5 block text-[12.5px] font-bold">
+              <span className="mb-1.5 block text-[12.5px] font-semibold">
                 Motivo
               </span>
               <select
@@ -142,7 +142,7 @@ export function ConversationActionDialog({
               </select>
             </label>
             <label className="block">
-              <span className="mb-1.5 flex items-center justify-between text-[12.5px] font-bold">
+              <span className="mb-1.5 flex items-center justify-between text-[12.5px] font-semibold">
                 Notas <span className="font-medium text-faint">Opcional</span>
               </span>
               <textarea
@@ -170,10 +170,10 @@ export function ConversationActionDialog({
                 ...(notes.trim() ? { notes: notes.trim() } : {}),
               })
             }
-            className={`flex-1 rounded-xl py-3 text-sm font-bold text-white transition-colors disabled:opacity-50 ${
+            className={`flex-1 rounded-xl py-3 text-sm font-semibold transition-colors disabled:opacity-50 ${
               content.danger
-                ? "bg-destructive hover:bg-destructive/90"
-                : "bg-brand hover:bg-brand-hover"
+                ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                : "bg-brand text-primary-foreground hover:bg-brand-hover hover:text-brand-hover-foreground"
             }`}
           >
             {busy ? "Un momento…" : content.confirm}
@@ -182,7 +182,7 @@ export function ConversationActionDialog({
             type="button"
             disabled={busy}
             onClick={onCancel}
-            className="flex-1 rounded-xl border py-3 text-sm font-bold transition-colors hover:bg-surface-2 disabled:opacity-50"
+            className="flex-1 rounded-xl border py-3 text-sm font-semibold transition-colors hover:bg-surface-2 disabled:opacity-50"
           >
             Cancelar
           </button>

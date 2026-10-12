@@ -47,7 +47,7 @@ export function ConfirmDialog({
           <button
             onClick={onConfirm}
             disabled={busy}
-            className="flex-1 rounded-xl bg-brand py-3 text-sm font-bold text-white transition-colors hover:bg-brand-hover disabled:opacity-50"
+            className="flex-1 rounded-xl bg-brand py-3 text-sm font-bold text-primary-foreground transition-colors hover:bg-brand-hover hover:text-brand-hover-foreground disabled:opacity-50"
           >
             {busy ? "Un momento…" : confirmLabel}
           </button>
