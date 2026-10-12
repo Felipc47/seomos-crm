@@ -72,7 +72,7 @@ export function FollowUpSection() {
   const approved = templates.filter((t) => t.status === "approved");
 
   return (
-    <Card>
+    <Card data-help="agent-followup">
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div>

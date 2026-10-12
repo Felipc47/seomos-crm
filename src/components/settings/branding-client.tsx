@@ -59,7 +59,7 @@ export function BrandingClient() {
   if (!loaded) return <p className="text-sm text-text-3">Cargando…</p>;
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div data-help="branding" className="max-w-2xl space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Marca del CRM</CardTitle>

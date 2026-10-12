@@ -535,7 +535,7 @@ export function InboxClient() {
   return (
     <div className="flex h-full" data-help="inbox"
       data-help-state={selected ? "selected" : "empty"}
-      data-help-ai={!selected ? undefined : selected.contact.blockedAt ? "blocked" : agentAvailability === null || aiUpdatingId === selected.id ? "loading" : !selected.aiEnabled || selected.handoffAt ? "paused" : !agentAvailability.enabled || !agentAvailability.aiConfigured ? "unavailable" : "active"}
+      data-help-ai={!selected ? undefined : selected.contact.blockedAt ? "blocked" : agentAvailability === null ? "loading" : !agentAvailability.enabled || !agentAvailability.aiConfigured ? "unavailable" : aiUpdatingId === selected.id ? "loading" : !selected.aiEnabled || selected.handoffAt ? "paused" : "active"}
       data-help-window={selected ? selected.windowOpen ? "open" : "closed" : undefined}>
       {/* Master-detail en mobile: lista a pantalla completa sin selección;
           con selección se muestra solo el hilo (botón atrás en el header). */}
@@ -630,6 +630,7 @@ export function InboxClient() {
                 />
               )}
               <button
+                data-help="chat-transfer"
                 type="button"
                 onClick={() => setTransferConversationId(selected.id)}
                 aria-label="Transferir chat"
@@ -639,6 +640,7 @@ export function InboxClient() {
                 <span className="hidden xl:inline">Transferir</span>
               </button>
               <button
+                data-help="chat-details"
                 onClick={() => setDetailOpen(true)}
                 aria-label="Ver detalles del contacto"
                 className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] border bg-surface p-[9px] text-[13px] font-bold transition-colors hover:bg-surface-2 lg:px-[15px]"

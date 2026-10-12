@@ -207,7 +207,7 @@ export function PipelineClient() {
   }, [leads, match, stages]);
 
   return (
-    <div className="flex h-full flex-col">
+    <div data-help="pipeline" className="flex h-full flex-col">
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2.5 border-b bg-surface px-4 py-3 md:px-7 md:py-[18px]">
         <h2 className="font-display text-[22px] font-bold">
           Etapas del prospecto
@@ -215,7 +215,7 @@ export function PipelineClient() {
         <div className="order-last flex w-full items-center gap-2 rounded-[10px] border bg-surface-2 px-3 py-[8px] transition-colors focus-within:border-brand focus-within:bg-background focus-within:ring-[3px] focus-within:ring-brand-soft md:order-none md:w-auto md:max-w-[300px] md:flex-1">
           <Search className="h-4 w-4 shrink-0 text-faint" strokeWidth={2} />
           <input
-            placeholder="Buscar lead…"
+            data-help="pipeline-search" placeholder="Buscar lead…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="w-full bg-transparent text-[16px] outline-none placeholder:text-faint md:text-[13px]"
@@ -229,7 +229,7 @@ export function PipelineClient() {
             ariaLabel="Visualización del pipeline"
           />
           <button
-            onClick={() => setManaging(true)}
+            data-help="pipeline-manage" onClick={() => setManaging(true)}
             className="inline-flex shrink-0 items-center gap-2 rounded-[10px] border bg-surface px-2.5 py-[9px] text-[13px] font-bold transition-colors hover:bg-surface-2 sm:px-[15px]"
           >
             <SlidersHorizontal className="h-4 w-4" strokeWidth={2} />

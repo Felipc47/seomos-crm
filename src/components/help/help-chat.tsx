@@ -5,9 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowUp, ArrowUpRight, BookOpen, Crosshair, Loader2, MessageCircleQuestion, Play, RotateCcw, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getHelpGuides, getHelpScreen, getHelpSuggestions, type HelpAccess, type HelpGuide, type HelpGuideLink } from "@/lib/help-guides";
+import { getHelpGuides, getHelpScreen, getHelpSuggestions, helpGuideLink, type HelpAccess, type HelpGuide, type HelpGuideLink } from "@/lib/help-guides";
 import { getHelpTour, readHelpContext } from "@/lib/help-tours";
 import { HelpTour } from "@/components/help/help-tour";
+import { HelpLibrary } from "@/components/help/help-library";
 import { cn } from "@/lib/utils";
 
 type Message = { role: "user" | "assistant"; content: string; guides?: HelpGuideLink[]; notice?: string | null };
@@ -17,6 +18,7 @@ const welcome: Message = { role: "assistant", content: "¿Qué quieres hacer? Cu
 export function HelpChat({ role, isSuperadmin, mailingEnabled }: HelpAccess) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [view, setView] = useState<"chat" | "library">("chat");
   const [messages, setMessages] = useState<Message[]>([welcome]);
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
@@ -27,6 +29,7 @@ export function HelpChat({ role, isSuperadmin, mailingEnabled }: HelpAccess) {
   const launcher = useRef<HTMLButtonElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const scroll = useRef<HTMLDivElement>(null);
+  const lastReply = useRef<HTMLDivElement>(null);
   const request = useRef<AbortController | null>(null);
   const guides = useMemo(() => getHelpGuides({ role, isSuperadmin, mailingEnabled }), [role, isSuperadmin, mailingEnabled]);
   const screen = getHelpScreen(pathname, guides);
@@ -44,6 +47,13 @@ export function HelpChat({ role, isSuperadmin, mailingEnabled }: HelpAccess) {
 
   function startTour(guide: HelpGuide) {
     setActiveTour({ id: guide.id, index: 0 }); setTourVisible(true); setOpen(false);
+  }
+
+  function selectGuide(guide: HelpGuide) {
+    request.current?.abort(); request.current = null;
+    setBusy(false); setError(null); setRetryQuestion(null); setQuestion("");
+    setActiveTour(null); setTourVisible(false); setView("chat");
+    setMessages((previous) => [...previous, { role: "user" as const, content: guide.question }, { role: "assistant" as const, content: guide.summary, guides: [helpGuideLink(guide)] }].slice(-21));
   }
 
   function close() {
@@ -65,12 +75,15 @@ export function HelpChat({ role, isSuperadmin, mailingEnabled }: HelpAccess) {
   }, [open]);
 
   useEffect(() => {
-    if (open && scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight;
+    if (!open || !scroll.current) return;
+    if (!busy && !error && lastReply.current) {
+      scroll.current.scrollTop += lastReply.current.getBoundingClientRect().top - scroll.current.getBoundingClientRect().top - 8;
+    } else scroll.current.scrollTop = scroll.current.scrollHeight;
   }, [messages, busy, error, open]);
 
   useEffect(() => {
     if (open && !busy) input.current?.focus();
-  }, [open, busy]);
+  }, [open, busy, view]);
 
   useEffect(() => () => request.current?.abort(), []);
 
@@ -84,6 +97,7 @@ export function HelpChat({ role, isSuperadmin, mailingEnabled }: HelpAccess) {
     setRetryQuestion(null);
     setActiveTour(null);
     setTourVisible(false);
+    setView("chat");
     input.current?.focus();
   }
 
@@ -146,11 +160,16 @@ export function HelpChat({ role, isSuperadmin, mailingEnabled }: HelpAccess) {
             <button type="button" onClick={reset} aria-label="Nueva conversación de ayuda" title="Nueva conversación" className="rounded-lg p-2 text-mute hover:bg-surface hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"><RotateCcw className="h-4 w-4" aria-hidden /></button>
             <button type="button" onClick={close} aria-label="Cerrar ayuda" className="rounded-lg p-2 text-mute hover:bg-surface hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"><X className="h-5 w-5" aria-hidden /></button>
           </header>
+          <nav aria-label="Modo de ayuda" className="flex shrink-0 gap-1 border-b px-3 py-2">
+            <button type="button" onClick={() => setView("chat")} aria-pressed={view === "chat"} className={cn("flex-1 rounded-lg px-2 py-2 text-xs font-bold transition-colors", view === "chat" ? "bg-brand/10 text-brand" : "text-mute hover:bg-surface-2")}>Preguntar</button>
+            <button type="button" onClick={() => setView("library")} aria-pressed={view === "library"} className={cn("flex-1 rounded-lg px-2 py-2 text-xs font-bold transition-colors", view === "library" ? "bg-brand/10 text-brand" : "text-mute hover:bg-surface-2")}>Funciones del CRM</button>
+          </nav>
+          {view === "library" ? <HelpLibrary guides={guides} onSelect={selectGuide} /> : <>
           {tour && activeTour && <div className="flex shrink-0 items-center justify-between gap-2 border-b bg-brand/5 px-4 py-2.5"><p className="min-w-0 truncate text-xs text-mute">Guía en pausa · {tour.title}</p><button type="button" onClick={() => { setOpen(false); setTourVisible(true); }} className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-brand"><Play className="h-3.5 w-3.5" aria-hidden />Retomar guía</button></div>}
           <div ref={scroll} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
             <div role="log" aria-label="Conversación de ayuda" aria-live="polite" aria-relevant="additions" className="space-y-4">
               {messages.map((message, index) => (
-                <div key={index} className={cn("flex flex-col gap-2", message.role === "user" && "items-end")}>
+                <div key={index} ref={index === messages.length - 1 && message.role === "assistant" ? lastReply : undefined} className={cn("flex flex-col gap-2", message.role === "user" && "items-end")}>
                   <span className="text-[11px] font-semibold text-mute">{message.role === "user" ? "Tú" : "Asistente"}</span>
                   <div className={cn("max-w-full rounded-2xl px-3.5 py-3 text-sm leading-relaxed", message.role === "user" ? "max-w-[90%] rounded-tr-sm bg-brand/10" : "w-full rounded-tl-sm bg-surface-2")}>
                     <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.content}</p>
@@ -158,9 +177,12 @@ export function HelpChat({ role, isSuperadmin, mailingEnabled }: HelpAccess) {
                       <div key={guide.id} className="mt-3 border-t border-border pt-3">
                         <p className="mb-2 flex items-start gap-2 text-xs font-bold"><BookOpen className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand" aria-hidden />{guide.title}</p>
                         {guide.href !== "/forgot-password" && <Button type="button" onClick={() => startTour(guide)} className="mb-2 w-full justify-center gap-2 rounded-xl text-xs"><Crosshair className="h-4 w-4" aria-hidden />Guíame en pantalla</Button>}
-                        <details className="group text-xs"><summary className="cursor-pointer rounded py-1.5 font-semibold text-mute outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">Ver instrucciones</summary><ol className="mt-2 list-decimal space-y-2 pl-5 text-[13px] text-foreground">
+                        {guide.requirements?.length ? <div className="mb-2 rounded-lg border border-border p-2.5 text-xs leading-relaxed"><p className="mb-1 font-bold">Antes de empezar</p>{guide.requirements.map((requirement) => <p key={requirement}>{requirement}</p>)}</div> : null}
+                        <details open className="group text-xs"><summary className="cursor-pointer rounded py-1.5 font-semibold text-mute outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">Ver instrucciones</summary><ol className="mt-2 list-decimal space-y-2 pl-5 text-[13px] text-foreground">
                           {guide.steps.map((step, stepIndex) => <li key={stepIndex} className="pl-0.5">{step}</li>)}
                         </ol></details>
+                        {guide.result && <p className="mt-3 rounded-lg bg-brand/5 p-2.5 text-xs leading-relaxed"><span className="font-bold">Resultado esperado: </span>{guide.result}</p>}
+                        {guide.troubleshooting?.length ? <details className="mt-2 text-xs"><summary className="cursor-pointer py-1.5 font-semibold text-mute">Si no funciona</summary><ul className="list-disc space-y-2 pl-4 leading-relaxed">{guide.troubleshooting.map((item) => <li key={item}>{item}</li>)}</ul></details> : null}
                         <Link href={guide.href} onClick={close} className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-brand underline-offset-4 hover:underline">Ir a {guide.title}<ArrowUpRight className="h-3.5 w-3.5 shrink-0" aria-hidden /></Link>
                       </div>
                     ))}
@@ -183,6 +205,7 @@ export function HelpChat({ role, isSuperadmin, mailingEnabled }: HelpAccess) {
             </div>
             <p className="mt-2 px-1 text-[11px] text-mute">Yo te señalo el camino. Tú haces los clics y decides cuándo guardar o enviar.</p>
           </form>
+          </>}
         </section>
       )}
       {tourVisible && tour && activeTour && <HelpTour tour={tour} index={activeTour.index} onStep={tourStep} onClose={endTour} onQuestion={questionDuringTour} />}

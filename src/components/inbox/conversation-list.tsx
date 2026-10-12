@@ -430,8 +430,8 @@ export function ConversationList({
             </span>
           </div>
           {conversations.length > 0 && (
-            <button
-              type="button"
+          <button data-help="inbox-select"
+            type="button"
               onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
               className={cn(
                 "inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-bold transition-colors hover:bg-subtle",

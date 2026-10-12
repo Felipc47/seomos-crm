@@ -36,6 +36,20 @@ const pauseConversation: HelpTourStep = {
   waiting: "Esperando a que el chat muestre IA pausada",
 };
 const configurations: Record<string, { steps: HelpTourStep[]; completion?: string; observed?: boolean }> = {
+  "contacts-export": { steps: [
+    { title: "Pulsa Exportar CSV", text: "Este es el botón de descarga en la barra superior de Contactos. Descarga todos los contactos de tu empresa, incluidos los archivados; no aplica el buscador ni el filtro de etapa. La guía no lo pulsa por ti.", target: target("contacts-export") },
+    { title: "Revisa contactos.csv", text: "Busca el archivo en Descargas o en la ubicación que elegiste. Lleva nombre, telefono, correo, notas, etapa y archivado. Ábrelo en tu hoja de cálculo y filtra allí la etapa/archivado si necesitas un subconjunto." },
+  ], completion: "Ya sabes dónde descargar y cómo revisar el CSV. La descarga no modifica los contactos; comprueba el archivo en tu navegador o carpeta de Descargas." },
+  "contacts-import": { steps: [
+    { title: "Prepara la plantilla", text: "Descarga Plantilla y prepara nombre, telefono, correo y notas. Nombre/teléfono son obligatorios; teléfono con código de país. Guarda CSV (coma o punto y coma), máximo 500 contactos y aproximadamente 1 MB.", target: target("contacts-template") },
+    { title: "Elige el CSV que quieres importar", text: "Pulsa Importar CSV y selecciona el archivo revisado. Al elegirlo se inicia la importación. Los teléfonos duplicados se omiten sin actualizar contactos existentes; importar no registra permiso de marketing.", target: target("contacts-import") },
+    { title: "Revisa el resultado", text: "Comprueba creados, duplicados y líneas inválidas en el resultado. Corrige las filas indicadas y repite si hace falta. Los nuevos contactos entran a la primera etapa abierta; para cambiar datos existentes utiliza Editar." },
+  ] },
+  "contacts-create": { steps: [
+    { title: "Abre Nuevo prospecto", text: "Pulsa Nuevo en la barra de Contactos. Prepararemos los datos de una persona; abrir el formulario no crea el registro.", target: target("contacts-new"), completeWhen: target("contact-create-fields"), waiting: "Pulsa Nuevo para continuar" },
+    { title: "Completa los datos de la persona", text: "Escribe Nombre y WhatsApp con código de país. Correo y Notas son opcionales. Revisa que el teléfono sea correcto y que no sea un contacto que ya existe.", target: target("contact-create-fields") },
+    { title: "Revisa y crea el prospecto", text: "Pulsa Crear prospecto cuando los datos estén correctos. Comprueba que aparezca en Contactos y el pipeline. No se registra consentimiento de marketing por darlo de alta manualmente.", target: target("contact-create-submit") },
+  ] },
   "pause-agent": { steps: [selectConversation, pauseConversation], observed: true, completion: "La cabecera muestra IA pausada. El agente dejará de responder automáticamente en este chat. Los demás chats conservan su configuración." },
   handoff: { steps: [selectConversation, pauseConversation], observed: true, completion: "Este chat muestra IA pausada. Ya puedes atenderlo personalmente. Para devolverlo al agente, enciende el mismo interruptor cuando lo decidas." },
   "resume-agent": { steps: [selectConversation, {
@@ -83,12 +97,40 @@ const configurations: Record<string, { steps: HelpTourStep[]; completion?: strin
   ] },
 };
 
+// Objetivos de pantalla versionados. En tareas con registros múltiples se
+// señala la región para que la persona elija su registro; no el primer botón
+// de borrar/bloquear de una fila arbitraria.
+const taskTargets: Record<string, string> = {
+  "inbox-search": target("conversation-list"), "inbox-pin": target("conversation-list"), "inbox-archive": target("conversation-list"),
+  "inbox-bulk": target("inbox-select"), "inbox-block": target("conversation-list"), "inbox-report": target("conversation-list"), "inbox-delete": target("conversation-list"),
+  "inbox-transfer": target("chat-transfer"), "inbox-details": target("chat-details"), "manual-meeting": target("chat-details"),
+  "inbox-attachments": target("composer"), "inbox-voice": target("composer"),
+  "contacts-views": target("contacts-search"), "contacts-archive": target("contacts-results"), "contacts-consent": target("contacts-results"), "contacts-delete": target("contacts-results"),
+  "pipeline-views": target("pipeline-search"), "pipeline-stages": target("pipeline-manage"), "pipeline-close": target("pipeline"), pipeline: target("pipeline"),
+  dashboard: '[aria-label="Rango del Dashboard"]', "dashboard-range": '[aria-label="Rango del Dashboard"]', "dashboard-metrics": target("dashboard"),
+  "agent-toggle": '[aria-label="Agente encendido"]', "agent-setup": target("agent-setup"), "agent-training": target("agent-training"), "agent-credits": '[aria-label="Saldo de créditos de IA"]',
+  "knowledge-block": target("knowledge-block"), "knowledge-delete": target("knowledge-list"), "agent-followup": target("agent-followup"), "agent-scheduling": target("agent-scheduling"),
+  templates: target("template-create"), "templates-variables": target("template-create"), "templates-edit": target("template-list"), "templates-approval": target("template-list"), "templates-delete": target("template-list"), "templates-sync": target("templates-sync"), "templates-greeting": target("templates-greeting"),
+  campaigns: target("campaign-create"), "campaigns-audience": "#cmp-mode", "campaigns-control": target("campaign-list"), "campaigns-errors": target("campaign-list"),
+  services: target("services"), "services-create": target("services-create"), "services-assignment": target("services"), "services-forms": target("services"), "services-greeting": target("services"), "services-delete": target("services"),
+  "whatsapp-connection": target("whatsapp-settings"), calendar: target("calendar-settings"), "calendar-settings": target("calendar-settings"), "calendar-disconnect": target("calendar-settings"),
+  team: target("team-create"), "team-roles": target("team-members"), "team-password": target("team-members"), forms: target("webforms-create"), "forms-manage": target("webforms-list"), branding: target("branding"), notifications: target("notification-settings"), "notifications-feed": target("notifications-feed"),
+  "app-theme": '[aria-label="Modo oscuro"], [aria-label="Modo claro"]', "app-logout": '[aria-label="Cerrar sesión"]',
+};
+const audienceTasks = new Set(["mailing-lists", "mailing-subscribers", "mailing-import", "mailing-consent"]);
+const programTasks = new Set(["mailing-content", "mailing-test", "mailing-control", "mailing-schedule", "mailing-enroll", "mailing-stop-enrollment", "mailing-status"]);
+
 /** Solo IDs autorizados del catálogo; jamás selectores o instrucciones del modelo. */
 export function getHelpTour(guide: HelpGuide): HelpTour {
   const configuration = configurations[guide.id];
+  let steps: HelpTourStep[] = configuration?.steps ?? guide.steps.map((text, index) => ({ title: `Paso ${index + 1}`, text, ...(index === 0 && taskTargets[guide.id] ? { target: taskTargets[guide.id] } : {}) }));
+  if (!configuration && ["inbox-transfer", "inbox-details", "manual-meeting", "inbox-attachments", "inbox-voice"].includes(guide.id)) steps = [selectConversation, ...steps];
+  if (!configuration && audienceTasks.has(guide.id)) steps = [{ title: "Abre Audiencia", text: "Pulsa Audiencia para gestionar listas y suscriptores de email. Es independiente de Contactos de WhatsApp.", target: target("mailing-audience"), completeWhen: '[data-help="mailing"][data-help-state="audience"]', waiting: "Abre Audiencia para continuar" }, ...steps];
+  if (!configuration && programTasks.has(guide.id)) steps = [{ title: "Abre el programa correcto", text: "Elige Campañas o Automatizaciones y abre el programa por su nombre. En móvil usa Abrir programa. Después sigue los pasos de esta tarea.", target: target("mailing") }, ...steps];
+  if (!configuration && ["mailing-dns", "mailing-tracking"].includes(guide.id)) steps = [{ title: "Abre Remitente y DNS", text: "Pulsa Remitente y DNS. Los cambios de dirección, dominio y métricas corresponden al administrador de tu empresa.", target: target("mailing-sender"), completeWhen: '[data-help="mailing"][data-help-state="sender"]', waiting: "Abre Remitente y DNS para continuar" }, ...steps];
   return {
     id: guide.id, title: guide.title, href: guide.href,
-    steps: configuration?.steps ?? guide.steps.map((text, index) => ({ title: `Paso ${index + 1}`, text })),
+    steps,
     completion: configuration?.completion ?? "Terminaste el recorrido. Revisa el resultado de tus cambios en la pantalla; guardar, activar o enviar depende de los botones que tú pulses.",
     observed: configuration?.observed ?? false,
   };

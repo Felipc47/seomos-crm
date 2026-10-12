@@ -112,7 +112,7 @@ export function CalendarClient() {
   }
 
   return (
-    <div className="space-y-6">
+    <div data-help="calendar-settings" className="space-y-6">
       {/* Estado de conexión */}
       {!state.googleConfigured ? (
         <div className="rounded-2xl border border-[color:var(--warning-border)] bg-[color:var(--warning-bg)] p-5 text-sm text-[color:var(--warning-fg)]">

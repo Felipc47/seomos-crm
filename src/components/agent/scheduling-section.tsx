@@ -93,7 +93,7 @@ export function SchedulingSection() {
   }
 
   return (
-    <Card>
+    <Card data-help="agent-scheduling">
       <CardHeader>
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">

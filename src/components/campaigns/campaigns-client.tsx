@@ -252,7 +252,7 @@ export function CampaignsClient() {
 
   return (
     <div className="flex flex-col gap-5">
-      <Card>
+      <Card data-help="campaign-create">
         <CardHeader>
           <CardTitle>Nueva campaña</CardTitle>
           <CardDescription>
@@ -568,7 +568,7 @@ export function CampaignsClient() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card data-help="campaign-list">
         <CardHeader>
           <CardTitle>Campañas</CardTitle>
           <CardDescription>

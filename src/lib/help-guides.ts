@@ -1,4 +1,8 @@
 import { normalizeRole, type Role } from "@/lib/permissions";
+import { OPERATION_HELP_GUIDES } from "@/lib/help-guides-operations";
+import { ADMINISTRATION_HELP_GUIDES } from "@/lib/help-guides-administration";
+import { MESSAGING_HELP_GUIDES } from "@/lib/help-guides-messaging";
+import { findHelpIntent } from "@/lib/help-intents";
 
 export type HelpAccess = { role: string; isSuperadmin: boolean; mailingEnabled: boolean };
 export type HelpGuide = {
@@ -9,9 +13,12 @@ export type HelpGuide = {
   summary: string;
   keywords: string;
   steps: string[];
+  requirements?: string[];
+  result?: string;
+  troubleshooting?: string[];
   access: "all" | "operations" | "admin" | "agent" | "superadmin" | "mailing" | "mailing_admin";
 };
-export type HelpGuideLink = Pick<HelpGuide, "id" | "title" | "href" | "steps">;
+export type HelpGuideLink = Pick<HelpGuide, "id" | "title" | "href" | "steps" | "requirements" | "result" | "troubleshooting">;
 
 /** Mantener junto a los cambios de pantallas. Solo documentación, sin datos de clientes. */
 export const HELP_GUIDES: HelpGuide[] = [
@@ -67,7 +74,7 @@ export const HELP_GUIDES: HelpGuide[] = [
     id: "agent", title: "Configurar el agente de IA", href: "/agent", access: "agent",
     question: "¿Cómo configuro el agente de IA?", keywords: "agente ia configurar comportamiento entrenamiento bot saludo tono reglas instrucciones activar",
     summary: "Agente permite definir el comportamiento del asesor que responde por WhatsApp. Configurar con IA prepara una propuesta que puedes revisar antes de guardar.",
-    steps: ["Entra en Agente y abre Configurar con IA si quieres preparar una propuesta guiada.", "Describe el negocio, objetivo y límites; revisa los campos propuestos antes de aplicarlos.", "Ajusta nombre, saludo, tonos, Entrenamiento del agente y Escalado a humano.", "Pulsa Guardar comportamiento. Revisa el interruptor del agente para decidir si debe responder automáticamente."],
+    steps: ["Entra en Agente. Para prepararlo con ayuda, pulsa Configurar con IA: indica sitio opcional, descripción del negocio, objetivo y límites, y usa Crear borrador.", "Revisa la propuesta y pulsa Usar este borrador para rellenar los campos. Todavía puedes editarlos y no se enciende automáticamente.", "En Comportamiento ajusta Nombre del agente y Saludo. En Tono elige hasta dos presets y completa Matices propios si hace falta.", "Completa las secciones de Entrenamiento del agente con instrucciones precisas y Escalado a humano con los casos que requieren una persona. Knowledge base guarda la información confirmada del negocio.", "Pulsa Guardar comportamiento. Revisa por separado Seguimiento automático y Agendamiento si los vas a utilizar.", "Decide con el interruptor Agente encendido si debe responder automáticamente; necesita proveedor configurado y créditos disponibles. Para detener un solo chat usa el interruptor de su cabecera en Bandeja."],
   },
   {
     id: "knowledge", title: "Enseñar respuestas al agente", href: "/agent", access: "agent",
@@ -78,8 +85,8 @@ export const HELP_GUIDES: HelpGuide[] = [
   {
     id: "templates", title: "Preparar una plantilla de WhatsApp", href: "/templates", access: "operations",
     question: "¿Cómo creo una plantilla de WhatsApp?", keywords: "plantilla template whatsapp aprobacion meta categoria variable idioma crear",
-    summary: "Las plantillas de WhatsApp permiten iniciar o retomar conversaciones fuera de la ventana de 24 horas. Deben pasar la aprobación correspondiente antes de enviarse.",
-    steps: ["Entra en Plantillas y prepara el contenido, idioma, categoría y variables.", "Guarda el borrador y revisa el contenido.", "Si eres comercial o marketing, solicita la aprobación del administrador. El admin gestiona el envío a Meta.", "Espera el estado Aprobada antes de usarla en conversaciones o envío masivo."],
+    summary: "En Plantillas → Nueva plantilla completa nombre, idioma, categoría y cuerpo. Pulsa Crear y enviar a aprobación cuando hayas revisado el contenido; solo podrás enviarla a clientes cuando esté Aprobada.",
+    steps: ["Entra en Plantillas y localiza Nueva plantilla.", "Completa Nombre (por ejemplo seguimiento_cotizacion), Idioma, Categoría y Cuerpo. Usa UTILITY para el tipo de seguimiento permitido o MARKETING para contenido promocional.", "Si usas variables, escríbelas consecutivamente como {{1}}…{{5}} y configura de dónde sale cada dato y su alternativa cuando falta.", "Si necesitas encabezado, elige Imagen (JPG/PNG, hasta 5 MB) o Documento PDF (hasta 16 MB) y adjunta el archivo. El encabezado no puede añadirse o quitarse después.", "Revisa contenido y variables antes de pulsar Crear y enviar a aprobación. Como comercial/marketing pasa primero por el admin; el admin la aprueba y envía a Meta.", "Espera el estado Aprobada. Usa Sincronizar para actualizarlo o revisa Razón del rechazo si fue Rechazada."],
   },
   {
     id: "campaigns", title: "Crear un envío masivo de WhatsApp", href: "/campaigns", access: "operations",
@@ -96,14 +103,14 @@ export const HELP_GUIDES: HelpGuide[] = [
   {
     id: "whatsapp-connection", title: "Revisar la conexión de WhatsApp", href: "/settings/whatsapp", access: "admin",
     question: "¿Dónde reviso la conexión de WhatsApp?", keywords: "conexion conectar vincular numero whatsapp token webhook meta recibir desconectado",
-    summary: "La conexión de WhatsApp se administra en Ajustes. Esta ayuda no puede verificar el estado de tu conexión ni consultar sus credenciales.",
-    steps: ["Entra en Ajustes → WhatsApp.", "Revisa el estado y los datos de la conexión configurada.", "Completa el proceso de conexión disponible si aún no has conectado el número.", "Si los mensajes no llegan, revisa la configuración de webhook indicada en esa pantalla con quien administra la integración. No compartas tokens en este chat."],
+    summary: "Como admin, entra en Ajustes → WhatsApp. Completa WABA ID, Phone Number ID y Token de acceso en esa pantalla; pulsa Probar conexión y, cuando sea válida, Guardar conexión. Después configura el webhook mostrado allí.",
+    steps: ["Abre Ajustes → WhatsApp y revisa el estado de la conexión.", "Completa WABA ID, Phone Number ID y Token de acceso usando los datos de tu integración de Meta. Un token ya guardado solo muestra sus últimos cuatro caracteres; escribe otro en esa pantalla si lo vas a sustituir.", "Pulsa Probar conexión. El mensaje debe indicar Token válido antes de habilitar Guardar conexión.", "Pulsa Guardar conexión. La verificación del webhook por sí sola no basta: guardar permite enrutar los mensajes por el Phone Number ID.", "En Webhook de WhatsApp usa Copiar URL y Copiar verify token para configurar tu integración de Meta según esa pantalla. La URL también contiene un secreto; no pegues estos datos en Ayuda.", "Si los mensajes no llegan, pide a quien administra Meta revisar suscripción/eventos y que esté guardado el número correcto. Ayuda no verifica tu token ni lee el estado privado de la conexión."],
   },
   {
     id: "team", title: "Crear cuentas para el equipo", href: "/settings/team", access: "admin",
     question: "¿Cómo agrego a alguien al equipo?", keywords: "equipo usuario usuarios cuenta acceso invitar miembro rol permisos contrasena restablecer",
     summary: "El administrador crea cuentas y asigna roles en Ajustes → Equipo. Los permisos dependen del rol de cada persona.",
-    steps: ["Entra en Ajustes → Equipo y busca Crear cuenta de equipo.", "Completa nombre, correo, rol y contraseña temporal.", "Crea la cuenta y entrega el acceso a la persona por un canal privado.", "Revisa el rol asignado; puedes cambiarlo o restablecer la contraseña desde la lista. Las empresas distintas de la del superadmin tienen un límite de seis miembros."],
+    steps: ["Entra en Ajustes → Equipo y busca Crear cuenta de equipo.", "Completa Nombre y Correo, y elige Rol: Admin, Editor de agente, Ejecutivo comercial o Marketing.", "Prepara una Contraseña temporal de al menos ocho caracteres o pulsa Generar. No la compartas en Ayuda.", "Pulsa Crear cuenta y comprueba Cuenta creada. No se envía una invitación automática: guarda y entrega el acceso por un canal privado antes de cerrar el aviso, porque se muestra una vez.", "Revisa al miembro en la lista y su rol. La empresa estándar admite hasta seis usuarios, incluido el admin; la empresa del superadmin tiene la excepción indicada por la pantalla.", "Para un acceso olvidado utiliza Restablecer contraseña en su fila: se envía un enlace al miembro, no se revela su contraseña actual."],
   },
   {
     id: "calendar", title: "Conectar el calendario", href: "/settings/calendar", access: "admin",
@@ -121,13 +128,13 @@ export const HELP_GUIDES: HelpGuide[] = [
     id: "notifications", title: "Configurar avisos por correo", href: "/settings/notifications", access: "admin",
     question: "¿Cómo activo los avisos por correo?", keywords: "notificacion aviso alerta correo email lead resumen operativo destinatario",
     summary: "Ajustes → Notificaciones configura avisos operativos por correo, separados de las campañas de Mailing.",
-    steps: ["Entra en Ajustes → Notificaciones y activa Notificaciones habilitadas.", "Decide si activas Avisos al entrar un prospecto y Resumen semanal.", "Guarda los cambios. Los avisos van al admin y al responsable del lead; el resumen se distribuye según el equipo.", "Si no llegan los correos, pide al administrador de la instancia que revise el proveedor y remitente del correo operativo."],
+    steps: ["Entra en Ajustes → Notificaciones y activa Notificaciones habilitadas, el interruptor maestro de correo operativo.", "Elige Avisos al entrar un prospecto para enviar al admin y al responsable del lead, y Resumen semanal para el panorama del admin y resumen por responsable.", "Pulsa Guardar cambios y comprueba Preferencias guardadas. Los interruptores específicos quedan deshabilitados cuando el maestro está apagado.", "Si no llegan los correos, pide al administrador de la instancia revisar proveedor y remitente del correo operativo. Este remitente y estos avisos son independientes de las campañas de Mailing."],
   },
   {
     id: "profile", title: "Actualizar tu perfil", href: "/settings/profile", access: "all",
     question: "¿Cómo cambio los datos de mi perfil?", keywords: "perfil cuenta personal foto nombre cambiar datos",
     summary: "Ajustes → Perfil permite actualizar tu nombre y foto. El correo de la cuenta aparece como solo lectura.",
-    steps: ["Entra en Ajustes → Perfil.", "Edita tu nombre y pulsa Guardar cambios.", "Para actualizar la imagen, usa Subir foto o Cambiar foto. Puedes quitarla con Quitar."],
+    steps: ["Entra en Ajustes → Perfil y revisa Tu perfil.", "En Nombre escribe hasta 80 caracteres y pulsa Guardar cambios. El correo de acceso aparece como solo lectura.", "Para la imagen pulsa Subir foto o Cambiar foto y elige JPG, PNG o WEBP. Se recorta al centro y se guarda en 256×256; la elección guarda la foto.", "Quitar retira la imagen actual. Comprueba nombre/foto en la navegación y en el equipo; cambiar nombre no cambia tu correo ni contraseña."],
   },
   {
     id: "password", title: "Restablecer tu contraseña", href: "/forgot-password", access: "all",
@@ -137,9 +144,9 @@ export const HELP_GUIDES: HelpGuide[] = [
   },
   {
     id: "branding", title: "Personalizar la marca", href: "/settings/branding", access: "admin",
-    question: "¿Cómo cambio la marca de mi empresa?", keywords: "marca branding logo nombre empresa color personalizar apariencia",
+    question: "¿Cómo cambio la marca de mi empresa?", keywords: "marca branding nombre empresa color personalizar apariencia",
     summary: "El administrador puede personalizar la marca de su empresa en Ajustes → Marca.",
-    steps: ["Entra en Ajustes → Marca.", "Edita los campos de marca disponibles y guarda los cambios.", "Revisa el resultado en la navegación del CRM."],
+    steps: ["Entra en Ajustes → Marca y revisa Marca del CRM.", "Completa Nombre (hasta 30 caracteres) y elige Color de acento de los presets o Personalizado.", "Revisa la vista previa y pulsa Guardar marca.", "Comprueba el nombre/color en la navegación y pantalla de acceso. Esta pantalla configura nombre y color; no muestra una función de subir logo."],
   },
   {
     id: "mailing", title: "Preparar una campaña de correo", href: "/mailing", access: "mailing",
@@ -157,7 +164,7 @@ export const HELP_GUIDES: HelpGuide[] = [
     id: "mailing-sequence", title: "Crear una automatización por días", href: "/mailing", access: "mailing",
     question: "¿Cómo automatizo correos a los 7, 14 y 21 días?", keywords: "automatizacion automatizar secuencia dias 7 14 21 inscripcion mailing seguimiento programa tiempo",
     summary: "Las automatizaciones de Mailing envían pasos por días desde la inscripción de cada suscriptor. Puedes guardar un borrador antes de activar.",
-    steps: ["En Mailing abre Automatizaciones y crea un programa para una lista.", "Completa los días, asuntos y contenidos de cada paso. Los días se cuentan desde la inscripción, no desde el correo anterior.", "Revisa si se inscribirán automáticamente los nuevos contactos y guarda el borrador.", "Revisa y confirma la activación. Usa Inscribir contactos existentes si también quieres incluirlos.", "Puedes pausar el programa para impedir nuevos envíos mientras revisas el contenido."],
+    steps: ["En Mailing abre Automatizaciones y pulsa Nueva automatización. Completa Nombre y la lista de destinatarios.", "Prepara los pasos con Día desde inscripción, Asunto y Mensaje. Puedes añadir hasta 20 pasos, con días enteros de 0 a 3650 estrictamente crecientes; para 7, 14 y 21 días configura esos tres pasos.", "Los días se cuentan desde la inscripción de cada persona, no desde el correo anterior. Día 0 corresponde al día de inscripción.", "Revisa cada Vista previa paso… y pulsa Guardar borrador. Enviar prueba paso… va al operador y requiere remitente verificado y cambios guardados.", "Decide si se inscribirán automáticamente los nuevos contactos, pulsa Revisar activación y comprueba los datos antes de Activar automatización.", "Para añadir los contactos actuales utiliza Inscribir contactos existentes después de activar. Las inscripciones previas conservan su reloj; revisa Contactos inscritos y usa Detener inscripción para una persona.", "Puedes Pausar/Reanudar o Cancelar programa para los pendientes. Duplicar crea una nueva versión en borrador; estas acciones no retiran correos ya enviados."],
   },
   {
     id: "companies", title: "Administrar empresas de la instancia", href: "/companies", access: "superadmin",
@@ -165,6 +172,9 @@ export const HELP_GUIDES: HelpGuide[] = [
     summary: "Empresas es exclusiva del superadmin. Allí crea empresas con su administrador y habilita Mailing por empresa.",
     steps: ["Entra en Empresas y localiza la empresa que quieras administrar.", "Para una nueva empresa, completa sus datos y los de su administrador en el formulario de creación.", "Para habilitar Mailing, usa el interruptor Mailing de la empresa correspondiente.", "El admin de esa empresa podrá configurar su remitente después de habilitar el módulo."],
   },
+  ...OPERATION_HELP_GUIDES,
+  ...ADMINISTRATION_HELP_GUIDES,
+  ...MESSAGING_HELP_GUIDES,
 ];
 
 const operationalRoles: Role[] = ["owner", "commercial", "marketing"];
@@ -184,7 +194,7 @@ export function getHelpGuides(access: HelpAccess): HelpGuide[] {
 }
 
 export function helpGuideLink(guide: HelpGuide): HelpGuideLink {
-  return { id: guide.id, title: guide.title, href: guide.href, steps: guide.steps };
+  return { id: guide.id, title: guide.title, href: guide.href, steps: guide.steps, requirements: guide.requirements, result: guide.result, troubleshooting: guide.troubleshooting };
 }
 
 function normalize(text: string): string {
@@ -194,15 +204,8 @@ const stopWords = new Set("como para puedo quiero donde esta este esto esa ese c
 
 export function findHelpGuides(question: string, pathname: string, guides: HelpGuide[]): HelpGuide[] {
   const normalized = normalize(question);
-  if (/\b(ia|bot|agente)\b/.test(normalized) && /todos|global|empresa/.test(normalized) && /desactiv|inactiv|apag|paus|reactiv|activ|encend/.test(normalized)) {
-    const general = guides.find((item) => item.id === "agent");
-    return general ? [general] : [];
-  }
-  if (/\b(ia|bot|agente)\b/.test(normalized) && (/chat|conversacion/.test(normalized) || pathname === "/inbox") && !/todos|global|empresa/.test(normalized)) {
-    const specific = /desactiv|inactiv|apag|paus|deten|silenci/.test(normalized) ? "pause-agent" : /reactiv|activ|encend|devolver/.test(normalized) ? "resume-agent" : null;
-    const guide = guides.find((item) => item.id === specific);
-    if (guide) return [guide];
-  }
+  const intent = findHelpIntent(normalized, pathname);
+  if (intent) { const guide = guides.find((item) => item.id === intent); return guide ? [guide] : []; }
   const terms = [...new Set(normalize(question).split(/[^a-z0-9]+/).filter((term) => term.length >= 3 && !stopWords.has(term)))];
   const ranked = guides.map((guide) => {
     const keywords = normalize(guide.keywords).split(" ");
@@ -220,19 +223,32 @@ export function findHelpGuides(question: string, pathname: string, guides: HelpG
 }
 
 export function getHelpScreen(pathname: string, guides: HelpGuide[]): { pathname: string; title: string } {
+  pathname = ({ "/settings/services": "/services", "/settings/templates": "/templates" } as Record<string, string>)[pathname] ?? pathname;
   const titles: Record<string, string> = {
     "/inbox": "Bandeja", "/pipeline": "Etapas del prospecto", "/contacts": "Contactos", "/dashboard": "Dashboard",
     "/agent": "Agente", "/templates": "Plantillas", "/campaigns": "Envío masivo", "/services": "Servicios",
     "/mailing": "Mailing", "/companies": "Empresas", "/settings/whatsapp": "WhatsApp", "/settings/team": "Equipo",
     "/settings/calendar": "Calendario", "/settings/profile": "Perfil", "/settings/branding": "Marca", "/forgot-password": "Restablecer contraseña",
-    "/settings/notifications": "Notificaciones", "/settings/integrations": "Formularios web",
+    "/settings/notifications": "Avisos por correo", "/settings/integrations": "Formularios web", "/notifications": "Notificaciones",
   };
   const guide = guides.find((item) => item.href === pathname);
   return guide ? { pathname: guide.href, title: titles[guide.href] ?? guide.title } : { pathname: "", title: "Tu CRM" };
 }
 
 export function getHelpSuggestions(pathname: string, guides: HelpGuide[]): string[] {
+  const preferred: Record<string, string[]> = {
+    "/contacts": ["contacts-export", "contacts-import", "contacts-create"],
+    "/inbox": ["inbox", "pause-agent", "inbox-transfer"],
+    "/agent": ["agent", "knowledge", "agent-followup"],
+    "/mailing": ["mailing", "mailing-sequence", "mailing-import"],
+  };
+  const priority = (preferred[pathname] ?? []).flatMap((id) => { const guide = guides.find((item) => item.id === id); return guide ? [guide] : []; });
   const contextual = guides.filter((guide) => guide.href === pathname);
   const general = guides.filter((guide) => ["inbox", "pipeline", "agent", "profile"].includes(guide.id));
-  return [...new Set([...contextual, ...general].map((guide) => guide.question))].slice(0, 3);
+  return [...new Set([...priority, ...contextual, ...general].map((guide) => guide.question))].slice(0, 3);
+}
+
+export function searchHelpGuides(query: string, guides: HelpGuide[]): HelpGuide[] {
+  const terms = normalize(query).split(/\s+/).filter(Boolean);
+  return guides.filter((guide) => terms.every((term) => normalize(`${guide.title} ${guide.question} ${guide.keywords}`).includes(term)));
 }

@@ -188,7 +188,7 @@ export function ServicesClient({
   const unlinked = detected.filter((d) => !d.linked);
 
   return (
-    <div className="space-y-6">
+    <div data-help="services" className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Servicios</CardTitle>
@@ -201,7 +201,7 @@ export function ServicesClient({
         <CardContent className="space-y-4">
           <div className="flex gap-2">
             <Input
-              placeholder="Nuevo servicio (ej. SEO, Desarrollo web…)"
+              data-help="services-create" placeholder="Nuevo servicio (ej. SEO, Desarrollo web…)"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => {

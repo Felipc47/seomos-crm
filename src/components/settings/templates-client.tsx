@@ -258,7 +258,7 @@ export function TemplatesClient({
         <CardContent>
           <div className="flex items-center gap-3">
             <select
-              value={greetingTemplateId}
+              data-help="templates-greeting" value={greetingTemplateId}
               onChange={(e) => void saveGreeting(e.target.value)}
               disabled={savingGreeting}
               className="flex h-11 w-full max-w-sm rounded-xl border border-border bg-surface-2 px-3.5 text-sm font-medium focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-soft"
@@ -290,7 +290,7 @@ export function TemplatesClient({
           webhook y con el botón Sincronizar (imprescindible en modo agencia,
           donde los eventos de plantillas no llegan al webhook de la instancia).
         </p>
-        <Button variant="outline" size="sm" disabled={syncing} onClick={() => void sync()}>
+        <Button data-help="templates-sync" variant="outline" size="sm" disabled={syncing} onClick={() => void sync()}>
           <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
           Sincronizar
         </Button>
@@ -299,7 +299,7 @@ export function TemplatesClient({
 
       <CreateForm onCreated={() => void refetch()} />
 
-      <div className="space-y-2">
+      <div data-help="template-list" className="space-y-2">
         {templates.map((t) => (
           <TemplateCard
             key={t.id}
@@ -743,7 +743,7 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
   }
 
   return (
-    <Card>
+    <Card data-help="template-create">
       <CardHeader>
         <CardTitle>Nueva plantilla</CardTitle>
         <CardDescription>

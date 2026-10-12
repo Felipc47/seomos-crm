@@ -137,7 +137,7 @@ export function TeamClient() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <Card>
+      <Card data-help="team-create">
         <CardHeader>
           <CardTitle>Crear cuenta de equipo</CardTitle>
           <CardDescription>
@@ -217,7 +217,7 @@ export function TeamClient() {
         </CardContent>
       </Card>
 
-      <div className="space-y-2">
+      <div data-help="team-members" className="space-y-2">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           Miembros{limit !== null ? ` · ${members.length}/${limit}` : ""}
         </p>

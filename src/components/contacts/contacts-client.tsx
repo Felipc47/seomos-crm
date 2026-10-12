@@ -166,6 +166,7 @@ export function ContactsClient() {
         <h2 className="font-display text-[22px] font-bold">Contactos</h2>
         <div className="flex flex-wrap items-center gap-2">
           <button
+            data-help="contacts-new"
             onClick={() => setCreating(true)}
             className="inline-flex items-center gap-1.5 rounded-[10px] bg-brand px-3 py-[8px] text-[12.5px] font-bold text-white transition-colors hover:bg-brand-hover"
           >
@@ -183,6 +184,7 @@ export function ContactsClient() {
             }}
           />
           <button
+            data-help="contacts-import"
             onClick={() => fileRef.current?.click()}
             disabled={importing}
             className="inline-flex items-center gap-1.5 rounded-[10px] border bg-surface px-3 py-[8px] text-[12.5px] font-bold transition-colors hover:bg-surface-2 disabled:opacity-50"
@@ -191,6 +193,7 @@ export function ContactsClient() {
             {importing ? "Importando…" : "Importar CSV"}
           </button>
           <button
+            data-help="contacts-export"
             onClick={() => window.location.assign("/api/contacts/export")}
             className="inline-flex items-center gap-1.5 rounded-[10px] border bg-surface px-3 py-[8px] text-[12.5px] font-bold transition-colors hover:bg-surface-2"
           >
@@ -198,6 +201,7 @@ export function ContactsClient() {
             Exportar CSV
           </button>
           <a
+            data-help="contacts-template"
             href="/plantilla-contactos.csv"
             download
             title="Descargar plantilla de ejemplo"
@@ -645,7 +649,7 @@ function NewContactDialog({
         <h3 className="mb-4 font-display text-[19px] font-bold">
           Nuevo prospecto
         </h3>
-        <div className="space-y-3.5">
+        <div data-help="contact-create-fields" className="space-y-3.5">
           <div className="space-y-1.5">
             <label className="text-[12.5px] font-bold" htmlFor="new-name">
               Nombre
@@ -697,7 +701,7 @@ function NewContactDialog({
           <Button variant="ghost" onClick={onClose}>
             Cancelar
           </Button>
-          <Button disabled={!valid || saving} onClick={() => void save()}>
+          <Button data-help="contact-create-submit" disabled={!valid || saving} onClick={() => void save()}>
             {saving ? "Creando…" : "Crear prospecto"}
           </Button>
         </div>

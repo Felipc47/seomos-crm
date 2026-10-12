@@ -111,7 +111,7 @@ export function NotificationsClient() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div data-help="notifications-feed" className="flex flex-col gap-5">
       <Card>
         <CardHeader>
           <CardTitle>Notificaciones</CardTitle>

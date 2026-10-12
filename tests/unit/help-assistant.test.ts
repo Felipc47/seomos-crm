@@ -26,7 +26,9 @@ describe("documentación de ayuda según acceso e intención", () => {
   });
   it("el editor solo recibe la operación de bandeja, agente y cuenta", () => {
     const guides = getHelpGuides({ role: "agent_editor", isSuperadmin: false, mailingEnabled: true });
-    expect(guides.map((guide) => guide.id)).toEqual(["inbox", "whatsapp-window", "pause-agent", "resume-agent", "handoff", "agent", "knowledge", "profile", "password"]);
+    expect(guides.map((guide) => guide.id)).toEqual(expect.arrayContaining(["inbox", "pause-agent", "resume-agent", "agent", "knowledge", "profile", "password", "agent-followup"]));
+    expect(guides.every((guide) => ["all", "agent"].includes(guide.access))).toBe(true);
+    expect(guides.some((guide) => ["contacts-export", "team", "companies", "mailing"].includes(guide.id))).toBe(false);
   });
   it("marketing recibe Mailing operativo cuando está habilitado, sin configurar DNS", () => {
     const guides = getHelpGuides({ role: "marketing", isSuperadmin: false, mailingEnabled: true });
@@ -44,7 +46,7 @@ describe("documentación de ayuda según acceso e intención", () => {
     const guides = getHelpGuides(admin);
     expect(findHelpGuides("comp uedo inactivar la ia en un chat especifico", "/inbox", guides)[0]?.id).toBe("pause-agent");
     expect(findHelpGuides("encender la ia en esta conversacion", "/inbox", guides)[0]?.id).toBe("resume-agent");
-    expect(findHelpGuides("desactivar la ia en todos los chats de la empresa", "/inbox", guides)[0]?.id).toBe("agent");
+    expect(findHelpGuides("desactivar la ia en todos los chats de la empresa", "/inbox", guides)[0]?.id).toBe("agent-toggle");
     expect(findHelpGuides("desactivar la ia en toda la empresa", "/inbox", getHelpGuides(commercial))).toEqual([]);
   });
 });

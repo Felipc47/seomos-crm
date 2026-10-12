@@ -2,7 +2,7 @@
 
 **Feature Branch**: `codex/029-chat-ayuda`
 **Created**: 2026-10-09
-**Status**: Versión inicial publicada el 2026-10-09 (bd13b70); mejora interactiva verificada localmente el 2026-10-11, publicación en curso.
+**Status**: Versión inicial publicada el 2026-10-09 (bd13b70); guía interactiva publicada el 2026-10-11 (525badb). Ampliación a 98 guías verificada localmente el 2026-10-12; publicación en curso.
 **Input**: Chat emergente de preguntas y respuestas que enseñe a utilizar la herramienta.
 
 ## User Scenarios & Testing
@@ -37,6 +37,15 @@ El usuario considera que la respuesta actual es genérica: al preguntar cómo in
 4. Respuestas breves, sin repetir un párrafo y la misma lista. Las instrucciones completas quedan desplegables; las tareas frecuentes tienen objetivos concretos en pantalla (Bandeja, Contactos, Perfil, Agente y Mailing).
 5. Los marcadores de UI y su geometría se observan localmente. Solo estados enumerados sin nombres, teléfonos, mensajes ni valores de formularios pueden acompañar una consulta a la IA. Un control ausente no genera una afirmación de éxito.
 
+### US5 — Cobertura completa y detallada del CRM (P1, solicitud 2026-10-12)
+El dueño reporta que «cómo descargo mis leads» y «necesito exportar mis contactos» reciben una negación de una función que sí existe. Solicita cubrir todas las funciones del CRM y ser detallado.
+1. El catálogo cubre las acciones visibles de cada módulo, verificadas contra sus controles y API: Bandeja, Contactos, Etapas, Dashboard, Agente/conocimiento/seguimiento/agenda, Plantillas, Envío masivo, Mailing, Servicios, notificaciones, perfil y ajustes, Equipo y Empresas según permisos.
+2. Cada tarea explica dónde entrar, el nombre real del control, los datos o requisitos, los pasos, qué resultado esperar y las limitaciones relevantes. «Exportar CSV» explica que descarga todos los contactos de la empresa, incluidos archivados y sin aplicar los filtros de pantalla, con nombre/teléfono/correo/notas/etapa/archivado.
+3. Variantes en español («descargar leads», «exportar contactos», «bajar prospectos a Excel») encuentran la guía correcta. Para una tarea conocida no se afirma que no existe o que no está documentada por un fallo del proveedor.
+4. El usuario puede explorar y buscar todas las guías disponibles para su rol, además de preguntar. Las instrucciones detalladas son legibles; no aparecen listas numeradas vacías al copiar una respuesta.
+5. Las guías interactivas llevan al control real cuando existe un marcador inequívoco; no descargan, importan, guardan, bloquean, borran, activan ni envían automáticamente. Los límites y el acceso se obtienen del código, sin inventar capacidades.
+6. Se conserva un inventario de cobertura con evidencia de las pantallas y rutas correspondientes, para mantener la documentación cuando cambien las funciones.
+
 ### Edge Cases
 Pregunta vacía o demasiado larga; historial manipulado; rutas y enlaces inventados; consultas fuera del CRM; permisos insuficientes; móvil pequeño; múltiples envíos; cambio de pantalla; proveedor lento; cierre mientras responde.
 
@@ -51,6 +60,8 @@ Pregunta vacía o demasiado larga; historial manipulado; rutas y enlaces inventa
 - **FR-008**: Abrir, cerrar, teclado, iniciar otra conversación y navegar funcionan en escritorio y móvil.
 - **FR-009**: Guías interactivas con controles versionados, progreso y resaltado que se ajusta al desplazamiento y tamaño de pantalla.
 - **FR-010**: Intención de pausar/reactivar IA de una conversación reconocida incluso con variantes y errores leves de escritura; usa los nombres exactos y el estado de la UI.
+- **FR-011**: Catálogo completo por tareas con requisitos, pasos y resultados; índice navegable y buscable, filtrado por acceso.
+- **FR-012**: Búsqueda y respuestas fundamentadas que reconocen acciones existentes aunque el usuario use «leads», «prospectos», «Excel» o variantes de descarga/importación.
 
 ## Key Entities
 Guía versionada (título, resumen, palabras clave, pasos, ruta, permisos); mensaje temporal (autor, contenido); respuesta (explicación, guías, modo).
@@ -65,3 +76,4 @@ Ayuda interna para usuarios del CRM; no es el agente que responde a clientes por
 - **SC-004**: Panel sin desbordamiento a 390×844 y 1440×1000; teclado y foco verificados.
 - **SC-005**: Typecheck, lint, build y tests verdes, con evidencia local guardada.
 - **SC-006**: E2E prueba selección, pausa explícita por el usuario, estado ya pausado/no disponible, navegación, cierre y móvil; empezar la guía no modifica la conversación ni envía mensajes.
+- **SC-007**: E2E reproduce ambas preguntas del dueño, abre la guía de Exportar CSV, señala el botón, descarga mediante acción explícita del usuario y verifica un CSV real aislado por empresa (incluidos archivados). Probar importación guiada, índice, roles y fallback del proveedor.

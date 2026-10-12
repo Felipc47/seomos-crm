@@ -78,7 +78,7 @@ try {
   await page.goto("/inbox"); await openHelp();
   const firstReply = await ask("comp uedo inactivar la ia en un chat especifico");
   assert(firstReply.guides[0]?.id === "pause-agent" && firstReply.answer.includes("Primero abre el chat"), "reconoce la duda de la captura y detecta que falta seleccionar");
-  assert(await help().getByRole("listitem").count() === 0, "respuesta compacta sin repetir una lista larga");
+  assert((await help().getByRole("listitem").allTextContents()).every((text) => text.trim().length > 0), "instrucciones detalladas visibles sin listas numeradas vacías");
   const writesBefore = writes.length;
   await begin();
   await tour().getByRole("heading", { name: "Abre el chat que quieres atender" }).waitFor();
@@ -161,6 +161,15 @@ try {
   await begin(); await tour().getByRole("heading", { name: "La IA no está disponible" }).waitFor();
   assert(await tour().getByRole("button", { name: "Terminar guía" }).isEnabled(), "camino infeliz no deja al usuario atrapado");
   await page.screenshot({ path: path.join(artifacts, "mobile-unavailable.png") });
+  await closeTour();
+  await page.getByRole("button", { name: "Volver a la bandeja", exact: true }).click();
+  await page.getByTestId(`inbox-conversation-${first.id}`).getByRole("button").first().click();
+  await page.locator('[data-help="inbox"][data-help-ai="unavailable"]').waitFor();
+  await openHelp();
+  const disabledAndPaused = await ask("pausar ia de esta conversacion");
+  assert(disabledAndPaused.answer.includes("IA no disponible") && !disabledAndPaused.answer.includes("ya muestra IA pausada"), "estado de ayuda coincide con la cabecera aunque haya una pausa guardada y el agente general esté apagado");
+  await begin(); await tour().getByRole("heading", { name: "La IA no está disponible" }).waitFor();
+  assert(await tour().getByRole("heading", { name: "Estado comprobado" }).count() === 0, "no confirma una etiqueta que la cabecera no está mostrando");
   await closeTour();
   assert(sentContexts.every((data) => !JSON.stringify(data.context ?? {}).includes("Guía Chat") && !phones.some((phone) => JSON.stringify(data.context ?? {}).includes(phone))), "contexto de ayuda no incluye nombres ni teléfonos");
   assert(sentContexts.some((data) => data.context?.conversation === "selected" && data.context.ai === "paused"), "consulta incluye solo el estado enumerado útil");

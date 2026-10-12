@@ -189,7 +189,7 @@ export function WebFormsClient() {
 
   return (
     <div className="max-w-4xl space-y-6 pb-12">
-      <Card className="overflow-hidden">
+      <Card data-help="webforms-create" className="overflow-hidden">
         <div className="border-b bg-gradient-to-br from-brand-tint to-transparent p-5 sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="max-w-2xl">
@@ -266,7 +266,7 @@ export function WebFormsClient() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div data-help="webforms-list" className="space-y-4">
           {integrations.map((integration) => {
             const status = statusLabel(integration);
             const secret = revealed[integration.id];

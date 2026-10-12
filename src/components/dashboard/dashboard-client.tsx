@@ -470,7 +470,7 @@ export function DashboardClient() {
   }, [data]);
 
   return (
-    <div className="h-full overflow-y-auto bg-background" data-testid="dashboard-page">
+    <div data-help="dashboard" className="h-full overflow-y-auto bg-background" data-testid="dashboard-page">
       <div className="mx-auto max-w-[1500px] p-4 sm:p-6 lg:p-8">
         <header className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div>

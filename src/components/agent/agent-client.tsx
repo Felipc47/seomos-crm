@@ -241,7 +241,7 @@ export function AgentClient() {
           variant="secondary"
           className="w-full shrink-0 bg-surface sm:w-auto"
           disabled={!aiConfigured}
-          onClick={() => setAssistantOpen(true)}
+          data-help="agent-setup" onClick={() => setAssistantOpen(true)}
         >
           Configurar con IA <ArrowRight className="h-4 w-4" />
         </Button>
@@ -701,7 +701,7 @@ function KbSection({
           </Button>
         </div>
 
-        <div className="space-y-2 rounded-md border p-3">
+        <div data-help="knowledge-block" className="space-y-2 rounded-md border p-3">
           <p className="text-sm font-medium">Nuevo bloque de texto libre</p>
           <Textarea
             placeholder="Horarios, direcciones, políticas…"
@@ -714,7 +714,7 @@ function KbSection({
           </Button>
         </div>
 
-        <ul className="space-y-2">
+        <ul data-help="knowledge-list" className="space-y-2">
           {entries.map((e) => (
             <li key={e.id} className="flex items-start gap-2 rounded-md border p-3">
               <div className="min-w-0 flex-1 text-sm">

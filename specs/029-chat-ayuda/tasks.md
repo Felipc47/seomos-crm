@@ -34,3 +34,8 @@ Gate final verde: 49 archivos / 341 pruebas unitarias. E2E: 65 comprobaciones ve
 - [x] T015 Probar intención, permisos, guía real, no mutación automática, fallos y móvil.
 - [x] T016 Ejecutar gate técnico, QA visual y registrar evidencia (344 unidades, 39 + 68 comprobaciones E2E).
 - [ ] T017 Publicar la mejora y verificar el chat en producción, continuando la autorización de despliegue de esta conversación.
+- [x] T018 Inventariar todas las funciones visibles con controles, rutas, permisos y límites en `coverage.md`.
+- [x] T019 Ampliar guías detalladas y resolver intenciones de importación/exportación, además del resto de tareas (98 guías).
+- [x] T020 Añadir índice buscable, lectura de instrucciones completas y objetivos de tour verificados.
+- [x] T021 Probar preguntas de cada módulo, exportación/importación real aislada, permisos, fallos y móvil (39 + 42 + 68 comprobaciones E2E).
+- [ ] T022 Ejecutar el gate final y publicar la ampliación junto con el caso límite de disponibilidad de IA.

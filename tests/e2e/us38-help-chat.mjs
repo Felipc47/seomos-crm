@@ -62,7 +62,6 @@ try {
   const first = await ask("¿Cómo respondo a un cliente?");
   assert(first.mode === "ai" && first.guides[0]?.href === "/inbox", "respuesta de IA fundamentada y enlace de Bandeja");
   assert(await panel().getByRole("button", { name: "Guíame en pantalla", exact: true }).count() >= 1, "ofrece guía interactiva como acción principal");
-  await panel().getByText("Ver instrucciones", { exact: true }).first().click();
   assert(await panel().getByRole("listitem").count() >= 3, "instrucciones completas disponibles sin repetirlas al abrir");
   await page.screenshot({ path: path.join(artifacts, "desktop-inbox.png") });
   const followup = await ask("¿Y después?");

@@ -54,7 +54,7 @@ export function WhatsappWizard() {
   }
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div data-help="whatsapp-settings" className="max-w-3xl space-y-6">
       {connection?.status === "reconnect_required" && (
         <div className="flex items-start gap-2 rounded-lg border border-[color:var(--danger-border)] bg-[color:var(--danger-bg)] p-4 text-sm">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />

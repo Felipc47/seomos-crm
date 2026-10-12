@@ -90,7 +90,7 @@ export function NotificationsClient() {
   if (!loaded) return <p className="text-sm text-text-3">Cargando…</p>;
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div data-help="notification-settings" className="max-w-2xl space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Notificaciones por correo</CardTitle>
