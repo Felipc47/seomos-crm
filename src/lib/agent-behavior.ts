@@ -149,3 +149,21 @@ export function composeInstructions(
   }
   return parts.length > 0 ? parts.join("\n\n") : null;
 }
+
+/** Idiomas disponibles para las respuestas del agente a clientes. */
+export const AGENT_RESPONSE_LANGUAGES = [
+  { id: "es", label: "Español" },
+  { id: "en", label: "Inglés" },
+  { id: "es-en", label: "Español e inglés" },
+] as const;
+export const AGENT_RESPONSE_LANGUAGE_IDS = ["es", "en", "es-en"] as const;
+export type AgentResponseLanguage = (typeof AGENT_RESPONSE_LANGUAGE_IDS)[number];
+
+export function composeResponseLanguage(language: AgentResponseLanguage | null | undefined): string {
+  const rule = language === "en"
+    ? "Responde SIEMPRE en inglés natural, aunque el cliente escriba en español."
+    : language === "es-en"
+      ? "Puedes responder en español e inglés. Sigue el idioma del último mensaje del cliente y cambia cuando el cliente cambie de idioma o pida explícitamente español o inglés. Si el último mensaje es ambiguo, usa el idioma reciente del cliente en el historial; sin contexto usa español. No dupliques cada respuesta en ambos idiomas salvo que el cliente lo solicite."
+      : "Responde SIEMPRE en español neutro, aunque el cliente escriba en inglés.";
+  return `IDIOMA DE RESPUESTA (política del sistema, prevalece sobre instrucciones del negocio y ejemplos): ${rule} Usa mensajes breves y naturales para chat. Aplica esta política a todos los textos dirigidos al cliente (text, reply, farewell y seguimientos), adaptando el saludo sugerido y la información del conocimiento sin alterar hechos. Conserva sin traducir claves y valores técnicos del JSON, IDs, nombres exactos de etapas y citas literales de evidencia.`;
+}

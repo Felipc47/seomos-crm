@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import {
+  AGENT_RESPONSE_LANGUAGE_IDS,
   INSTRUCTION_SECTION_KEYS,
   MAX_TONE_PRESETS,
   TONE_PRESET_IDS,
@@ -36,6 +37,7 @@ export const GET = withAuth(async (session) => {
     profile: {
       enabled: p.enabled,
       name: p.name,
+      responseLanguage: p.responseLanguage,
       tone: p.tone,
       tonePresets: p.tonePresets ?? [],
       instructions: p.instructions,
@@ -54,6 +56,7 @@ export const GET = withAuth(async (session) => {
 
 const putSchema = z.object({
   enabled: z.boolean().optional(),
+  responseLanguage: z.enum(AGENT_RESPONSE_LANGUAGE_IDS).optional(),
   name: z.string().trim().min(1).max(60).optional(),
   tone: z.string().max(1000).nullable().optional(),
   tonePresets: z

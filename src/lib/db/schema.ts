@@ -658,6 +658,7 @@ export const agentProfile = pgTable(
       .references(() => organization.id, { onDelete: "cascade" }),
     enabled: boolean("enabled").notNull().default(false),
     name: text("name").notNull().default("Asistente"),
+    responseLanguage: text("response_language", { enum: ["es", "en", "es-en"] }).notNull().default("es"),
     tone: text("tone"),
     /** Presets de tono elegidos en la UI (máx. 2, ids de TONE_PRESETS). Se
      * componen con `tone` (matices libres) al armar el prompt. */
@@ -673,7 +674,10 @@ export const agentProfile = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("agent_profile_org_uq").on(t.organizationId)]
+  (t) => [
+    uniqueIndex("agent_profile_org_uq").on(t.organizationId),
+    check("agent_profile_response_language_check", sql`${t.responseLanguage} in ('es', 'en', 'es-en')`),
+  ]
 );
 
 export const kbEntry = pgTable(

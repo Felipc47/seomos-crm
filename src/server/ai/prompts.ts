@@ -1,5 +1,5 @@
 import type { schema } from "@/lib/db";
-import { composeInstructions, composeTone } from "@/lib/agent-behavior";
+import { composeInstructions, composeTone, composeResponseLanguage } from "@/lib/agent-behavior";
 
 type AgentProfile = typeof schema.agentProfile.$inferSelect;
 type KbEntry = typeof schema.kbEntry.$inferSelect;
@@ -89,7 +89,7 @@ export function buildAgentSystemPrompt(input: {
     input.services?.map((service) => `- ${service.id}: ${service.name}`).join("\n") ||
     "(ninguno)";
   return [
-    `Eres "${profile.name}", el asistente de WhatsApp de este negocio. Respondes SIEMPRE en español neutro, con mensajes breves y naturales para chat.`,
+    `Eres "${profile.name}", el asistente de WhatsApp de este negocio. Usas mensajes breves y naturales para chat.`,
     tone ? `Tono: ${tone}` : null,
     instructions ? `Instrucciones del negocio:\n${instructions}` : null,
     profile.escalationRules
@@ -171,6 +171,8 @@ export function buildAgentSystemPrompt(input: {
               ]),
         ].join("\n")
       : null,
+    // Última política para que textos heredados y ejemplos no fijen otro idioma.
+    composeResponseLanguage(profile.responseLanguage),
   ]
     .filter(Boolean)
     .join("\n\n");

@@ -1,0 +1,2 @@
+ALTER TABLE "agent_profile" ADD COLUMN "response_language" text DEFAULT 'es' NOT NULL;--> statement-breakpoint
+ALTER TABLE "agent_profile" ADD CONSTRAINT "agent_profile_response_language_check" CHECK ("agent_profile"."response_language" in ('es', 'en', 'es-en'));

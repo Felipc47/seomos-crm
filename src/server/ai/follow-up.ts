@@ -2,7 +2,7 @@ import { and, asc, desc, eq, isNull, lte } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@/lib/db";
 import { chatJson, type ChatMessage } from "@/lib/ai";
-import { composeInstructions, composeTone } from "@/lib/agent-behavior";
+import { composeInstructions, composeTone, composeResponseLanguage } from "@/lib/agent-behavior";
 import {
   addBusinessDays,
   atLocalTime,
@@ -297,6 +297,7 @@ async function composeFollowUpText(
           : null,
         `Escribe UN solo mensaje breve y natural de seguimiento para WhatsApp: saluda, retoma el tema pendiente de la conversación y facilita que responda. No inventes datos ni ofertas.`,
         `Respondes ÚNICAMENTE un objeto JSON: {"text":"..."} — sin markdown ni texto adicional.`,
+        composeResponseLanguage(profile?.responseLanguage),
       ]
         .filter(Boolean)
         .join("\n"),
@@ -312,7 +313,9 @@ async function composeFollowUpText(
   const result = await chatJson(z.object({ text: z.string().min(1) }), messages);
   if (!result.ok) {
     console.warn(`[seguimiento] LLM falló (${result.error}); uso respaldo`);
-    return FALLBACK_TEXT;
+    return profile?.responseLanguage === "en"
+      ? "Hello! I’m following up on our conversation. Are you still interested?"
+      : FALLBACK_TEXT;
   }
   return result.data.text;
 }

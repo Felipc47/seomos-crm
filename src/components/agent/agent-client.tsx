@@ -22,6 +22,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
+  AGENT_RESPONSE_LANGUAGES,
+  type AgentResponseLanguage,
   INSTRUCTION_SECTIONS,
   MAX_TONE_PRESETS,
   TONE_PRESETS,
@@ -45,6 +47,7 @@ import type { AgentConfigurationDraft } from "@/server/ai/config-assistant";
 type Profile = {
   enabled: boolean;
   name: string;
+  responseLanguage: AgentResponseLanguage;
   tone: string | null;
   tonePresets: string[];
   instructions: string | null;
@@ -368,6 +371,24 @@ function ProfileSection({
               onChange={(e) => setForm({ ...form, greeting: e.target.value })}
             />
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="agent-response-language">Idioma de respuesta</Label>
+          <select
+            id="agent-response-language"
+            aria-describedby="agent-response-language-hint"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            value={form.responseLanguage}
+            onChange={(e) => setForm({ ...form, responseLanguage: e.target.value as AgentResponseLanguage })}
+          >
+            {AGENT_RESPONSE_LANGUAGES.map((language) => (
+              <option key={language.id} value={language.id}>{language.label}</option>
+            ))}
+          </select>
+          <p id="agent-response-language-hint" className="text-xs text-muted-foreground">
+            En español e inglés, responde en el idioma del cliente y cambia cuando él lo pida.
+          </p>
         </div>
 
         <div data-help="agent-training" className="space-y-2">

@@ -192,6 +192,14 @@ export function aiMockCompletion(messages: InMessage[]): string {
     });
   }
 
+  // 031: fixture solo para el self-test del idioma en el pipeline real.
+  if (lastUser.includes("LANGUAGE_PROBE")) {
+    const english = system.includes("Responde SIEMPRE en inglés natural") ||
+      (system.includes("Puedes responder en español e inglés") && /\bhello\b/i.test(lastUser));
+    const reply = JSON.stringify({ action: "reply", text: english ? "Hello! How can I help you today?" : "¡Hola! ¿Cómo puedo ayudarte hoy?" });
+    return lastUser.includes("WRAPPED") ? `Aquí está:\n\`\`\`json\n${reply}\n\`\`\`` : reply;
+  }
+
   const text = lastUser.toLowerCase();
   const { serviceId, serviceEvidence } = mockServiceDetection(system, lastUser);
 
