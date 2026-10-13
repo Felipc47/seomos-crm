@@ -84,21 +84,27 @@ function luminance({ r, g, b }: Rgb): number {
   return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
 }
 
-/**
- * Set completo para cualquier acento: preset exacto si existe; si no, se
- * deriva. Un base demasiado claro (texto blanco ilegible encima) se oscurece
- * hasta contraste ≥ 3:1 con blanco.
- */
+/** Mantiene blanco legible en superficies sólidas, ajustando solo su luminosidad. */
+function whiteTextBackground(hex: string): string {
+  let base = hexToRgb(hex);
+  while (1.05 / (luminance(base) + 0.05) < 4.5) {
+    // Medir el hex final evita que el redondeo vuelva a bajar de 4,5:1.
+    base = hexToRgb(rgbToHex(mix(base, BLACK, 0.02)));
+  }
+  return rgbToHex(base);
+}
+
+/** Set de marca: superficies sólidas con contraste >= 4,5:1 para texto blanco. */
 export function resolveAccentSet(accentHex: string): AccentSet {
   const preset = ACCENT_PRESETS[accentHex.toLowerCase()];
-  if (preset) return preset.set;
-  if (!isValidHex(accentHex)) return ACCENT_PRESETS["#3f5972"]!.set;
-
-  let base = hexToRgb(accentHex.toLowerCase());
-  // contraste con blanco = (1.05) / (L + 0.05); exigir ≥ 3
-  while (1.05 / (luminance(base) + 0.05) < 3 && luminance(base) > 0.005) {
-    base = mix(base, BLACK, 0.12);
+  if (preset) {
+    const accent = whiteTextBackground(preset.set.accent);
+    const hover = whiteTextBackground(preset.set.hover);
+    return accent === preset.set.accent && hover === preset.set.hover
+      ? preset.set : { ...preset.set, accent, hover };
   }
+  if (!isValidHex(accentHex)) return ACCENT_PRESETS["#3f5972"]!.set;
+  const base = hexToRgb(whiteTextBackground(accentHex.toLowerCase()));
   return {
     accent: rgbToHex(base),
     hover: rgbToHex(mix(base, BLACK, 0.16)),
@@ -108,10 +114,9 @@ export function resolveAccentSet(accentHex: string): AccentSet {
   };
 }
 
-/** Mayor contraste entre blanco y negro: al menos 4,58:1 sobre un hex válido. */
-export function accentForeground(color: string): string {
-  const l = luminance(hexToRgb(color));
-  return (l + 0.05) / 0.05 >= 1.05 / (l + 0.05) ? "#000000" : "#ffffff";
+/** Las superficies normalizadas de marca usan texto e iconos blancos. */
+export function accentForeground(_color: string): string {
+  return "#ffffff";
 }
 
 /** CSS de variables para inyectar en el <head> (SSR, sin flash). */
