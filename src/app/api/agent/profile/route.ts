@@ -1,13 +1,5 @@
-import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
-import {
-  AGENT_RESPONSE_LANGUAGE_IDS,
-  INSTRUCTION_SECTION_KEYS,
-  MAX_TONE_PRESETS,
-  TONE_PRESET_IDS,
-  type InstructionSectionKey,
-  type TonePresetId,
-} from "@/lib/agent-behavior";
+import { agentProfileUpdateSchema } from "@/lib/agent-profile-input";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { isAiConfigured } from "@/lib/env";
@@ -54,38 +46,11 @@ export const GET = withAuth(async (session) => {
   });
 });
 
-const putSchema = z.object({
-  enabled: z.boolean().optional(),
-  responseLanguage: z.enum(AGENT_RESPONSE_LANGUAGE_IDS).optional(),
-  name: z.string().trim().min(1).max(60).optional(),
-  tone: z.string().max(1000).nullable().optional(),
-  tonePresets: z
-    .array(z.enum(TONE_PRESET_IDS as [TonePresetId, ...TonePresetId[]]))
-    .max(MAX_TONE_PRESETS)
-    .optional(),
-  // Holgado a propósito: un playbook comercial completo cabe varias veces
-  // (~8k tokens). El costo por turno lo gobierna el modelo elegido.
-  instructions: z.string().max(128000).nullable().optional(),
-  instructionSections: z
-    .record(
-      z.enum(
-        INSTRUCTION_SECTION_KEYS as [
-          InstructionSectionKey,
-          ...InstructionSectionKey[],
-        ]
-      ),
-      z.string().max(64000)
-    )
-    .optional(),
-  escalationRules: z.string().max(8000).nullable().optional(),
-  greeting: z.string().max(2000).nullable().optional(),
-});
-
 export const PUT = withAuth(async (session, req: Request) => {
   if (!canEditAgent(session.role)) {
     return apiError(403, "forbidden", "Tu rol no tiene acceso a la configuración del agente");
   }
-  const body = await parseBody(req, putSchema);
+  const body = await parseBody(req, agentProfileUpdateSchema);
   if (!body.ok) return body.response;
 
   const db = getDb();

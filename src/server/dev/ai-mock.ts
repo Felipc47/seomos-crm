@@ -104,6 +104,27 @@ export function aiMockCompletion(messages: InMessage[]): string {
     [...messages].reverse().find((m) => m.role === "user")?.content ?? ""
   );
 
+  // 032: proveedor determinista del chat demo, siempre tras el gate de mocks.
+  if (system.includes("[CHAT_DEMO_CONFIGURACION]")) {
+    if (lastUser.includes("DEMO_FORMATO_INVALIDO")) return "No hay JSON en esta respuesta";
+    const name = /Eres "([^"\n]+)"/.exec(system)?.[1] ?? "Agente";
+    const english = system.includes("Responde SIEMPRE en inglés natural") ||
+      (system.includes("Puedes responder en español e inglés") && /\bhello\b/i.test(lastUser));
+    const greeting = english ? `Hello! I am ${name}. How can I help you?` : `¡Hola! Soy ${name}. ¿Cómo puedo ayudarte?`;
+    if (lastUser.includes("DEMO_AGENDAR")) return JSON.stringify({ action: "schedule_meeting", email: "demo@test.local", datetime: "2026-12-01T10:00:00-05:00", clientOk: lastUser, reply: english ? "We can simulate a meeting request." : "Podemos simular una solicitud de reunión." });
+    if (lastUser.includes("DEMO_CALIFICAR")) return JSON.stringify({ action: "move_stage", stage: "Calificado", reply: "Tu necesidad encaja con nuestros servicios." });
+    if (lastUser.includes("DEMO_FICHA")) return JSON.stringify({ action: "update_lead", note: "Dato de demostración", reply: "Entendido, gracias por contármelo." });
+    if (lastUser.includes("DEMO_SEGUIR")) return JSON.stringify({ action: "follow_up_later", reply: "Con gusto retomamos la conversación más adelante." });
+    if (lastUser.includes("DEMO_SILENCIO")) return JSON.stringify({ action: "none" });
+    if (lastUser.includes("DEMO_DERIVAR")) return JSON.stringify({ action: "handoff", farewell: english ? "A teammate can help you." : "Un compañero del equipo puede ayudarte." });
+    const remembered = /me llamo ([\p{L}]+)/iu.exec(messages.filter(m => m.role === "user").map(m => flattenContent(m.content)).join("\n"))?.[1];
+    const knowledge = /DEMO_KB=([^\n]+)/.exec(system)?.[1];
+    const text = lastUser.includes("DEMO_RECUERDA") ? `Recuerdo que te llamas ${remembered ?? "sin nombre"}.`
+      : lastUser.includes("DEMO_CONOCIMIENTO") ? (knowledge ?? "No hay conocimiento confirmado") : greeting;
+    const reply = JSON.stringify({ action: "reply", text });
+    return lastUser.includes("DEMO_ENVUELTO") ? `Aquí va:\n\`\`\`json\n${reply}\n\`\`\`` : reply;
+  }
+
   // 029: prueba del chat de ayuda; solo se usa tras el gate interno de mocks.
   if (system.includes("asistente de ayuda de Seomos CRM")) {
     const context = JSON.parse(lastUser) as { question: string; currentScreen: { pathname: string }; conversation: { role: string; content: string }[] };

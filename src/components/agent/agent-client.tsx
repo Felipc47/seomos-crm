@@ -33,6 +33,7 @@ import {
 import { cn } from "@/lib/utils";
 import { SchedulingSection } from "@/components/agent/scheduling-section";
 import { FollowUpSection } from "@/components/agent/follow-up-section";
+import { AgentDemoChat } from "@/components/agent/agent-demo-chat";
 import { AgentSetupAssistant } from "@/components/agent/agent-setup-assistant";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -390,6 +391,8 @@ function ProfileSection({
             En español e inglés, responde en el idioma del cliente y cambia cuando él lo pida.
           </p>
         </div>
+
+        <AgentDemoChat configuration={form} />
 
         <div data-help="agent-training" className="space-y-2">
           <div className="flex items-baseline justify-between gap-2">
