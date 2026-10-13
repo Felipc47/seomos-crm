@@ -82,10 +82,12 @@ export async function graphRequest<T>(
     method?: "GET" | "POST" | "DELETE";
     token: string;
     body?: unknown;
+    signal?: AbortSignal;
   }
 ): Promise<T> {
   return graphFetch(path, {
     method: opts.method ?? "GET",
+    signal: opts.signal,
     token: opts.token,
     contentType: opts.body !== undefined ? "application/json" : null,
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
@@ -190,6 +192,7 @@ async function graphFetch<T>(
     token: string;
     contentType: string | null;
     body?: BodyInit;
+    signal?: AbortSignal;
   }
 ): Promise<T> {
   const env = getEnv();
@@ -198,6 +201,7 @@ async function graphFetch<T>(
   try {
     res = await fetch(url, {
       method: opts.method,
+      signal: opts.signal,
       headers: {
         Authorization: `Bearer ${opts.token}`,
         ...(opts.contentType ? { "Content-Type": opts.contentType } : {}),

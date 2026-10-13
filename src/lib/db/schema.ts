@@ -267,6 +267,31 @@ export const contact = pgTable(
   ]
 );
 
+/** Próxima reunión del prospecto + confirmación durable (033). */
+export const meeting = pgTable("meeting", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  contactId: text("contact_id").notNull().references(() => contact.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  startAt: timestamp("start_at", { withTimezone: true }).notNull(),
+  meetLink: text("meet_link"),
+  timezone: text("timezone").notNull(),
+  source: text("source", { enum: ["google", "manual", "legacy"] }).notNull(),
+  googleEventId: text("google_event_id"),
+  reminderEnabled: boolean("reminder_enabled").notNull().default(true),
+  reminderDueAt: timestamp("reminder_due_at", { withTimezone: true }).notNull(),
+  reminderStatus: text("reminder_status", { enum: ["pending", "sending", "sent", "skipped", "uncertain", "disabled", "cancelled"] }).notNull().default("pending"),
+  reminderClaimedAt: timestamp("reminder_claimed_at", { withTimezone: true }),
+  reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
+  reminderMessageId: text("reminder_message_id"),
+  reminderError: text("reminder_error"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("meeting_org_contact_uq").on(t.organizationId, t.contactId),
+  index("meeting_org_due_idx").on(t.organizationId, t.reminderStatus, t.reminderDueAt),
+]);
+
 export const pipelineStage = pgTable(
   "pipeline_stage",
   {

@@ -23,6 +23,7 @@ import { formatPhone } from "@/lib/utils";
 import { stageColor } from "@/lib/stage-colors";
 import { ContactAvatar } from "@/components/avatar";
 import { LeadAssignmentBadges } from "@/components/lead-assignment-badges";
+import { MeetingDetails } from "@/components/inbox/meeting-details";
 import { ProspectEditorDialog } from "@/components/contacts/prospect-editor-dialog";
 import { useViewPreference } from "@/components/use-view-preference";
 import { useStages } from "@/components/use-stage-colors";
@@ -930,6 +931,7 @@ function ContactDetailPanel({
             </dd>
           </div>
         </dl>
+        <MeetingDetails key={contact.id} contactId={contact.id} refreshKey={0} />
       </div>
 
       <footer className="flex items-center gap-2 border-t px-[22px] py-[14px]">

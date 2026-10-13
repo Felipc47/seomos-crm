@@ -14,6 +14,7 @@ import { stageColor, stageTint } from "@/lib/stage-colors";
 import { InboxContactAvatar } from "./inbox-contact-avatar";
 import { LeadAssignmentBadges } from "@/components/lead-assignment-badges";
 import { ProspectEditorDialog } from "@/components/contacts/prospect-editor-dialog";
+import { MeetingDetails } from "./meeting-details";
 import { ScheduleDialog } from "@/components/schedule-dialog";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -65,6 +66,7 @@ export function ContactPanel({
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [contactEmail, setContactEmail] = useState<string | null>(null);
+  const [meetingRefresh, setMeetingRefresh] = useState(0);
   const [scheduling, setScheduling] = useState(false);
   const [notes, setNotes] = useState("");
   const [notesLoaded, setNotesLoaded] = useState(false);
@@ -105,6 +107,7 @@ export function ContactPanel({
     }
     if (stagesRes) setStages(stagesRes.stages);
     setNotesLoaded(true);
+    setMeetingRefresh((value) => value + 1);
   }, [contactId]);
 
   // Refetch en vivo (etapa/lead + estado del agente) SIN tocar las notas, para
@@ -270,6 +273,8 @@ export function ContactPanel({
           <CalendarPlus className="h-4 w-4" strokeWidth={2.2} />
           Agendar reunión
         </button>
+
+        <MeetingDetails key={contactId} contactId={contactId} refreshKey={refreshKey + meetingRefresh} />
 
         {conversation.handoffAt && (
           <div className="mt-4 rounded-xl border border-[color:var(--warning-border)] bg-[color:var(--warning-bg)] p-3">

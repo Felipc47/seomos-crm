@@ -1,3 +1,4 @@
+import { getMeeting, saveMeeting } from "@/server/meetings/repository";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
@@ -23,6 +24,8 @@ import {
 
 export class ScheduleError extends Error {
   code:
+    | "invalid_date"
+    | "meeting_busy"
     | "not_connected"
     | "reconnect_required"
     | "contact_not_found"
@@ -61,6 +64,10 @@ export async function scheduleMeeting(input: {
   if (!contact) {
     throw new ScheduleError("contact_not_found", "Contacto no encontrado");
   }
+
+  const existing = await getMeeting(input.organizationId, input.contactId);
+  if (existing?.reminderStatus === "sending") throw new ScheduleError("meeting_busy", "La confirmación se está enviando; intenta de nuevo en unos minutos.");
+  if (!Number.isFinite(new Date(input.startIso).getTime()) || new Date(input.startIso) <= new Date()) throw new ScheduleError("invalid_date", "La reunión debe tener una fecha y hora futuras");
 
   const connection = await getGoogleConnection(input.organizationId);
   if (!connection) {
@@ -147,6 +154,11 @@ export async function scheduleMeeting(input: {
     );
   }
 
+  await saveMeeting({ organizationId: input.organizationId, contactId: input.contactId,
+    title, startAt: start, meetLink: event.meetLink, timezone: settings.timezone,
+    source: "google", googleEventId: event.id,
+  });
+
   // Rastro en el contacto: correo capturado + nota de la reunión.
   // Siempre en la zona del negocio (el contenedor corre en UTC).
   const when = start.toLocaleString("es-CO", {
@@ -189,7 +201,7 @@ export async function scheduleMeeting(input: {
     await db
       .update(schema.conversation)
       .set({ meetingScheduledFor: start, updatedAt: new Date() })
-      .where(eq(schema.conversation.id, conv[0].id));
+      .where(scoped(schema.conversation.organizationId, input.organizationId, eq(schema.conversation.id, conv[0].id)));
     publish(input.organizationId, {
       type: "conversation.updated",
       data: { conversation: { id: conv[0].id } },
