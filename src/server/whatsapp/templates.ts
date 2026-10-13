@@ -960,6 +960,7 @@ export async function sendTemplate(input: {
   conversationId: string;
   templateId: string;
   variable?: string;
+  timeoutMs?: number;
 }): Promise<{ messageId: string }> {
   const db = getDb();
 
@@ -1086,7 +1087,7 @@ export async function sendTemplate(input: {
       language: { code: template.language },
       ...(components.length > 0 ? { components } : {}),
     },
-  });
+  }, input.timeoutMs);
 
   const inserted = await db
     .insert(schema.message)

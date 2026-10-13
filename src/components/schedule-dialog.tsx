@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { meetingLocalToIso } from "@/lib/meeting";
 import { CalendarPlus } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 
@@ -24,6 +25,14 @@ export function ScheduleDialog({
   onScheduled: () => void;
 }) {
   const toast = useToast();
+  const [timezone, setTimezone] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    void fetch(`/api/contacts/${contactId}/meeting`).then(async (res) => {
+      if (res.ok && active) setTimezone((await res.json()).timezone);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [contactId]);
   const [email, setEmail] = useState(defaultEmail ?? "");
   const [title, setTitle] = useState("");
   const [datetime, setDatetime] = useState("");
@@ -32,10 +41,12 @@ export function ScheduleDialog({
   const [error, setError] = useState<React.ReactNode | null>(null);
 
   const canSave =
-    /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim()) && datetime.length > 0;
+    Boolean(timezone) && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim()) && datetime.length > 0;
 
   async function schedule() {
     if (!canSave || saving) return;
+    let startIso: string;
+    try { startIso = meetingLocalToIso(datetime, timezone!); } catch (err) { setError(err instanceof Error ? err.message : "Fecha inválida"); return; }
     setSaving(true);
     setError(null);
     const res = await fetch(`/api/contacts/${contactId}/schedule`, {
@@ -43,7 +54,7 @@ export function ScheduleDialog({
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         prospectEmail: email.trim(),
-        startIso: new Date(datetime).toISOString(),
+        startIso,
         durationMin: duration,
         title: title.trim() || undefined,
       }),
@@ -182,6 +193,8 @@ export function ScheduleDialog({
             />
           </div>
         </div>
+
+        <p className="mt-3 text-xs text-mute">Hora de la empresa: {timezone ?? "cargando…"}. Confirmación automática por WhatsApp 45 minutos antes.</p>
 
         {error && (
           <p className="mt-3 text-[13px] leading-relaxed text-destructive">

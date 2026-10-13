@@ -1,3 +1,7 @@
+import { eq } from "drizzle-orm";
+import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
+import { isMeetingTemplate } from "@/lib/meeting";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { isGoogleConfigured } from "@/lib/env";
@@ -35,6 +39,7 @@ export const GET = withAuth(async (session) => {
 // PATCH parcial: cada UI (Ajustes → Calendario, Agente → Agendamiento) manda
 // solo sus campos; el resto se preserva.
 const putSchema = z.object({
+  meetingReminderTemplateId: z.string().trim().min(1).nullable().optional(),
   internalInvitees: z.array(z.string().trim().email()).max(10).optional(),
   defaultTitle: z.string().trim().min(1).max(120).optional(),
   defaultDurationMin: z.number().int().min(15).max(240).optional(),
@@ -50,6 +55,10 @@ export const PUT = withAuth(async (session, req: Request) => {
   }
   const body = await parseBody(req, putSchema);
   if (!body.ok) return body.response;
+  if (body.data.meetingReminderTemplateId) {
+    const templates = await getDb().select().from(schema.template).where(scoped(schema.template.organizationId, session.organizationId, eq(schema.template.id, body.data.meetingReminderTemplateId))).limit(1);
+    if (!templates[0] || !isMeetingTemplate(templates[0])) return apiError(422, "invalid_template", "Selecciona una plantilla UTILITY aprobada, sin encabezado ni mapeo y con una variable {{1}} para los datos de la reunión.");
+  }
   const current = await getCalendarSettings(session.organizationId);
   const merged = { ...current };
   for (const [k, v] of Object.entries(body.data)) {

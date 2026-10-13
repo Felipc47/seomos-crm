@@ -6,6 +6,7 @@ const nano = customAlphabet(alphabet, 20);
 const prefixes = {
   organization: "org",
   contact: "ct",
+  meeting: "mtg",
   conversation: "cv",
   message: "msg",
   lead: "ld",
