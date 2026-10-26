@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import { getEnv, isAiConfigured } from "@/lib/env";
+import { getEnv, isAiConfigured, type Env } from "@/lib/env";
 
 /**
  * Adaptador LLM OpenRouter-compatible — ÚNICA frontera con el proveedor de IA
@@ -64,6 +64,10 @@ export async function chatJson<T>(
     };
   }
 
+  const reasoningEffort = !opts?.background && model === env.OPENROUTER_MODEL
+    ? env.OPENROUTER_REASONING_EFFORT
+    : undefined;
+
   let lastDetail = "";
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const attemptMessages: ChatMessage[] =
@@ -78,7 +82,7 @@ export async function chatJson<T>(
             },
           ];
     try {
-      const raw = await callProvider(model, attemptMessages, opts?.timeoutMs);
+      const raw = await callProvider(model, attemptMessages, opts?.timeoutMs, reasoningEffort);
       const extracted = extractJson(raw);
       if (extracted === null) {
         lastDetail = `sin JSON extraíble (raw=${truncate(raw)})`;
@@ -112,7 +116,8 @@ export async function chatJson<T>(
 async function callProvider(
   model: string,
   messages: ChatMessage[],
-  timeoutMs = 60_000
+  timeoutMs = 60_000,
+  reasoningEffort?: Env["OPENROUTER_REASONING_EFFORT"]
 ): Promise<string> {
   const env = getEnv();
   const controller = new AbortController();
@@ -125,7 +130,10 @@ async function callProvider(
         Authorization: `Bearer ${env.OPENROUTER_API_TOKEN}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ model, messages }),
+      body: JSON.stringify({
+        model, messages,
+        ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
+      }),
       signal: controller.signal,
     });
     if (!res.ok) {

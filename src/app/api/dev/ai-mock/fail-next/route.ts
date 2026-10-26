@@ -20,6 +20,7 @@ export async function POST(req: Request) {
   const state = getAiMockState();
   if (body.resetCounters) {
     state.chatCalls = 0;
+    state.chatRequests = [];
     state.transcriptionCalls = 0;
   }
   if (typeof body.chat === "number") {
