@@ -45,7 +45,7 @@ export async function saveMeeting(input: {
     const status = !changed && alreadyAttempted ? current.reminderStatus : !enabled ? "disabled" : "pending";
     const values = {
       title: input.title, startAt: input.startAt, meetLink: input.meetLink, timezone: input.timezone,
-      source: input.source, googleEventId: input.googleEventId ?? current?.googleEventId ?? null,
+      source: input.source, googleEventId: input.googleEventId !== undefined ? input.googleEventId : current?.googleEventId ?? null,
       reminderEnabled: enabled, reminderDueAt: meetingDueAt(input.startAt), reminderStatus: status as MeetingRow["reminderStatus"],
       reminderClaimedAt: null,
       reminderSentAt: changed ? null : current?.reminderSentAt ?? null,

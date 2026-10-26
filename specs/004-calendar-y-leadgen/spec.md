@@ -27,9 +27,14 @@ saludo automáticamente; sus Instant Forms piden teléfono y correo.
   con la acción `agendar_reunion`. El prospecto recibe la invitación por
   correo y la confirmación por WhatsApp (mensaje del agente con fecha y link).
   El contacto guarda el correo capturado.
-- **Sin conexión configurada**: el botón manual explica cómo conectar; la
-  acción del agente NO se ofrece al LLM (no puede intentarla); nada más se ve
-  afectado.
+- **Google opcional (corrección autorizada 2026-10-26)**: el agente ofrece
+  agendamiento y registra la reunión en el CRM aunque Google no esté
+  configurado, esté desconectado o requiera reconexión. Conserva jornada,
+  franjas, antelación, zona y confirmación explícita del cliente. La reunión
+  queda en la ficha, actualiza «Cita agendada» cuando agenda la IA y conserva
+  el recordatorio existente. Sin Google no promete invitación por correo,
+  enlace Meet ni disponibilidad externa verificada. El formulario manual
+  también permite registrar en el CRM.
 
 ### Criterios de aceptación
 
@@ -38,9 +43,10 @@ saludo automáticamente; sus Instant Forms piden teléfono y correo.
 2. En una conversación simulada, el agente captura correo + horario y ejecuta
    `agendar_reunion`; el evento (mock) registra los invitados; el agente
    confirma por WhatsApp con la fecha.
-3. Con Google desconectado o el refresh token inválido: la UI degrada con
-   mensaje claro; el turno del agente NUNCA se cae (responde que un humano
-   confirmará la reunión y escala — handoff).
+3. Con Google desconectado, sin credenciales de integración o con refresh
+   token inválido: ofrece y guarda en el CRM; confirma por chat sin inventar
+   invitaciones/Meet ni escalar por la sola ausencia de Google. Los errores
+   transitorios de creación en Google conservan respuesta honesta + handoff.
 4. El refresh token se guarda cifrado (AES-256-GCM); jamás aparece en
    cliente/logs.
 
@@ -91,3 +97,7 @@ saludo automáticamente; sus Instant Forms piden teléfono y correo.
 Gate técnico completo + self-test E2E local (PG embebido + Playwright + mocks
 wa/ai/leadgen/google) cubriendo los criterios 1-5 de B y 1-4 de A, con los
 caminos infelices listados.
+
+La corrección 2026-10-26 se sigue en plan.md/tasks.md y se verifica con
+tests/e2e/calendar-optional.mjs, incluyendo reconexión, controles de agenda,
+persistencia, aislamiento y regresión con Google conectado.

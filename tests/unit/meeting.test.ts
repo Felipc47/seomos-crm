@@ -28,4 +28,12 @@ describe("reunión y confirmación 033", () => {
     for (const change of [{ status: "pending" }, { category: "MARKETING" }, { body: "Hola" }, { body: "{{1}} {{2}}" }, { headerKind: "image" }, { variables: [{ source: "name" }] }]) expect(isMeetingTemplate({ ...template, ...change })).toBe(false);
     expect(isMeetingTemplate({ ...template, variables: [] })).toBe(true);
   });
+  it("permite reuniones del CRM sin enlace y rechaza enlaces malformados", () => {
+    const startIso = "2026-10-14T15:00:00Z";
+    for (const meetLink of [undefined, null, "", "   "]) {
+      expect(meetingInputSchema.parse({ startIso, meetLink }).meetLink).toBeNull();
+    }
+    expect(meetingInputSchema.safeParse({ startIso, meetLink: "no es un enlace" }).success).toBe(false);
+    expect(meetingConfirmationText("Ana", { startAt: new Date(startIso), timezone: "America/Bogota", meetLink: null })).not.toContain("Enlace:");
+  });
 });

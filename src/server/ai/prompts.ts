@@ -54,7 +54,7 @@ export type SchedulingContext = {
   timezone: string;
   /** Offset a usar en el ISO (ej. -05:00). */
   utcOffset: string;
-  /** Disponibilidad REAL por día (rangos libres del calendario), multilínea. */
+  /** Rangos por día; externos verificados solo con Calendar disponible. */
   availabilityLabel?: string;
 };
 
@@ -63,9 +63,11 @@ export function buildAgentSystemPrompt(input: {
   kb: KbEntry[];
   stages: { name: string; kind?: string }[];
   services?: { id: string; name: string }[];
-  /** 004: true si Google Calendar está conectado — habilita schedule_meeting. */
+  /** 004: habilitado salvo conversaciones históricas de prueba. */
+  schedulingAvailable?: boolean;
+  /** Google conectado: permite invitaciones y Meet, no condiciona agendar. */
   calendarAvailable?: boolean;
-  /** 004: presente solo cuando calendarAvailable. */
+  /** 004: reglas de agendamiento, también sin Google. */
   scheduling?: SchedulingContext;
   /** Correo YA conocido del contacto (Lead Ads o capturado antes): si existe,
    * el agente NO debe volver a pedirlo, solo confirmarlo. */
@@ -79,6 +81,7 @@ export function buildAgentSystemPrompt(input: {
   leadOrigin?: string | null;
 }): string {
   const { profile } = input;
+  const schedulingAvailable = input.schedulingAvailable ?? true;
   const tone = composeTone(profile.tonePresets, profile.tone);
   const instructions = composeInstructions(
     profile.instructionSections,
@@ -121,9 +124,9 @@ export function buildAgentSystemPrompt(input: {
       '- {"action":"move_stage","stage":"<nombre exacto de etapa>","reason":"<código si aplica>","reply":"..."} — mover el lead (reply opcional).',
       '- {"action":"handoff","reason":"...","farewell":"..."} — escalar a un humano (farewell opcional para despedirte).',
       '- {"action":"follow_up_later","datetime":"<ISO 8601 con offset, SOLO si el cliente dijo cuándo>","reply":"..."} — el cliente pidió que lo contacten más tarde: el sistema programa el seguimiento y tú te despides con reply.',
-      ...(input.calendarAvailable
+      ...(schedulingAvailable
         ? [
-            `- {"action":"schedule_meeting","email":"...","datetime":"<ISO 8601 con offset ${input.scheduling?.utcOffset ?? "-05:00"}, ej. 2026-07-20T15:00:00${input.scheduling?.utcOffset ?? "-05:00"}>","clientOk":"<cita TEXTUAL del mensaje del cliente donde confirma o propone esa fecha/hora>","reply":"..."} — agendar la reunión en el calendario (reply opcional para confirmar).`,
+            `- {"action":"schedule_meeting","email":"...","datetime":"<ISO 8601 con offset ${input.scheduling?.utcOffset ?? "-05:00"}, ej. 2026-07-20T15:00:00${input.scheduling?.utcOffset ?? "-05:00"}>","clientOk":"<cita TEXTUAL del mensaje del cliente donde confirma o propone esa fecha/hora>"} — registrar la reunión en el CRM; el sistema envía la confirmación después de guardarla.`,
           ]
         : []),
       "Reglas duras:",
@@ -137,12 +140,16 @@ export function buildAgentSystemPrompt(input: {
       '- Si el cliente pide que lo contactes MÁS TARDE u otro día ("ahora no puedo", "escríbeme la otra semana", "hablemos mañana") → follow_up_later: incluye datetime SOLO si dijo cuándo (interprétalo con la fecha actual) y despídete en reply confirmando que le escribirás. NO uses follow_up_later si el cliente sigue conversando o solo tarda en responder.',
       "- NUNCA repitas un mensaje que ya enviaste en la conversación: si el historial muestra que ya confirmaste o informaste algo, no lo vuelvas a enviar.",
       '- Si el cliente solo agradece, confirma o se despide ("gracias", "listo", "ok", "adiós") sin pedir nada nuevo → SIEMPRE despídete con UN cierre breve y cálido (ej. "¡Con mucho gusto! Cualquier cosa me escribes."); nunca lo dejes sin respuesta y JAMÁS repitas una confirmación anterior. Usa {"action":"none"} SOLO si ya te despediste y el cliente vuelve a agradecer.',
-      ...(input.calendarAvailable
+      ...(schedulingAvailable
         ? [
+            "- Ofrece agendar una reunión cuando el prospecto muestre interés y encaje con el negocio, aunque Google Calendar no esté conectado. La conexión de Google es opcional y NUNCA es un requisito para ofrecer ni registrar la reunión.",
             input.contactEmail
-              ? `- YA TIENES el correo de este cliente: ${input.contactEmail}. NO se lo vuelvas a pedir: úsalo tal cual en schedule_meeting. Al ofrecer los horarios menciónalo en la misma frase para que pueda corregirlo si cambió (ej. "te envío la invitación a ${input.contactEmail}"). Solo pide un correo nuevo si el cliente dice que ese ya no sirve.`
+              ? `- YA TIENES el correo de este cliente: ${input.contactEmail}. NO se lo vuelvas a pedir: úsalo tal cual en schedule_meeting. Al ofrecer los horarios menciónalo para que pueda corregirlo si cambió. Solo pide un correo nuevo si el cliente dice que ese ya no sirve.`
               : null,
-            "- Flujo OBLIGATORIO para agendar, en este orden: (1) pide el CORREO del cliente (SALVO que ya lo tengas, ver arriba); (2) ofrece 2-3 horarios tomados de los rangos LIBRES y pregunta cuál le queda mejor; (3) SOLO cuando tengas el correo REAL y el cliente haya confirmado o propuesto una fecha y hora EN SUS PROPIAS PALABRAS, usa schedule_meeting con clientOk = la cita textual de ese mensaje. Si te falta el correo o la hora confirmada, tu única acción es reply pidiéndolos — JAMÁS llames schedule_meeting con datos incompletos ni placeholders como \"...\". El sistema envía la invitación con Google Meet al correo.",
+            "- Flujo OBLIGATORIO para agendar, en este orden: (1) pide el CORREO del cliente (SALVO que ya lo tengas, ver arriba); (2) ofrece 2-3 horarios dentro de las reglas de la agenda y pregunta cuál le queda mejor; (3) SOLO cuando tengas el correo REAL y el cliente haya confirmado o propuesto una fecha y hora EN SUS PROPIAS PALABRAS, usa schedule_meeting con clientOk = la cita textual de ese mensaje. Si te falta el correo o la hora confirmada, tu única acción es reply pidiéndolos — JAMÁS llames schedule_meeting con datos incompletos ni placeholders como \"...\".",
+            input.calendarAvailable
+              ? "- Google Calendar está conectado: el sistema intentará crear la invitación con Google Meet. No confirmes su creación antes del resultado de schedule_meeting."
+              : "- Google Calendar no está conectado: registra la reunión en el CRM y confirma por este chat. NO prometas invitación por correo, evento en Google ni enlace de Meet. Los horarios propuestos siguen la jornada y antelación configuradas; la disponibilidad de calendarios externos no está verificada.",
             "- schedule_meeting se usa UNA sola vez por reunión: si en el historial ya confirmaste el agendamiento, NO la vuelvas a usar salvo que el cliente pida cambiar la fecha u hora.",
           ]
         : []),
@@ -152,7 +159,7 @@ export function buildAgentSystemPrompt(input: {
       .join("\n"),
     // La agenda va AL FINAL del prompt a propósito: es lo que el modelo debe
     // tener más presente al responder cualquier mensaje que mencione fechas.
-    input.calendarAvailable && input.scheduling
+    schedulingAvailable && input.scheduling
       ? [
           `FECHA Y HORA ACTUALES: ${input.scheduling.nowLabel} (zona ${input.scheduling.timezone}).`,
           `Usa SIEMPRE esta fecha para interpretar expresiones como "mañana", "el viernes" o "la próxima semana".`,
@@ -161,7 +168,9 @@ export function buildAgentSystemPrompt(input: {
           `- Horario de reuniones: ${input.scheduling.workHoursLabel}.`,
           ...(input.scheduling.availabilityLabel
             ? [
-                `- DISPONIBILIDAD REAL del calendario, día por día (ÚNICA fuente de verdad sobre horarios — consultada ahora mismo):`,
+                input.calendarAvailable
+                  ? `- DISPONIBILIDAD REAL del calendario, día por día (ÚNICA fuente de verdad sobre horarios — consultada ahora mismo):`
+                  : `- HORARIOS PROPUESTOS según la jornada configurada, día por día (sin verificar calendarios externos):`,
                 input.scheduling.availabilityLabel,
                 `- CHEQUEO OBLIGATORIO: cada vez que el cliente pida una reunión o mencione un día u hora (incluso en su PRIMER mensaje), antes de escribir tu respuesta busca ese día en la lista de arriba y responde SEGÚN ella: si la hora pedida cae dentro de un rango libre, acéptala; si cae fuera (o el día está "SIN disponibilidad" o no aparece), di de una vez que no hay espacio a esa hora y ofrece 2-3 horas concretas de los rangos libres más cercanos. NUNCA digas "claro", "perfecto" ni aceptes una hora sin haberla verificado en la lista.`,
                 `- PROHIBIDO mencionar, ofrecer o aceptar cualquier hora que no esté dentro de esos rangos libres.`,

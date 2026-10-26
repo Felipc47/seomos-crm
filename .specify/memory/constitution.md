@@ -53,8 +53,9 @@ dependencias externas en runtime es CERRADA:
      2026-07-17), EXCLUSIVAMENTE para agendar reuniones con prospectos: accedida
      tras un adaptador dedicado (`src/lib/google/`), con OAuth por usuario cuyo
      refresh token se cifra en reposo (Principio I). Sin conexión configurada, el
-     producto funciona completo sin agendamiento; su fallo degrada sin colgar
-     ninguna otra función.
+     producto conserva el agendamiento en el CRM sin invitaciones ni Meet
+     (corrección autorizada por el dueño 2026-10-26); su fallo degrada sin
+     colgar ninguna otra función.
   4. **Resend**, opcional (enmiendas 1.4.0, 1.5.0 y 2.0.0; última aprobada
      por el dueño el 2026-10-08), para correo transaccional de avisos de nuevos
      leads, resúmenes operativos y restablecimiento de contraseña, además del

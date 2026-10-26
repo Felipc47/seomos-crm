@@ -3,10 +3,13 @@ import { z } from "zod";
 export const MEETING_NOTICE_MS = 45 * 60_000;
 export const meetingInputSchema = z.object({
   startIso: z.string().datetime({ offset: true }),
-  meetLink: z.string().trim().max(1000).url().refine((value) => {
-    const url = new URL(value);
-    return url.protocol === "https:" && !url.username && !url.password;
-  }, "Usa un enlace HTTPS sin credenciales"),
+  meetLink: z.string().trim().max(1000).refine((value) => {
+    if (!value) return true;
+    try {
+      const url = new URL(value);
+      return url.protocol === "https:" && !url.username && !url.password;
+    } catch { return false; }
+  }, "Usa un enlace HTTPS sin credenciales").nullable().default(null).transform(value => value || null),
   title: z.string().trim().min(1).max(120).default("Reunión"),
   reminderEnabled: z.boolean().default(true),
 }).strict();

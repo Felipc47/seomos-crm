@@ -130,7 +130,7 @@ try {
   const google = await createLead("Reunión Google");
   await api.get("/api/google/oauth/start"); check((await get("/api/settings/calendar")).connection?.status === "connected", "Google mock conectado");
   region = await details(google.id); await page.getByRole("button", { name: "Agendar reunión", exact: true }).click(); const dialog = page.getByRole("dialog", { name: "Agendar reunión" }); const googleStart = future(500);
-  await dialog.getByLabel("Correo del prospecto").fill("lead@example.test"); await dialog.getByLabel("Fecha y hora", { exact: true }).fill(local(googleStart)); await dialog.getByRole("button", { name: "Agendar y enviar invitaciones" }).click(); await dialog.waitFor({ state: "detached" }); await region.getByText("Confirmación programada", { exact: true }).waitFor();
+  await dialog.getByLabel("Correo del prospecto").fill("lead@example.test"); await dialog.getByLabel("Fecha y hora", { exact: true }).fill(local(googleStart)); await dialog.getByRole("button", { name: "Agendar reunión", exact: true }).click(); await dialog.waitFor({ state: "detached" }); await region.getByText("Confirmación programada", { exact: true }).waitFor();
   row = await meeting(google.id); check(row.source === "google" && row.meetLink.startsWith("https://meet.google.com/"), "Google manual llena sección con enlace automáticamente"); check(row.startIso === googleStart.toISOString(), "agendamiento manual respeta hora empresarial desde navegador Tokio");
   await json(await api.put("/api/agent/profile", { data: { enabled: true, name: "Ana" } }));
   await sql`insert into ai_credit_account (organization_id,balance) values (${org},100) on conflict (organization_id) do update set balance=100`;
