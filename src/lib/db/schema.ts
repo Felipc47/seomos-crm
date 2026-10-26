@@ -1074,3 +1074,19 @@ export const commerceQuote = pgTable("commerce_quote", {
   remoteId:text("remote_id"),remoteReference:text("remote_reference"),
   createdAt:timestamp("created_at").notNull().defaultNow(),updatedAt:timestamp("updated_at").notNull().defaultNow(),
 },t=>[index("commerce_quote_org_conv_idx").on(t.organizationId,t.conversationId,t.createdAt),uniqueIndex("commerce_quote_active_org_conv_uq").on(t.organizationId,t.conversationId).where(sql`${t.status} in ('prepared','submitting','uncertain')`),check("commerce_quote_status_check",sql`${t.status} in ('prepared','submitting','created','uncertain','cancelled')`)]);
+
+
+/** 034: SMS API connection only. Sender approval and sending are separate phases. */
+export const smsConnection = pgTable("sms_connection", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  secretCipher: text("secret_cipher").notNull(),
+  secretIv: text("secret_iv").notNull(),
+  secretTag: text("secret_tag").notNull(),
+  keyLast4: text("key_last4").notNull(),
+  email: text("email").notNull(),
+  companyName: text("company_name").notNull(),
+  smsCredits: integer("sms_credits"),
+  verifiedAt: timestamp("verified_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, t => [uniqueIndex("sms_connection_org_uq").on(t.organizationId)]);

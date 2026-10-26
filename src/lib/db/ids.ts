@@ -4,6 +4,7 @@ const alphabet = "0123456789abcdefghijklmnopqrstuvwxyz";
 const nano = customAlphabet(alphabet, 20);
 
 const prefixes = {
+  smsConnection: "smc",
   commerceConnection: "ecc",
   commerceQuote: "ecq",
   organization: "org",
