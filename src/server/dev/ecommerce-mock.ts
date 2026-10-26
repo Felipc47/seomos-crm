@@ -1,10 +1,10 @@
 /** Fixtures exclusivamente detrás de mockGuard y hosts de prueba explícitos. */
 type MockOrder={provider:string;woo:Record<string,unknown>;shop:Record<string,unknown>;request:Record<string,unknown>;key:string};
-type MockState={currency:string;price:string;stock:number;revoked:boolean;failNext:number;badJson:boolean;loseNextWrite:boolean;rejectNextWrite:boolean;writes:number;orders:MockOrder[]};
+type MockState={tokenRequests:number;tokenLifetime:number;currency:string;price:string;stock:number;revoked:boolean;failNext:number;badJson:boolean;loseNextWrite:boolean;rejectNextWrite:boolean;writes:number;orders:MockOrder[]};
 const root=globalThis as typeof globalThis & {__commerceMock?:MockState};
-function defaults():MockState{return{currency:"COP",price:"10000.00",stock:12,revoked:false,failNext:0,badJson:false,loseNextWrite:false,rejectNextWrite:false,writes:0,orders:[]};}
+function defaults():MockState{return{tokenRequests:0,tokenLifetime:86399,currency:"COP",price:"10000.00",stock:12,revoked:false,failNext:0,badJson:false,loseNextWrite:false,rejectNextWrite:false,writes:0,orders:[]};}
 export function commerceMockState(){return root.__commerceMock??=defaults();}
-export function changeCommerceMock(input:Record<string,unknown>){if(input.reset)root.__commerceMock=defaults();const s=commerceMockState();for(const k of ["currency","price","stock","revoked","failNext","badJson","loseNextWrite","rejectNextWrite"] as const)if(input[k]!==undefined)(s as unknown as Record<string,unknown>)[k]=input[k];return s;}
+export function changeCommerceMock(input:Record<string,unknown>){if(input.reset)root.__commerceMock=defaults();const s=commerceMockState();for(const k of ["tokenLifetime","currency","price","stock","revoked","failNext","badJson","loseNextWrite","rejectNextWrite"] as const)if(input[k]!==undefined)(s as unknown as Record<string,unknown>)[k]=input[k];return s;}
 export function commerceMockResponse(provider:string,path:string,method:string,body:Record<string,unknown>,headers:Headers):Response{
   const s=commerceMockState();if(s.revoked||headers.get("authorization")?.includes("cmV2b2tlZA")||headers.get("x-shopify-access-token")?.includes("revoked"))return Response.json({error:"unauthorized"},{status:401});
   if(s.failNext>0){s.failNext--;return Response.json({error:"unavailable"},{status:503});}
@@ -33,6 +33,8 @@ export function commerceMockResponse(provider:string,path:string,method:string,b
     if(path.startsWith("orders/")){const o=s.orders.find(o=>o.provider===provider&&String(o.woo.id)===path.split("/")[1]);return o?Response.json(o.woo):Response.json({error:"not_found"},{status:404});}
   }
   if(provider==="shopify"){
+    if(path==="admin/oauth/access_token"){if(body.grant_type!=="client_credentials"||!body.client_id||!body.client_secret)return Response.json({error:"invalid_grant"},{status:400});s.tokenRequests++;return Response.json({access_token:`shpat_mock_grant_${s.tokenRequests}`,expires_in:s.tokenLifetime});}
+    if(!headers.get("x-shopify-access-token")?.startsWith("shpat"))return Response.json({error:"bearer_required"},{status:401});
     const query=String(body.query??""),vars=(body.variables??{}) as Record<string,unknown>;
     const node={id:"gid://shopify/ProductVariant/101",title:"Azul",sku:"CAM-AZUL",price:s.price,inventoryQuantity:s.stock,inventoryPolicy:"DENY",inventoryItem:{tracked:true,requiresShipping:true},product:{title:"Camiseta algodón",status:"ACTIVE",onlineStoreUrl:"https://shop.commerce.test/products/camiseta"}};
     if(query.includes("CommerceCurrency"))return Response.json({data:{shop:{currencyCode:s.currency}}});

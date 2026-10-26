@@ -9,7 +9,8 @@
 - [x] Persistencia cifrada, endpoints y UI de conexión por empresa
 - [x] Catálogo/stock/pedidos y acciones comerciales del bot
 - [x] Mocks, unitarios y E2E completo feliz/infeliz/aislamiento
-- [x] Gate técnico completo
+- [x] Acceso Shopify actual con credenciales de app propia y renovación verificada
+- [x] Gate técnico final tras ajuste de autenticación
 - [ ] UI publicada verificada
 - [ ] Publicación y evidencia final
 

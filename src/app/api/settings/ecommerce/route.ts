@@ -15,7 +15,7 @@ export const GET=withAuth(async session=>{
 export const PUT=withAuth(async(session,req:Request)=>{
   if(!canManageOrgSettings(session.role))return apiError(403,"forbidden","Solo el administrador puede conectar la tienda");
   const input=await parseBody(req,connectionInput);if(!input.ok)return input.response;
-  try{await saveCommerceConnection(session.organizationId,{...input.data,ordersEnabled:input.data.ordersEnabled??false});return Response.json({ok:true});}
+  try{await saveCommerceConnection(session.organizationId,{...input.data,ordersEnabled:input.data.ordersEnabled??false,authMode:input.data.authMode??"token"});return Response.json({ok:true});}
   catch(e){const code=e instanceof CommerceError?e.code:"unavailable";return apiError(code==="invalid_url"?422:code==="auth"?422:503,`commerce_${code}`,code==="invalid_url"?"Usa la URL HTTPS pública de la tienda, sin rutas. Shopify requiere el dominio myshopify.com.":code==="auth"?"Revisa las credenciales y permisos de catálogo y pedidos.":"No pudimos verificar la tienda. No se cambió la conexión guardada.");}
 });
 export const DELETE=withAuth(async session=>{if(!canManageOrgSettings(session.role))return apiError(403,"forbidden","Solo el administrador puede desconectar la tienda");await deleteCommerceConnection(session.organizationId);return Response.json({ok:true});});
