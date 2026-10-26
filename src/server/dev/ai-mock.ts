@@ -104,6 +104,20 @@ export function aiMockCompletion(messages: InMessage[]): string {
     [...messages].reverse().find((m) => m.role === "user")?.content ?? ""
   );
 
+  // 036: proveedor deliberadamente desobediente para verificar las guardas del servidor.
+  if (!system.includes("analista de CRM") && lastUser.includes("MISSION_BAD_JSON")) return "No puedo devolver JSON";
+  if (!system.includes("analista de CRM") && lastUser.includes("MISSION_FORCE_SCHEDULE")) {
+    const start = new Date(Date.now() + 5 * 24 * 3600_000);
+    start.setUTCHours(15, 0, 0, 0);
+    while ([0, 6].includes(start.getUTCDay())) start.setTime(start.getTime() + 24 * 3600_000);
+    return JSON.stringify({ action: "schedule_meeting", email: "mission@example.test", datetime: start.toISOString(), clientOk: lastUser });
+  }
+  if (!system.includes("analista de CRM") && lastUser.includes("MISSION_FORCE_OFFER")) return JSON.stringify({ action: "reply", text: `Podemos ayudarte con tu proyecto: ${lastUser.replace("MISSION_FORCE_OFFER", "").trim()}. ¿Te gustaría agendar una reunión?` });
+  if (!system.includes("analista de CRM") && lastUser.includes("MISSION_ECOMMERCE")) {
+    const url = /Tienda configurada: (https:\/\/\S+?)\. Puedes/.exec(system)?.[1];
+    return JSON.stringify({ action: "reply", text: url ? `Puedes continuar la compra en ${url}. ¿Qué producto buscas?` : "¿Qué producto estás buscando?" });
+  }
+
   // 032: proveedor determinista del chat demo, siempre tras el gate de mocks.
   if (system.includes("[CHAT_DEMO_CONFIGURACION]")) {
     if (lastUser.includes("DEMO_FORMATO_INVALIDO")) return "No hay JSON en esta respuesta";

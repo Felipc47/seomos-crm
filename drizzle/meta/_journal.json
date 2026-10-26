@@ -225,6 +225,13 @@
       "when": 1791901662451,
       "tag": "0031_great_elektra",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1793029443368,
+      "tag": "0032_bouncy_trish_tilby",
+      "breakpoints": true
     }
   ]
 }

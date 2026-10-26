@@ -4,12 +4,14 @@ import { cn } from "@/lib/utils";
 
 /** Control binario accesible con foco visible en ambos temas. */
 export function Switch({
+  id,
   checked,
   onCheckedChange,
   disabled = false,
   size = "md",
   "aria-label": ariaLabel,
 }: {
+  id?: string;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   disabled?: boolean;
@@ -21,6 +23,7 @@ export function Switch({
   const thumb = size === "md" ? "h-6 w-6" : "h-5 w-5";
   return (
     <button
+      id={id}
       type="button"
       role="switch"
       aria-checked={checked}

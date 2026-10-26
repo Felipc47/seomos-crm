@@ -1,3 +1,5 @@
+import { renderMission, renderSchedulingOfferPolicy, guardMeetingOfferText } from "@/lib/agent-mission";
+import { getSchedulingOfferPolicy } from "./mission-policy";
 import { and, asc, desc, eq, isNull, lte } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@/lib/db";
@@ -281,6 +283,8 @@ async function composeFollowUpText(
     .map((m) => `${m.direction === "in" ? "CLIENTE" : "AGENTE"}: ${m.text}`)
     .join("\n");
 
+  const offerPolicy = await getSchedulingOfferPolicy(organizationId, conversationId, profile ?? {},
+    history.filter(message => message.direction === "in" && message.text).map(message => message.text!));
   const followUpTone = composeTone(profile?.tonePresets, profile?.tone);
   const followUpInstructions = composeInstructions(
     profile?.instructionSections,
@@ -297,6 +301,8 @@ async function composeFollowUpText(
           : null,
         `Escribe UN solo mensaje breve y natural de seguimiento para WhatsApp: saluda, retoma el tema pendiente de la conversación y facilita que responda. No inventes datos ni ofertas.`,
         `Respondes ÚNICAMENTE un objeto JSON: {"text":"..."} — sin markdown ni texto adicional.`,
+        renderMission(profile ?? {}),
+        renderSchedulingOfferPolicy(offerPolicy),
         composeResponseLanguage(profile?.responseLanguage),
       ]
         .filter(Boolean)
@@ -317,7 +323,7 @@ async function composeFollowUpText(
       ? "Hello! I’m following up on our conversation. Are you still interested?"
       : FALLBACK_TEXT;
   }
-  return result.data.text;
+  return guardMeetingOfferText(result.data.text, offerPolicy, profile ?? {}, history.at(-1)?.text ?? "");
 }
 
 type DueLead = {

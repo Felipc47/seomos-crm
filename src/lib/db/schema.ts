@@ -684,6 +684,11 @@ export const agentProfile = pgTable(
     enabled: boolean("enabled").notNull().default(false),
     name: text("name").notNull().default("Asistente"),
     responseLanguage: text("response_language", { enum: ["es", "en", "es-en"] }).notNull().default("es"),
+    mission: text("mission", { enum: ["legacy", "schedule", "sales", "ecommerce", "qualify", "support", "inform", "custom"] }).notNull().default("legacy"),
+    missionDetails: text("mission_details"),
+    ecommerceUrl: text("ecommerce_url"),
+    schedulingWarmupEnabled: boolean("scheduling_warmup_enabled").notNull().default(false),
+    schedulingWarmupMessages: integer("scheduling_warmup_messages").notNull().default(3),
     tone: text("tone"),
     /** Presets de tono elegidos en la UI (máx. 2, ids de TONE_PRESETS). Se
      * componen con `tone` (matices libres) al armar el prompt. */
@@ -702,6 +707,8 @@ export const agentProfile = pgTable(
   (t) => [
     uniqueIndex("agent_profile_org_uq").on(t.organizationId),
     check("agent_profile_response_language_check", sql`${t.responseLanguage} in ('es', 'en', 'es-en')`),
+    check("agent_profile_mission_check", sql`${t.mission} in ('legacy', 'schedule', 'sales', 'ecommerce', 'qualify', 'support', 'inform', 'custom')`),
+    check("agent_profile_warmup_messages_check", sql`${t.schedulingWarmupMessages} between 1 and 50`),
   ]
 );
 

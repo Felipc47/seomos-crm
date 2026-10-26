@@ -56,6 +56,13 @@ describe("demo sin efectos sobre el CRM", () => {
     expect(result.ok && result.data.actionLabel).toContain("Simulación");
     expect(mocks.insert).not.toHaveBeenCalled(); expect(mocks.update).not.toHaveBeenCalled();
   });
+  it("el demo usa el mínimo del borrador sin guardar ni ejecutar una reunión prematura", async () => {
+    fixtures(); mocks.chatJson.mockResolvedValue({ ok: true, data: { action: "schedule_meeting", email: "test@test.local", datetime: "2099-01-01T10:00:00Z" } });
+    const result = await answerAgentDemo("org_A", { message: "Necesito información", configuration: { mission: "schedule", schedulingWarmupEnabled: true, schedulingWarmupMessages: 3 } });
+    expect(result.ok && result.data.actionLabel).toBeNull();
+    expect(mocks.chatJson.mock.calls[0]![1][0].content).toContain("ya envió 0 mensajes");
+    expect(mocks.insert).not.toHaveBeenCalled(); expect(mocks.update).not.toHaveBeenCalled();
+  });
   it("la petición explícita de humano termina el demo sin invocar el proveedor", async () => {
     fixtures(); const result = await answerAgentDemo("org_A", { message: "Quiero hablar con una persona" });
     expect(result.ok && result.data.ended).toBe(true); expect(mocks.chatJson).not.toHaveBeenCalled();

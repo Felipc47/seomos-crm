@@ -102,7 +102,7 @@ export function AgentSetupAssistant({
 
   function applyDraft() {
     if (!result) return;
-    onApply(result.draft);
+    onApply({ ...result.draft, mission: goal });
     setResult(null);
     onClose();
   }

@@ -31,6 +31,8 @@ import {
   type InstructionSectionKey,
 } from "@/lib/agent-behavior";
 import { cn } from "@/lib/utils";
+import { MissionSettings, type MissionFormValue } from "@/components/agent/mission-settings";
+import { MAX_WARMUP_MESSAGES } from "@/lib/agent-mission";
 import { SchedulingSection } from "@/components/agent/scheduling-section";
 import { FollowUpSection } from "@/components/agent/follow-up-section";
 import { AgentDemoChat } from "@/components/agent/agent-demo-chat";
@@ -45,7 +47,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
 import type { AgentConfigurationDraft } from "@/server/ai/config-assistant";
 
-type Profile = {
+type Profile = MissionFormValue & {
   enabled: boolean;
   name: string;
   responseLanguage: AgentResponseLanguage;
@@ -310,6 +312,7 @@ function ProfileSection({
     setForm((current) => ({
       ...current,
       name: draft.name,
+      mission: draft.mission ?? current.mission,
       greeting: draft.greeting,
       tonePresets: draft.tonePresets,
       tone: draft.tone,
@@ -391,6 +394,8 @@ function ProfileSection({
             En español e inglés, responde en el idioma del cliente y cambia cuando él lo pida.
           </p>
         </div>
+
+        <MissionSettings value={form} onChange={patch => setForm(current => ({ ...current, ...patch }))} />
 
         <AgentDemoChat configuration={form} />
 
@@ -644,7 +649,8 @@ function ProfileSection({
         </div>
 
         <div className="border-t pt-5">
-          <Button data-help="agent-save" className="w-full sm:w-auto" onClick={() => void onSave(form)}>Guardar comportamiento</Button>
+          <Button data-help="agent-save" className="w-full sm:w-auto" disabled={!Number.isInteger(form.schedulingWarmupMessages) || form.schedulingWarmupMessages < 1 || form.schedulingWarmupMessages > MAX_WARMUP_MESSAGES}
+          onClick={() => void onSave(form)}>Guardar comportamiento</Button>
         </div>
       </CardContent>
     </Card>
