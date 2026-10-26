@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AGENT_MISSION_IDS } from "@/lib/agent-mission";
 import { chatJson } from "@/lib/ai";
 import {
   INSTRUCTION_SECTION_KEYS,
@@ -26,6 +27,7 @@ const instructionSectionsSchema = z.object(
 );
 
 export const AgentConfigurationDraft = z.object({
+  mission: z.enum(AGENT_MISSION_IDS).optional(),
   name: z.string().trim().min(1).max(60),
   greeting: z.string().trim().min(1).max(2_000),
   tonePresets: z

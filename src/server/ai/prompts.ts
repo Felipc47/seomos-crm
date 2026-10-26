@@ -1,3 +1,4 @@
+import { renderMission, renderSchedulingOfferPolicy, schedulingOfferPolicy, type SchedulingOfferPolicy } from "@/lib/agent-mission";
 import type { schema } from "@/lib/db";
 import { composeInstructions, composeTone, composeResponseLanguage } from "@/lib/agent-behavior";
 
@@ -65,6 +66,7 @@ export function buildAgentSystemPrompt(input: {
   services?: { id: string; name: string }[];
   /** 004: habilitado salvo conversaciones históricas de prueba. */
   schedulingAvailable?: boolean;
+  offerPolicy?: SchedulingOfferPolicy;
   /** Google conectado: permite invitaciones y Meet, no condiciona agendar. */
   calendarAvailable?: boolean;
   /** 004: reglas de agendamiento, también sin Google. */
@@ -81,7 +83,8 @@ export function buildAgentSystemPrompt(input: {
   leadOrigin?: string | null;
 }): string {
   const { profile } = input;
-  const schedulingAvailable = input.schedulingAvailable ?? true;
+  const offerPolicy = input.offerPolicy ?? schedulingOfferPolicy(profile);
+  const schedulingAvailable = (input.schedulingAvailable ?? true) && offerPolicy.allowed;
   const tone = composeTone(profile.tonePresets, profile.tone);
   const instructions = composeInstructions(
     profile.instructionSections,
@@ -142,7 +145,9 @@ export function buildAgentSystemPrompt(input: {
       '- Si el cliente solo agradece, confirma o se despide ("gracias", "listo", "ok", "adiós") sin pedir nada nuevo → SIEMPRE despídete con UN cierre breve y cálido (ej. "¡Con mucho gusto! Cualquier cosa me escribes."); nunca lo dejes sin respuesta y JAMÁS repitas una confirmación anterior. Usa {"action":"none"} SOLO si ya te despediste y el cliente vuelve a agradecer.',
       ...(schedulingAvailable
         ? [
-            "- Ofrece agendar una reunión cuando el prospecto muestre interés y encaje con el negocio, aunque Google Calendar no esté conectado. La conexión de Google es opcional y NUNCA es un requisito para ofrecer ni registrar la reunión.",
+            profile.mission && !["legacy", "schedule", "custom"].includes(profile.mission)
+              ? "- Atiende el agendamiento si el cliente lo solicita, sin desplazar la misión principal del agente. La conexión de Google es opcional y NUNCA es un requisito para ofrecer ni registrar la reunión."
+              : "- Ofrece agendar una reunión cuando el prospecto muestre interés y encaje con el negocio, aunque Google Calendar no esté conectado. La conexión de Google es opcional y NUNCA es un requisito para ofrecer ni registrar la reunión.",
             input.contactEmail
               ? `- YA TIENES el correo de este cliente: ${input.contactEmail}. NO se lo vuelvas a pedir: úsalo tal cual en schedule_meeting. Al ofrecer los horarios menciónalo para que pueda corregirlo si cambió. Solo pide un correo nuevo si el cliente dice que ese ya no sirve.`
               : null,
@@ -180,6 +185,8 @@ export function buildAgentSystemPrompt(input: {
               ]),
         ].join("\n")
       : null,
+    renderMission(profile),
+    renderSchedulingOfferPolicy(offerPolicy),
     // Última política para que textos heredados y ejemplos no fijen otro idioma.
     composeResponseLanguage(profile.responseLanguage),
   ]

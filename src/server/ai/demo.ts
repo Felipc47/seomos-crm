@@ -1,3 +1,5 @@
+import { customerRequestsMeeting, schedulingOfferPolicy } from "@/lib/agent-mission";
+import { guardSchedulingAction } from "./mission-policy";
 import { asc } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
@@ -37,13 +39,18 @@ export async function answerAgentDemo(organizationId: string, input: DemoRequest
   if (matchesHandoffIntent(input.message)) {
     return { ok: true as const, data: previewAgentAction({ action: "handoff" }) };
   }
+  const history = input.history ?? [];
+  const offerPolicy = schedulingOfferPolicy(profile, {
+    sentAgentMessages: history.filter(message => message.role === "assistant").length,
+    customerRequestedMeeting: customerRequestsMeeting([...history.filter(message => message.role === "user").map(message => message.content), input.message]),
+  });
   const result = await chatJson(AgentAction, [
-    { role: "system", content: `[CHAT_DEMO_CONFIGURACION]\n${buildAgentSystemPrompt({ profile, kb, stages, services, calendarAvailable: true })}\nCONTEXTO DE DEMOSTRACIÓN: conversa con el cliente usando la configuración anterior. Puedes indicar las mismas acciones, pero solo se previsualizan: no se envían mensajes ni se crean contactos, cambios, seguimientos o reuniones. El calendario es simulado: no afirmes disponibilidad real y no prometas que una reunión fue creada; cuando el cliente confirme, schedule_meeting representa una solicitud simulada.` },
-    ...(input.history ?? []),
+    { role: "system", content: `[CHAT_DEMO_CONFIGURACION]\n${buildAgentSystemPrompt({ profile, kb, stages, services, calendarAvailable: true, offerPolicy })}\nCONTEXTO DE DEMOSTRACIÓN: conversa con el cliente usando la configuración anterior. Puedes indicar las mismas acciones, pero solo se previsualizan: no se envían mensajes ni se crean contactos, cambios, seguimientos o reuniones. El calendario es simulado: no afirmes disponibilidad real y no prometas que una reunión fue creada; cuando el cliente confirme, schedule_meeting representa una solicitud simulada.` },
+    ...history,
     { role: "user", content: input.message },
   ], { timeoutMs: 15000 });
   if (!result.ok) return { ok: false as const, error: result.error };
   const action = result.data.action === "move_stage" && !resolveStage(result.data.stage, stages)
     ? degradeAction(result.data) : result.data;
-  return { ok: true as const, data: previewAgentAction(action) };
+  return { ok: true as const, data: previewAgentAction(guardSchedulingAction(action, offerPolicy, profile, input.message)) };
 }

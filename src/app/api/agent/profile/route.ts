@@ -28,6 +28,11 @@ export const GET = withAuth(async (session) => {
   return Response.json({
     profile: {
       enabled: p.enabled,
+      mission: p.mission,
+      missionDetails: p.missionDetails,
+      ecommerceUrl: p.ecommerceUrl,
+      schedulingWarmupEnabled: p.schedulingWarmupEnabled,
+      schedulingWarmupMessages: p.schedulingWarmupMessages,
       name: p.name,
       responseLanguage: p.responseLanguage,
       tone: p.tone,

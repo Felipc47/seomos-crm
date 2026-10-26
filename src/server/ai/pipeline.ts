@@ -1,3 +1,4 @@
+import { getSchedulingOfferPolicy, guardSchedulingAction } from "@/server/ai/mission-policy";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { isNegativeStage, isReasonForStage } from "@/lib/lead-closure";
@@ -519,11 +520,14 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
     .orderBy(asc(schema.pipelineStage.position));
   const services = await listServiceRoutingOptions(organizationId);
 
+  const schedulingOffer = await getSchedulingOfferPolicy(organizationId, conversationId, profile,
+    history.filter(message => message.direction === "in" && message.text).map(message => message.text!));
+
   // 004: el CRM permite agendar sin Google. Solo se excluyen pruebas históricas.
   let calendarAvailable = false;
   let scheduling: SchedulingContext | undefined;
   let calSettings: CalendarSettings | undefined;
-  if (!conversation.isTest) {
+  if (!conversation.isTest && schedulingOffer.allowed) {
     calSettings = await getCalendarSettings(organizationId);
     scheduling = buildSchedulingContext(calSettings);
     const googleConn = isGoogleConfigured() ? await getGoogleConnection(organizationId) : null;
@@ -574,6 +578,7 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
         stages,
         services,
         schedulingAvailable: !conversation.isTest,
+        offerPolicy: schedulingOffer,
         calendarAvailable,
         scheduling,
         contactEmail: knownEmail,
@@ -604,7 +609,7 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
     return;
   }
 
-  let action: AgentActionType = result.data;
+  let action: AgentActionType = guardSchedulingAction(result.data, schedulingOffer, profile, lastInbound.text ?? "");
 
   // Clasificación embebida en el turno principal: aprovecha texto, audio e
   // imagen sin otra llamada. La pasada de ficha posterior actúa como segundo
