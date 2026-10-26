@@ -6,6 +6,8 @@
 type AiMockState = {
   /** Contadores observables para probar que un guard evita al proveedor. */
   chatCalls: number;
+  /** Solo metadatos de solicitudes de prueba; nunca mensajes ni credenciales. */
+  chatRequests: { model: string | null; reasoningEffort: string | null }[];
   transcriptionCalls: number;
   /** Turnos de chat que deben fallar antes de volver a funcionar. */
   failNextChat: number;
@@ -23,6 +25,7 @@ export function getAiMockState(): AiMockState {
   if (!globalForAiMock.__aiMockState) {
     globalForAiMock.__aiMockState = {
       chatCalls: 0,
+      chatRequests: [],
       transcriptionCalls: 0,
       failNextChat: 0,
       failNextTranscriptions: 0,

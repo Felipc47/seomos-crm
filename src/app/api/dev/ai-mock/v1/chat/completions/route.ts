@@ -9,6 +9,8 @@ export async function POST(req: Request) {
   if (guard) return guard;
 
   const body = (await req.json().catch(() => ({}))) as {
+    model?: unknown;
+    reasoning_effort?: unknown;
     messages?: Parameters<typeof aiMockCompletion>[0];
   };
   const messages = body.messages ?? [];
@@ -17,6 +19,12 @@ export async function POST(req: Request) {
   // continuar igualmente, sin la imagen.
   const state = getAiMockState();
   state.chatCalls += 1;
+  state.chatRequests ??= [];
+  state.chatRequests.push({
+    model: typeof body.model === "string" ? body.model : null,
+    reasoningEffort: typeof body.reasoning_effort === "string" ? body.reasoning_effort : null,
+  });
+  state.chatRequests = state.chatRequests.slice(-20);
   if (state.failNextChat > 0) {
     state.failNextChat -= 1;
     return Response.json(
