@@ -80,6 +80,7 @@ export function SchedulingSection() {
   }, [refetch]);
 
   if (!state) return null;
+  const calendarConnected = state.googleConfigured && state.connection?.status === "connected";
 
   async function save() {
     if (workEnd - slot < workStart) {
@@ -130,12 +131,12 @@ export function SchedulingSection() {
             <CalendarClock className="h-[18px] w-[18px] shrink-0 text-brand" strokeWidth={1.8} />
             <CardTitle className="text-[21px] tracking-[-0.03em]">Agendamiento</CardTitle>
           </div>
-          {state.connection ? (
+          {calendarConnected ? (
             <Badge variant="success" className="max-w-full whitespace-normal break-all">
-              Calendar: {state.connection.accountEmail}
+              Calendar: {state.connection?.accountEmail}
             </Badge>
           ) : (
-            <Badge variant="warning">Calendar sin conectar</Badge>
+            <Badge variant="secondary">Agendamiento en CRM activo</Badge>
           )}
         </div>
         <CardDescription className="mt-1 max-w-[90ch] text-[13px] leading-6">
@@ -145,9 +146,11 @@ export function SchedulingSection() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5 px-5 pb-5 sm:px-6 sm:pb-6">
-        {!state.connection && (
+        {!calendarConnected && (
           <p className="rounded-xl border border-[color:var(--warning-border)] bg-[color:var(--warning-bg)] p-3 text-[13px] leading-relaxed text-[color:var(--warning-fg)]">
-            Sin una cuenta de Google conectada el agente no ofrece agendar.{" "}
+            El agente ofrece y registra reuniones en el CRM aunque Google Calendar no esté conectado.
+            {state.connection?.status === "reconnect_required" ? " Google Calendar requiere reconexión." : ""}{" "}
+            Conecta Google Calendar para añadir invitaciones por correo y enlaces de Meet.{" "}
             <Link
               href="/settings/calendar"
               className="font-bold underline underline-offset-2"

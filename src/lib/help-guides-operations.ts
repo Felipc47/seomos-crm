@@ -142,9 +142,9 @@ export const OPERATION_HELP_GUIDES: HelpGuide[] = [
   {
     id: "manual-meeting", title: "Agendar una reunión desde la ficha del cliente", href: "/inbox", access: "all",
     question: "¿Cómo agendo una reunión manualmente?", keywords: "agendar reunion cita manual invitacion meet fecha hora duracion correo cliente calendario",
-    summary: "En el chat abre Ver detalles → Agendar reunión. Completa el correo del prospecto, fecha/hora, duración y título; Agendar y enviar invitaciones crea el evento en Google Calendar con Meet.",
+    summary: "En el chat abre Ver detalles → Agendar reunión. Completa correo, fecha/hora, duración y título. Se registra en el CRM; con Google Calendar conectado también crea el evento, invitaciones y Meet.",
     requirements: ["Google Calendar conectado por el administrador; correo del prospecto y una fecha/hora válida."],
-    steps: ["Abre el chat del cliente en Bandeja y pulsa Ver detalles.", "Pulsa Agendar reunión. Comprueba el Correo del prospecto o complétalo si falta.", "Selecciona Fecha y hora y la Duración (30, 45, 60 o 90 minutos). Usa un Título si quieres cambiar el predeterminado.", "Revisa todos los datos antes de pulsar Agendar y enviar invitaciones: esta acción crea el evento e invita al prospecto y a los invitados internos.", "Si se indica un conflicto, falta de conexión o franja inválida, corrige el dato o pide al admin revisar Calendario/Agendamiento.", "Comprueba la reunión en la ficha/calendario y la etapa Cita agendada. Esa etapa se actualiza por una reunión confirmada, no por arrastrarla manualmente."],
+    steps: ["Abre el chat del cliente en Bandeja y pulsa Ver detalles.", "Pulsa Agendar reunión. Comprueba el Correo del prospecto o complétalo si falta.", "Selecciona Fecha y hora y la Duración (30, 45, 60 o 90 minutos). Usa un Título si quieres cambiar el predeterminado.", "Revisa los datos y pulsa Agendar reunión. Se guarda en el CRM; con Google Calendar conectado también se crea el evento y se envían invitaciones.", "Si se indica un conflicto o franja inválida, corrige el dato o pide al admin revisar Calendario/Agendamiento.", "Comprueba la reunión en la ficha. Si agenda el agente, también actualiza la etapa Cita agendada."],
   },
   {
     id: "pipeline-views", title: "Buscar prospectos y cambiar entre Tablero y Lista", href: "/pipeline", access: "operations",

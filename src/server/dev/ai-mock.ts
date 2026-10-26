@@ -262,8 +262,7 @@ export function aiMockCompletion(messages: InMessage[]): string {
     return JSON.stringify({ action: "handoff", reason: "cliente" });
   }
 
-  // 004: agendar reunión — solo si el system prompt ofrece la acción (es
-  // decir, con Google Calendar conectado) y el cliente dio correo + intención.
+  // 004: agendar reunión cuando el prompt ofrece la acción, con o sin Google.
   // El correo puede haberlo dado en un mensaje ANTERIOR (caso real: primero el
   // correo, después "11 am" a secas para elegir horario).
   const allUser = messages
@@ -283,6 +282,9 @@ export function aiMockCompletion(messages: InMessage[]): string {
   const bareTime = /^\s*(a\s+las\s+)?\d{1,2}(:\d{2})?\s*(a\.?\s*m\.?|p\.?\s*m\.?)?\s*$/i.test(
     lastUser
   );
+  if (system.includes('"action":"schedule_meeting"') && !emailMatch && /agend|reuni/.test(text)) {
+    return JSON.stringify({ action: "reply", text: "Con gusto podemos agendar una reunión. ¿Me compartes tu correo electrónico?" });
+  }
   if (
     system.includes("schedule_meeting") &&
     emailMatch &&
@@ -319,6 +321,7 @@ export function aiMockCompletion(messages: InMessage[]): string {
       email: emailMatch[0],
       datetime: start.toISOString(),
       clientOk: text.includes("sin confirmar") ? undefined : lastUser,
+      ...(text.includes("promesa incorrecta") ? { reply: "Te envié una invitación por correo con Google Meet." } : {}),
     });
   }
 

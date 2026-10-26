@@ -78,7 +78,7 @@ export function MeetingDetails({ contactId, refreshKey }: { contactId: string; r
         <label className="block">Título de la reunión<input className={fieldClass} value={title} maxLength={120} required onChange={(e) => setTitle(e.target.value)} /></label>
         <label className="block">Fecha y hora de reunión<input className={fieldClass} type="datetime-local" value={datetime} required onChange={(e) => setDatetime(e.target.value)} /></label>
         <p className="text-xs text-mute">Hora de la empresa: {timezone}</p>
-        <label className="block">Enlace de la reunión<input className={fieldClass} type="url" value={link} maxLength={1000} placeholder="https://meet.google.com/…" required onChange={(e) => setLink(e.target.value)} /></label>
+        <label className="block">Enlace de la reunión<input className={fieldClass} type="url" value={link} maxLength={1000} placeholder="Opcional · https://meet.google.com/…" onChange={(e) => setLink(e.target.value)} /></label>
         <label className="flex items-start gap-2"><input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="mt-0.5" />Confirmar por WhatsApp 45 minutos antes</label>
         <p className="text-xs text-mute">Fuera de la ventana de 24h se necesita una <Link className="underline" href="/agent">plantilla aprobada en Agendamiento</Link>.</p>
         <div className="flex flex-wrap gap-2"><Button size="sm" disabled={busy} type="submit">{busy ? "Guardando…" : "Guardar reunión"}</Button><Button size="sm" variant="ghost" disabled={busy} type="button" onClick={() => setEditing(false)}>Cancelar edición</Button></div>

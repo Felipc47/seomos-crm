@@ -2,6 +2,7 @@ import { getMeeting, saveMeeting } from "@/server/meetings/repository";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
+import { isGoogleConfigured } from "@/lib/env";
 import { GoogleApiError, refreshAccessToken } from "@/lib/google/client";
 import {
   createCalendarEvent,
@@ -17,9 +18,8 @@ import {
 } from "./credentials";
 
 /**
- * Agendamiento de reuniones (004): orquesta conexión → token → evento con
- * Meet → rastro en el contacto. Lo usan el endpoint manual del slide-over y
- * la acción `schedule_meeting` del agente.
+ * Agendamiento de reuniones (004): guarda en el CRM y, con conexión válida,
+ * crea además el evento con Meet e invitaciones en Google Calendar.
  */
 
 export class ScheduleError extends Error {
@@ -39,6 +39,11 @@ export class ScheduleError extends Error {
   }
 }
 
+export type ScheduledMeeting = Omit<CalendarEvent, "htmlLink"> & {
+  htmlLink: string | null;
+  calendarSynced: boolean;
+};
+
 export async function scheduleMeeting(input: {
   organizationId: string;
   contactId: string;
@@ -46,7 +51,7 @@ export async function scheduleMeeting(input: {
   startIso: string;
   durationMin?: number;
   title?: string;
-}): Promise<CalendarEvent> {
+}): Promise<ScheduledMeeting> {
   const db = getDb();
 
   const contactRows = await db
@@ -69,19 +74,9 @@ export async function scheduleMeeting(input: {
   if (existing?.reminderStatus === "sending") throw new ScheduleError("meeting_busy", "La confirmación se está enviando; intenta de nuevo en unos minutos.");
   if (!Number.isFinite(new Date(input.startIso).getTime()) || new Date(input.startIso) <= new Date()) throw new ScheduleError("invalid_date", "La reunión debe tener una fecha y hora futuras");
 
-  const connection = await getGoogleConnection(input.organizationId);
-  if (!connection) {
-    throw new ScheduleError(
-      "not_connected",
-      "Google Calendar no está conectado (Ajustes → Calendario)"
-    );
-  }
-  if (connection.status === "reconnect_required") {
-    throw new ScheduleError(
-      "reconnect_required",
-      "La conexión con Google venció: reconecta en Ajustes → Calendario"
-    );
-  }
+  const connection = isGoogleConfigured()
+    ? await getGoogleConnection(input.organizationId)
+    : null;
 
   const settings = await getCalendarSettings(input.organizationId);
   const title = input.title?.trim() || settings.defaultTitle;
@@ -95,68 +90,64 @@ export async function scheduleMeeting(input: {
     new Set(
       [input.prospectEmail, ...settings.internalInvitees]
         .map((e) => e.trim().toLowerCase())
-        .filter((e) => e && e !== connection.accountEmail.toLowerCase())
+        .filter((e) => e && e !== connection?.accountEmail.toLowerCase())
     )
   );
 
-  let event: CalendarEvent;
-  try {
-    const accessToken = await refreshAccessToken(connection.refreshToken);
-
-    // Anti-sobreposición: si el calendario ya tiene algo en [start, end), no
-    // se crea el evento. Un fallo transitorio del freeBusy no bloquea el
-    // agendamiento; la FALTA DE PERMISO sí (agendar a ciegas produce
-    // sobreposiciones — se exige reconectar con la casilla marcada).
+  let event: CalendarEvent | null = null;
+  if (connection?.status === "connected") {
     try {
-      const busy = await queryFreeBusy({
-        accessToken,
-        timeMinIso: start.toISOString(),
-        timeMaxIso: end.toISOString(),
-      });
-      if (busy.length > 0) {
-        throw new ScheduleError(
-          "slot_taken",
-          "Ese horario ya tiene una reunión agendada"
-        );
+      const accessToken = await refreshAccessToken(connection.refreshToken);
+
+      // Anti-sobreposición: si el calendario ya tiene algo en [start, end), no
+      // se crea el evento. Un fallo transitorio del freeBusy no bloquea el
+      // agendamiento. Si faltan permisos, solo se registra en el CRM sin
+      // afirmar que se creó un evento en Google.
+      try {
+        const busy = await queryFreeBusy({
+          accessToken,
+          timeMinIso: start.toISOString(),
+          timeMaxIso: end.toISOString(),
+        });
+        if (busy.length > 0) {
+          throw new ScheduleError(
+            "slot_taken",
+            "Ese horario ya tiene una reunión agendada"
+          );
+        }
+      } catch (err) {
+        if (err instanceof ScheduleError) throw err;
+        if (err instanceof GoogleApiError && (err.isScopeError || err.isAuthError)) {
+          throw err;
+        }
+        console.warn("[agenda] freeBusy falló; se agenda sin verificar:", err);
       }
+
+      event = await createCalendarEvent({
+        accessToken,
+        summary: title,
+        description: `Agendada desde Seomos CRM para ${contact.name} (${contact.phone}).`,
+        startIso: start.toISOString(),
+        endIso: end.toISOString(),
+        attendees,
+      });
     } catch (err) {
       if (err instanceof ScheduleError) throw err;
-      if (err instanceof GoogleApiError && err.isScopeError) {
+      if (err instanceof GoogleApiError && (err.isAuthError || err.isScopeError)) {
         await markGoogleReconnectRequired(input.organizationId);
+        // Una conexión vencida no impide registrar la reunión en el CRM.
+      } else {
         throw new ScheduleError(
-          "reconnect_required",
-          "La conexión de Google no tiene el permiso de disponibilidad: reconecta en Ajustes → Calendario marcando TODAS las casillas"
+          "google_error",
+          err instanceof Error ? err.message : "Fallo al crear el evento"
         );
       }
-      console.warn("[agenda] freeBusy falló; se agenda sin verificar:", err);
     }
-
-    event = await createCalendarEvent({
-      accessToken,
-      summary: title,
-      description: `Agendada desde Seomos CRM para ${contact.name} (${contact.phone}).`,
-      startIso: start.toISOString(),
-      endIso: end.toISOString(),
-      attendees,
-    });
-  } catch (err) {
-    if (err instanceof ScheduleError) throw err;
-    if (err instanceof GoogleApiError && err.isAuthError) {
-      await markGoogleReconnectRequired(input.organizationId);
-      throw new ScheduleError(
-        "reconnect_required",
-        "Google rechazó la conexión: reconecta en Ajustes → Calendario"
-      );
-    }
-    throw new ScheduleError(
-      "google_error",
-      err instanceof Error ? err.message : "Fallo al crear el evento"
-    );
   }
 
-  await saveMeeting({ organizationId: input.organizationId, contactId: input.contactId,
-    title, startAt: start, meetLink: event.meetLink, timezone: settings.timezone,
-    source: "google", googleEventId: event.id,
+  const meeting = await saveMeeting({ organizationId: input.organizationId, contactId: input.contactId,
+    title, startAt: start, meetLink: event?.meetLink ?? null, timezone: settings.timezone,
+    source: event ? "google" : "manual", googleEventId: event?.id ?? null,
   });
 
   // Rastro en el contacto: correo capturado + nota de la reunión.
@@ -166,7 +157,7 @@ export async function scheduleMeeting(input: {
     dateStyle: "medium",
     timeStyle: "short",
   });
-  const meetPart = event.meetLink ? ` — ${event.meetLink}` : "";
+  const meetPart = event?.meetLink ? ` — ${event.meetLink}` : "";
   const note = `[Reunión] ${when} · ${title}${meetPart}`;
   await db
     .update(schema.contact)
@@ -208,7 +199,9 @@ export async function scheduleMeeting(input: {
     });
   }
 
-  return event;
+  return event
+    ? { ...event, calendarSynced: true }
+    : { id: meeting.id, htmlLink: null, meetLink: null, start: start.toISOString(), end: end.toISOString(), calendarSynced: false };
 }
 
 /**
@@ -220,16 +213,16 @@ export async function getBusyIntervals(
   timeMinIso: string,
   timeMaxIso: string
 ): Promise<BusyInterval[]> {
+  if (!isGoogleConfigured()) return [];
   const connection = await getGoogleConnection(organizationId);
   if (!connection || connection.status !== "connected") return [];
-  const accessToken = await refreshAccessToken(connection.refreshToken);
   try {
+    const accessToken = await refreshAccessToken(connection.refreshToken);
     return await queryFreeBusy({ accessToken, timeMinIso, timeMaxIso });
   } catch (err) {
     // Sin permiso de disponibilidad el agente opera a ciegas: se marca la
-    // conexión para reconectar (Ajustes → Calendario lo muestra) y se apaga
-    // el agendamiento hasta que el permiso esté otorgado.
-    if (err instanceof GoogleApiError && err.isScopeError) {
+    // conexión para reconectar; el agendamiento en el CRM sigue disponible.
+    if (err instanceof GoogleApiError && (err.isScopeError || err.isAuthError)) {
       await markGoogleReconnectRequired(organizationId);
       console.error(
         "[agenda] la conexión de Google NO tiene el permiso de disponibilidad (freeBusy). Reconecta en Ajustes → Calendario y MARCA la casilla de disponibilidad en la pantalla de Google."

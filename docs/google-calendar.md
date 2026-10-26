@@ -2,8 +2,9 @@
 
 El agendamiento crea eventos con Google Meet e invita al prospecto + los
 invitados internos (Ajustes → Calendario). Funciona con cualquier cuenta de
-Google (Gmail o Workspace) vía OAuth. Sin configurar, el CRM funciona completo
-sin agendamiento.
+Google (Gmail o Workspace) vía OAuth. Sin configurar, el agente ofrece y guarda
+reuniones en el CRM, respetando la jornada y antelación; confirma por chat sin
+prometer invitaciones, Meet ni disponibilidad de calendarios externos.
 
 ## 1. Crear las credenciales en Google Cloud (una vez, ~10 min)
 
@@ -38,17 +39,18 @@ GOOGLE_CLIENT_SECRET=<client secret>
    será el **organizador** de cada reunión.
 2. Agrega los **invitados internos** (p. ej. el correo del CEO): se invitan a
    TODAS las reuniones junto con el prospecto.
-3. Listo: el botón "Agendar reunión" del panel del lead y la acción automática
-   del agente IA quedan activos. El refresh token se guarda cifrado
+3. Listo: el botón "Agendar reunión" y el agente IA añaden eventos, invitaciones
+   y Meet a las nuevas reservas. El refresh token se guarda cifrado
    (AES-256-GCM) y jamás sale al navegador.
 
 ## Cómo funciona el agendamiento del agente
 
 Cuando el prospecto acepta una reunión, el agente pide su correo y la fecha, y
 crea el evento él mismo; el prospecto recibe la invitación por correo (con
-Google Meet) y la confirmación por WhatsApp. Si Google falla o la conexión
-venció, el agente NO se cae: avisa que un humano confirmará y escala la
-conversación (atención humana).
+Google Meet) y la confirmación por WhatsApp. Si Google está desconectado o la
+conexión venció, registra en el CRM y confirma por chat. Un fallo transitorio
+al crear el evento mantiene la respuesta de incidencia y entrega a una persona;
+no afirma que se creó un evento cuyo resultado no se pudo confirmar.
 
 ## Solución de problemas
 

@@ -51,8 +51,7 @@ export const AgentAction = z.discriminatedUnion("action", [
     reply: z.string().optional(),
     ...serviceDetection,
   }),
-  // 004: agendar la sesión de diagnóstico en Google Calendar. Solo se ofrece
-  // al modelo cuando la conexión de Calendar está activa (ver prompts.ts).
+  // 004: agendar en el CRM, con Google Calendar como integración opcional.
   z.object({
     action: z.literal("schedule_meeting"),
     /** Laxo a propósito: el modelo a veces manda "..." u otro placeholder;

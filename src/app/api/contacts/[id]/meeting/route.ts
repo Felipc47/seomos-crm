@@ -21,7 +21,7 @@ export const PUT = withAuth(async (session, req: Request, ctx: Params) => {
   if (startAt <= new Date()) return apiError(422, "past_meeting", "La reunión debe tener una fecha y hora futuras");
   const settings = await getCalendarSettings(session.organizationId);
   try {
-    const meeting = await saveMeeting({ organizationId: session.organizationId, contactId: id, title: body.data.title ?? "Reunión", startAt, meetLink: body.data.meetLink, timezone: settings.timezone, reminderEnabled: body.data.reminderEnabled, source: "manual" });
+    const meeting = await saveMeeting({ organizationId: session.organizationId, contactId: id, title: body.data.title ?? "Reunión", startAt, meetLink: body.data.meetLink ?? null, timezone: settings.timezone, reminderEnabled: body.data.reminderEnabled, source: "manual" });
     return Response.json({ meeting: serializeMeeting(meeting) });
   } catch (err) {
     if (err instanceof MeetingBusyError) return apiError(409, "meeting_busy", err.message);

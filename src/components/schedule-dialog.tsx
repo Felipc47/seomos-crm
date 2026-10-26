@@ -7,8 +7,8 @@ import { CalendarPlus } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 
 /**
- * Modal "Agendar reunión" (004): crea el evento en Google Calendar invitando
- * al prospecto + invitados internos. Se abre desde el slide-over del lead.
+ * Modal "Agendar reunión" (004): guarda en el CRM y, con Google conectado,
+ * crea el evento e invita al prospecto y al equipo.
  */
 export function ScheduleDialog({
   contactId,
@@ -87,10 +87,12 @@ export function ScheduleDialog({
       return;
     }
     const data = (await res.json()) as {
-      event: { meetLink: string | null };
+      event: { meetLink: string | null; calendarSynced: boolean };
     };
     toast(
-      data.event.meetLink
+      !data.event.calendarSynced
+        ? "Reunión registrada en el CRM"
+        : data.event.meetLink
         ? "Reunión agendada — invitaciones enviadas con Google Meet"
         : "Reunión agendada — invitaciones enviadas"
     );
@@ -118,9 +120,8 @@ export function ScheduleDialog({
           Agendar reunión
         </h3>
         <p className="mb-5 text-sm leading-relaxed text-mute">
-          Se crea en Google Calendar con Meet, invitando a{" "}
-          <strong className="text-foreground">{contactName}</strong> y a tus
-          invitados internos.
+          Registra la reunión con <strong className="text-foreground">{contactName}</strong> en el CRM.
+          Con Google Calendar conectado también se crea el evento con Meet y se envían invitaciones.
         </p>
 
         <div className="flex flex-col gap-3.5">
@@ -208,7 +209,7 @@ export function ScheduleDialog({
             disabled={!canSave || saving}
             className="flex-1 rounded-xl bg-brand py-3 text-sm font-bold text-primary-foreground shadow-accent transition-colors hover:bg-brand-hover hover:text-brand-hover-foreground disabled:opacity-50"
           >
-            {saving ? "Agendando…" : "Agendar y enviar invitaciones"}
+            {saving ? "Agendando…" : "Agendar reunión"}
           </button>
           <button
             onClick={onClose}
