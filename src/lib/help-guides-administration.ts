@@ -2,6 +2,12 @@ import type { HelpGuide } from "@/lib/help-guides";
 
 export const ADMINISTRATION_HELP_GUIDES: HelpGuide[] = [
   {
+    id:"ecommerce-connection",title:"Conectar catálogo y pedidos de la tienda",href:"/settings/ecommerce",access:"admin",
+    question:"¿Cómo conecto WooCommerce o Shopify al bot?",keywords:"ecommerce tienda shopify woocommerce catalogo stock productos pedido pagar compra conectar",
+    summary:"En Ajustes → Ecommerce el administrador elige WooCommerce o Shopify, ingresa la URL y credenciales, y verifica la conexión. Puede habilitar pedidos sin pagar tras resumen y confirmación del cliente. En Agente elige la misión Vender con ecommerce.",
+    steps:["Abre Ajustes → Ecommerce. Solo el administrador conecta la tienda de su empresa.","Elige plataforma y URL HTTPS. Shopify requiere el dominio myshopify.com. Consulta Cómo obtener las credenciales.","Ingresa las credenciales. Activa Permitir crear pedidos sin pagar si quieres que el bot registre pedidos confirmados; no realiza cobros.","Pulsa Verificar y conectar tienda. Usa Probar catálogo conectado para comprobar los datos.","En Agente → Comportamiento selecciona Vender con ecommerce y guarda.","El bot consulta productos y muestra un resumen antes de crear el pedido. La tienda valida envío e impuestos finales antes de pagar.","Revisa Actividad de pedidos del bot si un intento requiere revisar la tienda. El bot comprueba el resultado sin duplicar la creación."],
+  },
+  {
     id: "agent-toggle", title: "Encender o apagar el agente de toda la empresa", href: "/agent", access: "agent",
     question: "¿Cómo apago la IA en todos los chats?", keywords: "agente encender apagar activar desactivar global empresa todos chats ia bot interruptor",
     summary: "En Agente usa el interruptor Agente encendido de la cabecera. Afecta a la empresa; para pausar solo una conversación utiliza IA en esta conversación en Bandeja.",

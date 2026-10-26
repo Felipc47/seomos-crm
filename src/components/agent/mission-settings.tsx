@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Target, Timer } from "lucide-react";
 import { AGENT_MISSIONS, DEFAULT_WARMUP_MESSAGES, MAX_WARMUP_MESSAGES, type AgentMission } from "@/lib/agent-mission";
 import { Input } from "@/components/ui/input";
@@ -29,7 +30,7 @@ export function MissionSettings({ value, onChange }: { value: MissionFormValue; 
     {value.mission === "ecommerce" && <div className="space-y-1.5">
       <Label htmlFor="agent-store-url">Enlace de la tienda (opcional)</Label>
       <Input id="agent-store-url" type="url" value={value.ecommerceUrl ?? ""} onChange={event => onChange({ ecommerceUrl: event.target.value || null })} placeholder="https://tutienda.com" maxLength={2000} />
-      <p className="text-xs leading-relaxed text-mute">Comparte este enlace para continuar la compra y carga productos, precios y condiciones en Conocimiento del negocio. El bot usa la información que hayas confirmado.</p>
+      <p className="text-xs leading-relaxed text-mute">Conecta catálogo, stock y pedidos en <Link href="/settings/ecommerce" className="underline">Ajustes → Ecommerce</Link>. Este enlace también permite orientar la compra cuando todavía no hay tienda conectada.</p>
     </div>}
     <div className="space-y-3 border-t pt-4">
       <div className="flex items-start justify-between gap-3">

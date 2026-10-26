@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { buyerSchema, cartItemsSchema } from "@/lib/ecommerce/contracts";
 
 const serviceDetection = {
   /** Servicio inferido en este mismo turno (incluye visión); el servidor lo
@@ -15,6 +16,10 @@ const serviceDetection = {
  * lo que no valida se degrada, nunca se ejecuta a ciegas.
  */
 export const AgentAction = z.discriminatedUnion("action", [
+  z.object({action:z.literal("commerce_search"),query:z.string().trim().min(1).max(150),...serviceDetection}),
+  z.object({action:z.literal("commerce_prepare"),items:cartItemsSchema,buyer:buyerSchema,...serviceDetection}),
+  z.object({action:z.literal("commerce_confirm"),...serviceDetection}),
+  z.object({action:z.literal("commerce_order_status"),reference:z.string().trim().min(1).max(60),...serviceDetection}),
   z.object({ action: z.literal("none"), ...serviceDetection }),
   z.object({
     action: z.literal("reply"),

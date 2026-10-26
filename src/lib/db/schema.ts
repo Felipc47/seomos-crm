@@ -1043,3 +1043,34 @@ export const mailingEvent = pgTable("mailing_event", {
   sendId: text("send_id").notNull().references(() => mailingSend.id, { onDelete: "cascade" }),
   providerEventId: text("provider_event_id").notNull(), kind: text("kind").notNull(), occurredAt: timestamp("occurred_at").notNull(),
 }, (t) => [uniqueIndex("mailing_event_org_provider_uq").on(t.organizationId, t.providerEventId)]);
+
+
+/** 037: conexión opcional por empresa; secretos nunca salen del servidor. */
+export const commerceConnection = pgTable("commerce_connection", {
+  id:text("id").primaryKey(),
+  organizationId:text("organization_id").notNull().references(()=>organization.id,{onDelete:"cascade"}),
+  provider:text("provider",{enum:["woocommerce","shopify"]}).notNull(),
+  url:text("url").notNull(),currency:text("currency").notNull(),
+  secretCipher:text("secret_cipher").notNull(),secretIv:text("secret_iv").notNull(),secretTag:text("secret_tag").notNull(),
+  ordersEnabled:boolean("orders_enabled").notNull().default(false),
+  createdAt:timestamp("created_at").notNull().defaultNow(),updatedAt:timestamp("updated_at").notNull().defaultNow(),
+},t=>[uniqueIndex("commerce_connection_org_uq").on(t.organizationId),check("commerce_provider_check",sql`${t.provider} in ('woocommerce','shopify')`)]);
+
+export const commerceCatalog = pgTable("commerce_catalog", {
+  organizationId:text("organization_id").notNull().references(()=>organization.id,{onDelete:"cascade"}),
+  conversationId:text("conversation_id").notNull().references(()=>conversation.id,{onDelete:"cascade"}),
+  products:jsonb("products").$type<import("@/lib/ecommerce/contracts").CommerceProduct[]>().notNull(),
+  updatedAt:timestamp("updated_at").notNull().defaultNow(),
+},t=>[uniqueIndex("commerce_catalog_org_conv_uq").on(t.organizationId,t.conversationId)]);
+
+export const commerceQuote = pgTable("commerce_quote", {
+  id:text("id").primaryKey(),
+  organizationId:text("organization_id").notNull().references(()=>organization.id,{onDelete:"cascade"}),
+  conversationId:text("conversation_id").notNull().references(()=>conversation.id,{onDelete:"cascade"}),
+  contactId:text("contact_id").notNull().references(()=>contact.id,{onDelete:"cascade"}),
+  connectionId:text("connection_id").notNull(),
+  quote:jsonb("quote").$type<import("@/lib/ecommerce/contracts").OrderQuote>().notNull(),
+  status:text("status",{enum:["prepared","submitting","created","uncertain","cancelled"]}).notNull().default("prepared"),
+  remoteId:text("remote_id"),remoteReference:text("remote_reference"),
+  createdAt:timestamp("created_at").notNull().defaultNow(),updatedAt:timestamp("updated_at").notNull().defaultNow(),
+},t=>[index("commerce_quote_org_conv_idx").on(t.organizationId,t.conversationId,t.createdAt),uniqueIndex("commerce_quote_active_org_conv_uq").on(t.organizationId,t.conversationId).where(sql`${t.status} in ('prepared','submitting','uncertain')`),check("commerce_quote_status_check",sql`${t.status} in ('prepared','submitting','created','uncertain','cancelled')`)]);

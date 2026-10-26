@@ -67,6 +67,7 @@ export function buildAgentSystemPrompt(input: {
   /** 004: habilitado salvo conversaciones históricas de prueba. */
   schedulingAvailable?: boolean;
   offerPolicy?: SchedulingOfferPolicy;
+  commerceContext?: string;
   /** Google conectado: permite invitaciones y Meet, no condiciona agendar. */
   calendarAvailable?: boolean;
   /** 004: reglas de agendamiento, también sin Google. */
@@ -186,6 +187,7 @@ export function buildAgentSystemPrompt(input: {
         ].join("\n")
       : null,
     renderMission(profile),
+    input.commerceContext,
     renderSchedulingOfferPolicy(offerPolicy),
     // Última política para que textos heredados y ejemplos no fijen otro idioma.
     composeResponseLanguage(profile.responseLanguage),

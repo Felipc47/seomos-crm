@@ -1,3 +1,4 @@
+import { unverifiedCommerceClaim } from "@/lib/ecommerce/contracts";
 import { renderMission, renderSchedulingOfferPolicy, guardMeetingOfferText } from "@/lib/agent-mission";
 import { getSchedulingOfferPolicy } from "./mission-policy";
 import { and, asc, desc, eq, isNull, lte } from "drizzle-orm";
@@ -302,6 +303,7 @@ async function composeFollowUpText(
         `Escribe UN solo mensaje breve y natural de seguimiento para WhatsApp: saluda, retoma el tema pendiente de la conversación y facilita que responda. No inventes datos ni ofertas.`,
         `Respondes ÚNICAMENTE un objeto JSON: {"text":"..."} — sin markdown ni texto adicional.`,
         renderMission(profile ?? {}),
+        profile?.mission === "ecommerce" ? "Este seguimiento no consulta la tienda ni crea pedidos. No anuncies stock, precios nuevos, pedidos creados o pagos confirmados." : null,
         renderSchedulingOfferPolicy(offerPolicy),
         composeResponseLanguage(profile?.responseLanguage),
       ]
@@ -323,6 +325,7 @@ async function composeFollowUpText(
       ? "Hello! I’m following up on our conversation. Are you still interested?"
       : FALLBACK_TEXT;
   }
+  if(profile?.mission === "ecommerce" && unverifiedCommerceClaim(result.data.text)) return profile.responseLanguage === "en" ? "Hello! Would you like to continue reviewing the products you need?" : "¡Hola! ¿Quieres que retomemos la revisión de los productos que necesitas?";
   return guardMeetingOfferText(result.data.text, offerPolicy, profile ?? {}, history.at(-1)?.text ?? "");
 }
 
