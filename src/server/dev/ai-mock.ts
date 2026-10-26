@@ -104,6 +104,15 @@ export function aiMockCompletion(messages: InMessage[]): string {
     [...messages].reverse().find((m) => m.role === "user")?.content ?? ""
   );
 
+  // 037: acciones de comercio contra el ecommerce mock, nunca proveedor real.
+  if (!system.includes("analista de CRM")) {
+    if(lastUser.includes("ECOM_FIND")) return JSON.stringify({action:"commerce_search",query:"camiseta"});
+    if(lastUser.includes("ECOM_PREPARE")) return JSON.stringify({action:"commerce_prepare",items:[{id:system.includes("shop.commerce.test")?"gid://shopify/ProductVariant/101":lastUser.includes("VARIANT")?"2:21":"1",quantity:lastUser.includes("QTY20")?20:1}],buyer:{name:"Cliente Ecommerce",email:/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.exec(lastUser)?.[0]??"comprador@example.test",address:"Calle 10 numero 20",city:"Bogota",country:"CO"}});
+    if(lastUser.includes("ECOM_FORCE_CONFIRM")||system.includes("ECOMMERCE CONECTADO")&&/^(si,? confirmo el pedido|sí,? confirmo el pedido|yes,? i confirm the order)$/i.test(lastUser.trim())) return JSON.stringify({action:"commerce_confirm"});
+    if(lastUser.includes("ECOM_STATUS")) return JSON.stringify({action:"commerce_order_status",reference:lastUser.match(/ECOM_STATUS\s+(#?\d+)/)?.[1]??"9999"});
+    if(lastUser.includes("ECOM_FAKE_CLAIM"))return JSON.stringify({action:"reply",text:"Tu pedido fue creado y el pago está confirmado."});
+  }
+
   // 036: proveedor deliberadamente desobediente para verificar las guardas del servidor.
   if (!system.includes("analista de CRM") && lastUser.includes("MISSION_BAD_JSON")) return "No puedo devolver JSON";
   if (!system.includes("analista de CRM") && lastUser.includes("MISSION_FORCE_SCHEDULE")) {

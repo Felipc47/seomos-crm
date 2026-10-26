@@ -13,6 +13,10 @@ import { matchesHandoffIntent } from "@/server/ai/handoff";
 export function previewAgentAction(action: AgentActionType): DemoReply {
   const text = (value: string | undefined) => value?.slice(0, 4096) || null;
   switch (action.action) {
+    case "commerce_search": return {message:null,actionLabel:"Simulación: consultar productos de la tienda. La demo no llama al ecommerce.",ended:false};
+    case "commerce_prepare": return {message:null,actionLabel:"Simulación: revisar el resumen del pedido con el cliente. No se crea un pedido real.",ended:false};
+    case "commerce_confirm": return {message:null,actionLabel:"Simulación: registrar pedido sin pagar tras confirmación. No se crea un pedido real.",ended:false};
+    case "commerce_order_status": return {message:null,actionLabel:"Simulación: consultar estado del pedido del cliente actual.",ended:false};
     case "reply": return { message: text(action.text), actionLabel: null, ended: false };
     case "none": return { message: null, actionLabel: "El agente no enviaría una respuesta en este turno.", ended: false };
     case "update_lead": return { message: text(action.reply), actionLabel: "Simulación: actualizar la ficha del prospecto.", ended: false };
@@ -44,8 +48,9 @@ export async function answerAgentDemo(organizationId: string, input: DemoRequest
     sentAgentMessages: history.filter(message => message.role === "assistant").length,
     customerRequestedMeeting: customerRequestsMeeting([...history.filter(message => message.role === "user").map(message => message.content), input.message]),
   });
+  const commerceDemo=profile.mission==="ecommerce"?"ECOMMERCE EN DEMO: puedes simular commerce_search(query), commerce_prepare(items:[{id,quantity}],buyer:{name,email,address,city,country}), commerce_confirm y commerce_order_status(reference). No consultes tienda real ni inventes stock/precios/pagos; las acciones se previsualizan sin ejecutar.":"";
   const result = await chatJson(AgentAction, [
-    { role: "system", content: `[CHAT_DEMO_CONFIGURACION]\n${buildAgentSystemPrompt({ profile, kb, stages, services, calendarAvailable: true, offerPolicy })}\nCONTEXTO DE DEMOSTRACIÓN: conversa con el cliente usando la configuración anterior. Puedes indicar las mismas acciones, pero solo se previsualizan: no se envían mensajes ni se crean contactos, cambios, seguimientos o reuniones. El calendario es simulado: no afirmes disponibilidad real y no prometas que una reunión fue creada; cuando el cliente confirme, schedule_meeting representa una solicitud simulada.` },
+    { role: "system", content: `[CHAT_DEMO_CONFIGURACION]\n${buildAgentSystemPrompt({ profile, kb, stages, services, calendarAvailable: true, offerPolicy })}\n${commerceDemo}\nCONTEXTO DE DEMOSTRACIÓN: conversa con el cliente usando la configuración anterior. Puedes indicar las mismas acciones, pero solo se previsualizan: no se envían mensajes ni se crean contactos, cambios, seguimientos o reuniones. El calendario es simulado: no afirmes disponibilidad real y no prometas que una reunión fue creada; cuando el cliente confirme, schedule_meeting representa una solicitud simulada.` },
     ...history,
     { role: "user", content: input.message },
   ], { timeoutMs: 15000 });

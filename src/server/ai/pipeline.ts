@@ -1,3 +1,5 @@
+import { unverifiedCommerceClaim } from "@/lib/ecommerce/contracts";
+import { commercePrompt, executeCommerceAction } from "@/server/ecommerce/agent";
 import { getSchedulingOfferPolicy, guardSchedulingAction } from "@/server/ai/mission-policy";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
@@ -584,6 +586,7 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
         contactEmail: knownEmail,
         contactName: knownName,
         leadOrigin,
+        commerceContext: profile.mission === "ecommerce" && !conversation.isTest ? await commercePrompt(organizationId, conversationId).catch(() => "ECOMMERCE: no fue posible verificar la conexión. No inventes catálogo, stock ni pedidos.") : undefined,
       }),
     },
     ...(await buildHistoryMessages(organizationId, history)),
@@ -610,6 +613,12 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
   }
 
   let action: AgentActionType = guardSchedulingAction(result.data, schedulingOffer, profile, lastInbound.text ?? "");
+
+  if(profile.mission==="ecommerce") {
+    const safeText=profile.responseLanguage==="en"?"Let's verify the order with the store before confirming its status.":"Verifiquemos el pedido con la tienda antes de confirmar su estado.";
+    if(action.action==="reply"&&unverifiedCommerceClaim(action.text))action={...action,text:safeText};
+    else if("reply" in action&&action.reply&&unverifiedCommerceClaim(action.reply))action={...action,reply:safeText};
+  }
 
   // Clasificación embebida en el turno principal: aprovecha texto, audio e
   // imagen sin otra llamada. La pasada de ficha posterior actúa como segundo
@@ -668,6 +677,14 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
   }
 
   switch (action.action) {
+    case "commerce_search":
+    case "commerce_prepare":
+    case "commerce_confirm":
+    case "commerce_order_status": {
+      const reply = await executeCommerceAction(action, {organizationId,conversationId,contactId:conversation.contactId,phone:contactRow?.phone??"",inboundId:lastInbound.id,inboundAt:lastInbound.createdAt,inboundText:lastInbound.text??"",inboundTexts:history.filter(m=>m.direction==="in"&&m.text).map(m=>m.text!),isTest:conversation.isTest,mission:profile.mission}, profile.responseLanguage);
+      await deliverReply(conversation,reply,{allowRepeat:true});
+      return;
+    }
     case "none":
       return;
     case "reply":

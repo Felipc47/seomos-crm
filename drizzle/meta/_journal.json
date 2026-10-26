@@ -232,6 +232,13 @@
       "when": 1793029443368,
       "tag": "0032_bouncy_trish_tilby",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1793041170249,
+      "tag": "0033_plain_red_wolf",
+      "breakpoints": true
     }
   ]
 }

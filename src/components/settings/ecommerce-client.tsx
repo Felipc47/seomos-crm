@@ -1,0 +1,46 @@
+"use client";
+import { useEffect,useState } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import type { CommerceProduct } from "@/lib/ecommerce/contracts";
+type Connection={provider:"woocommerce"|"shopify";url:string;currency:string;ordersEnabled:boolean;status:string};
+type Attempt={id:string;status:string;reference:string|null;createdAt:string};
+const statusLabels:Record<string,string>={prepared:"Esperando confirmación",submitting:"Verificando con la tienda",uncertain:"Requiere revisar la tienda",created:"Pedido registrado",cancelled:"Resumen reemplazado o vencido"};
+export function EcommerceClient(){
+  const [loading,setLoading]=useState(true);
+  const [connection,setConnection]=useState<Connection|null>(null),[attempts,setAttempts]=useState<Attempt[]>([]);
+  const [provider,setProvider]=useState<"woocommerce"|"shopify">("woocommerce"),[url,setUrl]=useState(""),[key,setKey]=useState(""),[secret,setSecret]=useState(""),[orders,setOrders]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState(""),[error,setError]=useState(""),[products,setProducts]=useState<CommerceProduct[]>([]);
+  async function load(){const r=await fetch("/api/settings/ecommerce");if(!r.ok){setError("No se pudo cargar la conexión de tienda.");return;}const d=await r.json();setConnection(d.connection);setAttempts(d.attempts);if(d.connection){setProvider(d.connection.provider);setUrl(d.connection.url);setOrders(d.connection.ordersEnabled);}}
+  useEffect(()=>{void load().catch(()=>setError("No se pudo cargar la conexión de tienda.")).finally(()=>setLoading(false));},[]);
+  async function run(mode:"save"|"test"|"disconnect"){
+    setBusy(true);setError("");setMessage("");try{
+      const r=await fetch(mode==="test"?"/api/settings/ecommerce/test":"/api/settings/ecommerce",{method:mode==="save"?"PUT":mode==="test"?"POST":"DELETE",headers:{"Content-Type":"application/json"},body:mode==="save"?JSON.stringify({provider,url,key,secret:provider==="woocommerce"?secret:undefined,ordersEnabled:orders}):undefined});const d=await r.json();
+      if(!r.ok){setError(d.error?.message??"No se pudo completar la operación.");return;}
+      if(mode==="test"){setProducts(d.products);setMessage("Conexión verificada. Los resultados vienen del catálogo de la tienda.");}
+      else{setKey("");setSecret("");setProducts([]);if(mode==="disconnect"){setUrl("");setOrders(false);}await load();setMessage(mode==="save"?"Tienda conectada y credenciales guardadas.":"Tienda desconectada.");}
+    }catch{setError("No se pudo completar la operación. Puedes volver a intentarlo.");}finally{setBusy(false);}
+  }
+  return <section className="space-y-6" aria-label="Conexión de ecommerce">
+    <div><h3 className="text-xl font-semibold">Ecommerce</h3><p className="mt-2 text-sm text-mute">Conecta el catálogo de tu empresa para consultar productos, precios, existencias y pedidos desde el bot.</p></div>
+    <div className="rounded-xl border bg-surface p-4"><p className="font-semibold">{connection?`Tienda conectada · ${connection.provider==="shopify"?"Shopify":"WooCommerce"}`:loading?"Cargando conexión…":"Sin tienda conectada"}</p>{connection&&<p className="mt-1 break-all text-sm text-mute">{connection.url} · {connection.currency} · {connection.ordersEnabled?"Pedidos sin pagar habilitados":"Solo consultas"}</p>}<p className="mt-2 text-xs text-mute">Selecciona Vender con ecommerce en <Link href="/agent" className="underline">Agente → Comportamiento</Link> para que esta sea su misión principal.</p></div>
+    <form className="space-y-4 rounded-xl border bg-surface p-5" onSubmit={e=>{e.preventDefault();void run("save");}}>
+      <fieldset disabled={loading||busy} className="space-y-4">
+      <div className="space-y-2"><Label htmlFor="commerce-provider">Plataforma de la tienda</Label><select id="commerce-provider" className="h-11 w-full rounded-lg border bg-surface px-3 text-sm" value={provider} onChange={e=>{setProvider(e.target.value as typeof provider);setKey("");setSecret("");}}><option value="woocommerce">WooCommerce</option><option value="shopify">Shopify</option></select></div>
+      <div className="space-y-2"><Label htmlFor="commerce-url">URL de la tienda</Label><Input id="commerce-url" type="url" required value={url} onChange={e=>setUrl(e.target.value)} placeholder={provider==="shopify"?"https://tutienda.myshopify.com":"https://tutienda.com"}/></div>
+      <div className="space-y-2"><Label htmlFor="commerce-key">{provider==="shopify"?"Token de acceso de Shopify":"Consumer key de WooCommerce"}</Label><Input id="commerce-key" type="password" autoComplete="new-password" required minLength={10} maxLength={500} value={key} onChange={e=>setKey(e.target.value)}/></div>
+      {provider==="woocommerce"&&<div className="space-y-2"><Label htmlFor="commerce-secret">Consumer secret de WooCommerce</Label><Input id="commerce-secret" type="password" autoComplete="new-password" required minLength={10} maxLength={500} value={secret} onChange={e=>setSecret(e.target.value)}/></div>}
+      <div className="flex items-start justify-between gap-4 rounded-lg border p-3"><div><Label htmlFor="commerce-orders">Permitir crear pedidos sin pagar</Label><p className="mt-1 text-xs text-mute">El bot muestra productos, cantidades, subtotal y datos de envío. Solo registra el pedido después de la confirmación del cliente. La tienda valida envío e impuestos finales antes del pago.</p></div><Switch id="commerce-orders" checked={orders} onCheckedChange={setOrders} aria-label="Permitir crear pedidos sin pagar"/></div>
+      <p className="text-xs text-mute">Las credenciales se guardan cifradas y debes volver a ingresarlas para cambiar la conexión. El bot no recibe estas claves.</p>
+      <Button type="submit" disabled={busy}>{busy?"Verificando…":"Verificar y conectar tienda"}</Button>
+      </fieldset>
+    </form>
+    {connection&&<div className="flex flex-wrap gap-3"><Button disabled={busy} variant="secondary" onClick={()=>void run("test")}>Probar catálogo conectado</Button><Button disabled={busy} variant="ghost" onClick={()=>void run("disconnect")}>Desconectar tienda</Button></div>}
+    {error&&<p role="alert" className="text-sm text-destructive">{error}</p>}{message&&<p role="status" className="text-sm">{message}</p>}
+    {products.length>0&&<div className="space-y-2" aria-label="Productos de prueba">{products.map(p=><div className="rounded-lg border p-3 text-sm" key={p.id}>{p.name} · {p.price} {p.currency} · {p.available?"Disponible":"Agotado"}{p.sku?` · ${p.sku}`:""}</div>)}</div>}
+    <details className="rounded-xl border p-4"><summary className="cursor-pointer text-sm font-semibold">Cómo obtener las credenciales</summary><div className="mt-3 space-y-3 text-sm text-mute"><p>WooCommerce: en WordPress abre WooCommerce → Ajustes → Avanzado → REST API. Crea una clave para un administrador de la tienda con permisos de lectura y escritura si habilitas pedidos.</p><p>Shopify: instala en tu tienda una app con token Admin API de servidor (offline). Otorga read_products, read_inventory, read_orders y write_orders si habilitas pedidos, además de acceso a datos de clientes necesario para teléfono y dirección. Usa el dominio myshopify.com.</p><p>Esta conexión consulta el catálogo y registra pedidos pendientes de pago. No cobra, no confirma pagos, no aplica cupones ni cotiza transporte. Las condiciones finales deben revisarse en la tienda.</p><p><a className="underline" href="https://woocommerce.com/document/woocommerce-rest-api/" target="_blank" rel="noreferrer">Guía oficial WooCommerce</a> · <a className="underline" href="https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens/generate-app-access-tokens-admin" target="_blank" rel="noreferrer">Guía oficial Shopify</a></p></div></details>
+    {attempts.length>0&&<div className="space-y-2"><h4 className="font-semibold">Actividad de pedidos del bot</h4><p className="text-xs text-mute">Si un intento requiere revisión, comprueba la tienda. El bot verifica su resultado mediante consultas y evita repetir la creación.</p>{attempts.map(a=><div key={a.id} className="flex flex-wrap justify-between gap-2 rounded-lg border p-3 text-sm"><span>{a.reference?`Pedido ${a.reference}`:"Resumen de pedido"}</span><span>{statusLabels[a.status]??a.status}</span></div>)}</div>}
+  </section>;
+}
