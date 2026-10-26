@@ -16,3 +16,8 @@ creación apagada, demo sin efectos, móvil y roles/empresa B.
 
 Evidencia: `.artifacts/ecommerce/`. No usa tienda comercial, cobra ni crea pedidos
 reales. La conexión comercial está pendiente de que el dueño disponga de una tienda.
+
+Pruebas adicionales: `node tests/e2e/ecommerce-order-edges.mjs` y después
+`node tests/e2e/shopify-renewable-access.mjs`. Verifican concurrencia y variante,
+moneda/rechazo/reconexión, además del grant de app propia Shopify, cache,
+vencimiento y renovación. No solicitan credenciales de una tienda real.

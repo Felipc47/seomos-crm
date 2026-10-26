@@ -2,10 +2,10 @@ import { z } from "zod";
 export const providerSchema = z.enum(["woocommerce", "shopify"]);
 export type CommerceProvider = z.infer<typeof providerSchema>;
 export const connectionInput = z.object({
-  provider: providerSchema, url: z.string().trim().min(1).max(500),
+  provider: providerSchema, authMode:z.enum(["token","client_credentials"]).default("token"), url: z.string().trim().min(1).max(500),
   key: z.string().trim().min(10).max(500), secret: z.string().trim().max(500).optional(),
   ordersEnabled: z.boolean().default(false),
-}).strict().superRefine((v, ctx) => { if (v.provider === "woocommerce" && !v.secret) ctx.addIssue({code:"custom",path:["secret"],message:"Indica el secreto de WooCommerce"}); });
+}).strict().superRefine((v, ctx) => { if ((v.provider === "woocommerce" || v.authMode === "client_credentials") && !v.secret) ctx.addIssue({code:"custom",path:["secret"],message:"Indica el secreto de acceso de la tienda"}); });
 export type ConnectionInput = z.infer<typeof connectionInput>;
 export type CommerceConnection = ConnectionInput & { id: string; currency: string; version: string };
 export const productSchema = z.object({ id:z.string().min(1).max(150), name:z.string().min(1).max(300), sku:z.string().max(150), price:z.string().regex(/^\d+(\.\d{1,6})?$/), currency:z.string().regex(/^[A-Z]{3}$/), available:z.boolean(), stock:z.number().int().nullable(), requiresShipping:z.boolean(), url:z.string().max(2000).nullable() });

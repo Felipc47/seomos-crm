@@ -1,3 +1,4 @@
+import {shopifyTokens} from "./shopify-auth";
 import { z } from "zod";
 import { CommerceError, productSchema, type CommerceConnection, type CommerceProduct, type OrderQuote, type StoreOrder } from "./contracts";
 import { commerceRequest } from "./transport";
@@ -7,7 +8,9 @@ const variantFields="id title sku price inventoryQuantity inventoryPolicy invent
 function parsed<T>(schema:z.ZodType<T>,raw:unknown):T {const result=schema.safeParse(raw);if(!result.success)throw new CommerceError("invalid_response");return result.data;}
 export function wooCall(c:CommerceConnection,path:string,body?:unknown){return commerceRequest(c.url,`/wp-json/wc/v3/${path}`,{authorization:`Basic ${Buffer.from(`${c.key}:${c.secret}`).toString("base64")}`},body);}
 export async function shopCall(c:CommerceConnection,query:string,variables:Record<string,unknown>={}):Promise<Record<string,unknown>> {
-  const envelope=parsed(z.object({data:z.record(z.unknown()).nullable().optional(),errors:z.array(z.unknown()).optional()}),await commerceRequest(c.url,"/admin/api/2026-10/graphql.json",{"X-Shopify-Access-Token":c.key},{query,variables}));
+  const token=await shopifyTokens.accessToken(c);
+  let raw:unknown;try{raw=await commerceRequest(c.url,"/admin/api/2026-10/graphql.json",{"X-Shopify-Access-Token":token},{query,variables});}catch(e){if(e instanceof CommerceError&&e.code==="auth")shopifyTokens.invalidate(c);throw e;}
+  const envelope=parsed(z.object({data:z.record(z.unknown()).nullable().optional(),errors:z.array(z.unknown()).optional()}),raw);
   if(envelope.errors?.length||!envelope.data)throw new CommerceError("rejected",query.includes("mutation"));return envelope.data;
 }
 export async function probeCommerce(c:CommerceConnection):Promise<string> {
@@ -36,13 +39,14 @@ export async function searchCommerceProducts(c:CommerceConnection,query:string):
   c={...c,currency:await readCommerceCurrency(c)};
   if(c.provider==="shopify") {
     const safe=query.replace(/[^\p{L}\p{N}\s-]/gu," ").trim().slice(0,100);
-    const data=await shopCall(c,`query CommerceProducts($q:String!) { productVariants(first:20,query:$q) { nodes { ${variantFields} } } }`,{q:`product_status:active ${safe}`});
-    return parsed(z.object({productVariants:z.object({nodes:z.array(variant)})}),data).productVariants.nodes.map(v=>fromShop(v,c));
+    const data=await shopCall(c,`query CommerceProducts($q:String!) { productVariants(first:20,query:$q) { nodes { ${variantFields} } } }`,{q:["product_status:ACTIVE",...safe.split(/\s+/).filter(Boolean).map(word=>`"${word}"`)].join(" ")});
+    return parsed(z.object({productVariants:z.object({nodes:z.array(variant)})}),data).productVariants.nodes.filter(v=>v.product.status==="ACTIVE").map(v=>fromShop(v,c));
   }
   const rows=parsed(z.array(wooProduct),await wooCall(c,`products?per_page=8&status=publish&search=${encodeURIComponent(query)}`));
   const products:CommerceProduct[]=[];
   for(const p of rows){
-    if(p.type==="variable") {const vars=parsed(z.array(wooProduct),await wooCall(c,`products/${p.id}/variations?per_page=20&status=publish`));for(const v of vars)if(v.price)products.push(fromWoo(v,c,p));}
+    if(p.status!=="publish")continue;
+    if(p.type==="variable") {const vars=parsed(z.array(wooProduct),await wooCall(c,`products/${p.id}/variations?per_page=20&status=publish`));for(const v of vars)if(v.price&&(v.status===undefined||v.status==="publish"))products.push(fromWoo(v,c,p));}
     else if(p.type==="simple"&&p.price)products.push(fromWoo(p,c));
   }return products.slice(0,24);
 }

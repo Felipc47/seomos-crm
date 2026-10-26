@@ -33,3 +33,17 @@
 - https://shopify.dev/docs/api/admin-graphql/2026-10/mutations/orderCreate
 - https://shopify.dev/docs/api/admin-graphql/2026-10/input-objects/OrderCreateOptionsInput
 - https://shopify.dev/docs/api/admin-graphql/2026-10/input-objects/OrderCreateOrderInput
+
+## Autenticación vigente de Shopify
+
+Apps nuevas propias del comercio: Client ID + Client Secret del Dev Dashboard,
+instaladas en una tienda de la misma organización, con client_credentials grant.
+El servidor pide token por formulario HTTPS y renueva antes de expires_in; cache
+e intercambios concurrentes se aíslan por conexión/credencial. El bearer solo vive
+en RAM. También acepta tokens Admin offline existentes; no se promete renovación
+para un token estático de un flujo externo. Un 401 invalida cache sin repetir una
+escritura de pedidos. No requiere OAuth público ni secretos globales compartidos.
+Fuente oficial: https://shopify.dev/docs/apps/build/authentication-authorization/client-credentials-grant
+
+El catálogo no expone productos en borrador/archivados. Las palabras de búsqueda
+se envían como literales para preservar el filtro de publicación.

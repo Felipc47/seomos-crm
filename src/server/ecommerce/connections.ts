@@ -14,9 +14,9 @@ export async function getCommerceConnection(org:string):Promise<CommerceConnecti
 export async function saveCommerceConnection(org:string,input:ConnectionInput){
   const url=commerceUrl(input.url,input.provider).origin;
   const c:CommerceConnection={...input,url,id:newId("commerceConnection"),currency:"USD",version:"new"};
-  const currency=await probeCommerce(c);await searchCommerceProducts({...c,currency},"");const enc=encryptSecret(JSON.stringify({key:input.key,secret:input.secret}));
+  const currency=await probeCommerce(c);await searchCommerceProducts({...c,currency},"");const enc=encryptSecret(JSON.stringify({key:input.key,secret:input.secret,authMode:input.authMode}));
   // Nueva identidad en cada reconexión: los resúmenes anteriores quedan inválidos.
   await getDb().insert(schema.commerceConnection).values({id:c.id,organizationId:org,provider:input.provider,url,currency,ordersEnabled:input.ordersEnabled,secretCipher:enc.cipher,secretIv:enc.iv,secretTag:enc.tag}).onConflictDoUpdate({target:schema.commerceConnection.organizationId,set:{id:c.id,provider:input.provider,url,currency,ordersEnabled:input.ordersEnabled,secretCipher:enc.cipher,secretIv:enc.iv,secretTag:enc.tag,updatedAt:sql`now()`}});
 }
 export async function deleteCommerceConnection(org:string){await getDb().delete(schema.commerceConnection).where(scoped(schema.commerceConnection.organizationId,org));}
-export function publicCommerceConnection(c:CommerceConnection|null){return c?{provider:c.provider,url:c.url,currency:c.currency,ordersEnabled:c.ordersEnabled,status:"connected" as const}:null;}
+export function publicCommerceConnection(c:CommerceConnection|null){return c?{provider:c.provider,authMode:c.authMode,url:c.url,currency:c.currency,ordersEnabled:c.ordersEnabled,status:"connected" as const}:null;}
