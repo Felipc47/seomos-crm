@@ -52,7 +52,10 @@ Ver [.specify/memory/constitution.md](.specify/memory/constitution.md).
   leads, resúmenes operativos, restablecimiento de contraseñas y mailing
   con campañas/secuencias y dominios de remitente verificados por DNS; adaptador
   dedicado, secreto en runtime y fallo tolerante) + WooCommerce/Shopify opcionales
-  para catálogo y pedidos sin pagar (037). PROHIBIDO en v1 introducir
+  para catálogo y pedidos sin pagar (037). Brevo SMS opcional autorizado por el dueño (2.2.0), exclusivamente SMS
+  con adaptador `src/lib/brevo/`, credencial cifrada por empresa, remitente aprobado
+  y consentimiento independiente. Conectar la API no habilita envíos.
+  PROHIBIDO en v1 introducir
   S3/R2, otros proveedores de email,
   Stripe u otros servicios de Google distintos de Calendar. Auth y BD
   self-hosted.

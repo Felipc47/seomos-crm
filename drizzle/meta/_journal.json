@@ -239,6 +239,20 @@
       "when": 1793041170249,
       "tag": "0033_plain_red_wolf",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1793049242652,
+      "tag": "0034_happy_rocket_raccoon",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1793226895300,
+      "tag": "0035_fine_firelord",
+      "breakpoints": true
     }
   ]
 }

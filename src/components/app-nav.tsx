@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   LogOut,
   Mail,
+  Smartphone,
   Megaphone,
   Moon,
   Settings,
@@ -32,6 +33,7 @@ import { NotificationsBell } from "@/components/notifications-bell";
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["owner", "commercial", "marketing"] },
   { href: "/inbox", label: "Bandeja", icon: Inbox, badge: true, roles: ["owner", "agent_editor", "commercial", "marketing"] },
+  { href: "/sms", label: "SMS", icon: Smartphone, roles: ["owner", "commercial", "marketing"] },
   { href: "/pipeline", label: "Etapas del prospecto", icon: Kanban, roles: ["owner", "commercial", "marketing"] },
   { href: "/contacts", label: "Contactos", icon: Users, roles: ["owner", "commercial", "marketing"] },
   { href: "/agent", label: "Agente", icon: Sparkles, roles: ["owner", "agent_editor"] },
@@ -47,7 +49,7 @@ const SUPERADMIN_NAV = [
 ] as const;
 
 const NAV_GROUPS = [
-  { label: "Espacio de trabajo", paths: ["/dashboard", "/inbox", "/pipeline", "/contacts"] },
+  { label: "Espacio de trabajo", paths: ["/dashboard", "/inbox", "/sms", "/pipeline", "/contacts"] },
   { label: "Automatización", paths: ["/agent", "/templates", "/campaigns", "/mailing"] },
   { label: "Gestión", paths: ["/services", "/companies"] },
 ] as const;

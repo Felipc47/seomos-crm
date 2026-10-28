@@ -1074,3 +1074,53 @@ export const commerceQuote = pgTable("commerce_quote", {
   remoteId:text("remote_id"),remoteReference:text("remote_reference"),
   createdAt:timestamp("created_at").notNull().defaultNow(),updatedAt:timestamp("updated_at").notNull().defaultNow(),
 },t=>[index("commerce_quote_org_conv_idx").on(t.organizationId,t.conversationId,t.createdAt),uniqueIndex("commerce_quote_active_org_conv_uq").on(t.organizationId,t.conversationId).where(sql`${t.status} in ('prepared','submitting','uncertain')`),check("commerce_quote_status_check",sql`${t.status} in ('prepared','submitting','created','uncertain','cancelled')`)]);
+
+
+/** 034: optional SMS connection; API and callback secrets stay server-side. */
+export const smsConnection = pgTable("sms_connection", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  secretCipher: text("secret_cipher").notNull(),
+  secretIv: text("secret_iv").notNull(),
+  secretTag: text("secret_tag").notNull(),
+  sender: text("sender"),
+  approvalEvidence: text("approval_evidence"),
+  deliveryEnabled: boolean("delivery_enabled").notNull().default(false),
+  webhookId: text("webhook_id"),
+  webhookSecret: jsonb("webhook_secret").$type<import("@/lib/crypto").EncryptedValue>(),
+  keyLast4: text("key_last4").notNull(),
+  email: text("email").notNull(),
+  companyName: text("company_name").notNull(),
+  smsCredits: integer("sms_credits"),
+  verifiedAt: timestamp("verified_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, t => [uniqueIndex("sms_connection_org_uq").on(t.organizationId)]);
+
+
+export const smsContact = pgTable("sms_contact", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  name: text("name").notNull(), phone: text("phone").notNull(),
+  consentEvidence: text("consent_evidence").notNull(), consentAt: timestamp("consent_at").notNull().defaultNow(),
+  optedOutAt: timestamp("opted_out_at"), createdAt: timestamp("created_at").notNull().defaultNow(),
+}, t => [uniqueIndex("sms_contact_org_phone_uq").on(t.organizationId, t.phone), uniqueIndex("sms_contact_org_id_uq").on(t.organizationId, t.id)]);
+
+export const smsMessage = pgTable("sms_message", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  contactId: text("contact_id").notNull().references(() => smsContact.id, { onDelete: "cascade" }),
+  operationId: text("operation_id").notNull(), direction: text("direction", { enum: ["in", "out"] }).notNull(),
+  content: text("content").notNull(), sender: text("sender").notNull(),
+  status: text("status").$type<import("@/lib/sms").SmsStatus>().notNull(),
+  providerMessageId: text("provider_message_id"), errorCode: text("error_code"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, t => [uniqueIndex("sms_message_org_operation_uq").on(t.organizationId, t.operationId),
+  uniqueIndex("sms_message_org_provider_uq").on(t.organizationId, t.providerMessageId),
+  index("sms_message_org_contact_idx").on(t.organizationId, t.contactId, t.createdAt)]);
+
+export const smsEvent = pgTable("sms_event", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  eventKey: text("event_key").notNull(), payload: jsonb("payload").$type<import("@/lib/brevo/events").SmsWebhookEvent>().notNull(),
+  processedAt: timestamp("processed_at"), createdAt: timestamp("created_at").notNull().defaultNow(),
+}, t => [uniqueIndex("sms_event_org_key_uq").on(t.organizationId, t.eventKey), index("sms_event_org_pending_idx").on(t.organizationId,t.processedAt)]);

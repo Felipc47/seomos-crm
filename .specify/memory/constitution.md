@@ -1,3 +1,11 @@
+<!-- SYNC IMPACT REPORT — 2026-10-26
+2.1.0 -> 2.2.0 MINOR. El dueño solicita activar Brevo para SMS y confirma
+SEOMOS LLC como remitente. Brevo opcional exclusivamente SMS con adaptador,
+credencial cifrada por organización, consentimiento y bajas por canal. La primera
+parte solo verifica conexión/saldo; no habilita envíos sin aprobación externa.
+Plantillas revisadas: sin listas cerradas de proveedores. AGENTS/CLAUDE sincronizados.
+-->
+
 <!--
 SYNC IMPACT REPORT — 2026-10-26
 Versión 2.0.0 -> 2.1.0 (MINOR). Dueño autoriza conexión real de catálogo/pedidos y
@@ -80,6 +88,11 @@ dependencias externas en runtime es CERRADA:
      conexión por organización con secretos cifrados. No ejecuta cobros, reembolsos
      ni billing. Sin tienda o ante fallos el CRM continúa operando. Reintentos de
      creación nunca duplican pedidos; resultados ambiguos se reconcilian por lectura.
+  6. **Brevo SMS API**, opcional (enmienda 2.2.0, solicitada por el dueño el
+     2026-10-26), exclusivamente SMS de avisos/campañas con remitente aprobado y
+     consentimiento verificable por canal y finalidad. Adaptador `src/lib/brevo/`,
+     clave cifrada por organización. Resend conserva email. Conectar la API no
+     habilita envíos. Sin configuración/aprobación o ante fallos, el CRM continúa.
 - **PROHIBIDO en v1**: almacenamiento de objetos externo (S3/R2), proveedores de
   email distintos de Resend, Stripe u otro billing, y otros servicios de Google
   distintos de Calendar. Cualquier feature que los requiera queda fuera del
@@ -272,4 +285,4 @@ práctica, convención o preferencia; ante un conflicto, gana la constitución.
 - **Propagación**: al enmendar la constitución se revisan y, si procede, se actualizan
   las plantillas dependientes (plan, spec, tasks).
 
-**Version**: 2.1.0 | **Ratified**: 2026-07-09 | **Last Amended**: 2026-10-26
+**Version**: 2.2.0 | **Ratified**: 2026-07-09 | **Last Amended**: 2026-10-26
