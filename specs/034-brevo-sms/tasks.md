@@ -1,3 +1,5 @@
+> Actualización 2026-10-28: el estado de la extensión de envío/respuestas está en [two-way-tasks.md](two-way-tasks.md) y su evidencia en [two-way-verification.md](two-way-verification.md). Esta lista conserva la primera etapa y el alcance histórico de campañas.
+
 # Estado de trabajo — Brevo SMS
 
 Última actualización: 2026-10-26 (America/Bogota).
