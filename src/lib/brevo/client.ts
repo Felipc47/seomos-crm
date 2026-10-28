@@ -31,7 +31,9 @@ export async function sendBrevoSms(key: string, input: { recipient: string; send
 export async function registerSmsWebhook(key: string, url: string, token: string) {
   const raw = await call(key, "/webhooks", {
     url, type: "transactional", channel: "sms", description: "SEOMOS CRM SMS",
-    events: ["sent", "accepted", "delivered", "replied", "softBounce", "hardBounce", "unsubscribed"],
+    // Subscription names differ from callback msg_status: `reply` -> `replied`.
+    // The provider does not accept `accepted` as a webhook subscription event.
+    events: ["sent", "delivered", "reply", "softBounce", "hardBounce", "unsubscribed"],
     headers: [{ key: "Authorization", value: `Bearer ${token}` }],
   });
   const parsed = z.object({ id }).safeParse(raw);

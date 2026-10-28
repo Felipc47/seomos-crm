@@ -11,7 +11,9 @@
 - [x] Verificar estado real de Brevo y preparar credencial restringida.
 - [x] Publicar PR #8, integrar main y desplegar 4129b442 en seomos.cloud; healthy.
 - [x] Verificar migraciones y rutas protegidas/mocks cerrados en producción.
-- [ ] Autorizar exclusivamente 179.197.226.44 en Brevo: confirmación solicitada al dueño.
-- [ ] Guardar la clave cifrada directamente en CRM y registrar el webhook.
+- [x] Autorizar exclusivamente 179.197.226.44 en Brevo tras confirmación; bloqueo API continúa activo.
+- [x] Guardar la clave cifrada directamente en CRM; cuenta ceo@seomos.com confirmada.
+- [ ] Corregir eventos del registro webhook (`reply`, sin `accepted`) según SDK oficial, verificar y publicar.
+- [ ] Registrar y verificar el webhook real.
 - [ ] Confirmar remitente aprobado y saldo; el actual sigue Draft y 0 créditos.
 - [ ] Prueba real autorizada y evidencia; declarar bloqueos externos si existen.

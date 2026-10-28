@@ -72,3 +72,21 @@ Punto de reanudación: la aprobación para autorizar la IP está pendiente. La c
 permanece en memoria de la sesión del navegador y en el campo de contraseña de la
 conexión pendiente del CRM; nunca se imprimió ni se guardó en un temporal. No
 reportar la cuenta como conectada ni el webhook como registrado hasta verificarlos.
+
+## Continuación — 2026-10-28 18:11 Bogotá
+
+El dueño autorizó añadir solo 179.197.226.44. Brevo muestra una IP autorizada,
+cero no autorizadas y el bloqueo API sigue activo; SMTP conserva su estado previo.
+La cuenta real ceo@seomos.com quedó conectada en el CRM; campo de clave vacío y
+solo sufijo público. La API no informa saldo SMS (null), sin interpretarlo como cero.
+
+El registro de webhook fue rechazado. Contrato oficial verificado en
+https://github.com/getbrevo/brevo-node/blob/main/src/api/resources/webhooks/client/requests/CreateWebhookRequest.ts
+acepta `reply`, no `replied`, y no admite `accepted` en events. Se corrige la
+suscripción conservando el parser del callback `msg_status: replied`. El mock
+rechazará eventos fuera del contrato para detectar esta incompatibilidad localmente.
+
+Verificación de la corrección: typecheck, lint y build aprobados; 572 unitarios
+y 78 comprobaciones funcionales (35 conexión + 43 bidireccionales) aprobados.
+El mock valida ahora el enum de suscripciones de Brevo y rechaza los nombres
+inválidos antes de crear el webhook ficticio. No se probaron envíos reales.
