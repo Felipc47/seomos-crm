@@ -22,6 +22,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
+  AGENT_RESPONSE_LANGUAGES,
+  type AgentResponseLanguage,
   INSTRUCTION_SECTIONS,
   MAX_TONE_PRESETS,
   TONE_PRESETS,
@@ -29,8 +31,11 @@ import {
   type InstructionSectionKey,
 } from "@/lib/agent-behavior";
 import { cn } from "@/lib/utils";
+import { MissionSettings, type MissionFormValue } from "@/components/agent/mission-settings";
+import { MAX_WARMUP_MESSAGES } from "@/lib/agent-mission";
 import { SchedulingSection } from "@/components/agent/scheduling-section";
 import { FollowUpSection } from "@/components/agent/follow-up-section";
+import { AgentDemoChat } from "@/components/agent/agent-demo-chat";
 import { AgentSetupAssistant } from "@/components/agent/agent-setup-assistant";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -42,9 +47,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
 import type { AgentConfigurationDraft } from "@/server/ai/config-assistant";
 
-type Profile = {
+type Profile = MissionFormValue & {
   enabled: boolean;
   name: string;
+  responseLanguage: AgentResponseLanguage;
   tone: string | null;
   tonePresets: string[];
   instructions: string | null;
@@ -306,6 +312,7 @@ function ProfileSection({
     setForm((current) => ({
       ...current,
       name: draft.name,
+      mission: draft.mission ?? current.mission,
       greeting: draft.greeting,
       tonePresets: draft.tonePresets,
       tone: draft.tone,
@@ -369,6 +376,28 @@ function ProfileSection({
             />
           </div>
         </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="agent-response-language">Idioma de respuesta</Label>
+          <select
+            id="agent-response-language"
+            aria-describedby="agent-response-language-hint"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            value={form.responseLanguage}
+            onChange={(e) => setForm({ ...form, responseLanguage: e.target.value as AgentResponseLanguage })}
+          >
+            {AGENT_RESPONSE_LANGUAGES.map((language) => (
+              <option key={language.id} value={language.id}>{language.label}</option>
+            ))}
+          </select>
+          <p id="agent-response-language-hint" className="text-xs text-muted-foreground">
+            En español e inglés, responde en el idioma del cliente y cambia cuando él lo pida.
+          </p>
+        </div>
+
+        <MissionSettings value={form} onChange={patch => setForm(current => ({ ...current, ...patch }))} />
+
+        <AgentDemoChat configuration={form} />
 
         <div data-help="agent-training" className="space-y-2">
           <div className="flex items-baseline justify-between gap-2">
@@ -620,7 +649,8 @@ function ProfileSection({
         </div>
 
         <div className="border-t pt-5">
-          <Button data-help="agent-save" className="w-full sm:w-auto" onClick={() => void onSave(form)}>Guardar comportamiento</Button>
+          <Button data-help="agent-save" className="w-full sm:w-auto" disabled={!Number.isInteger(form.schedulingWarmupMessages) || form.schedulingWarmupMessages < 1 || form.schedulingWarmupMessages > MAX_WARMUP_MESSAGES}
+          onClick={() => void onSave(form)}>Guardar comportamiento</Button>
         </div>
       </CardContent>
     </Card>

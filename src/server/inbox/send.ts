@@ -81,6 +81,7 @@ export async function sendText(input: {
   organizationId: string;
   text: string;
   aiGenerated?: boolean;
+  timeoutMs?: number;
 }): Promise<SendResult> {
   const { contact, credentials } = await resolveOutboundTarget(
     input.conversationId,
@@ -92,7 +93,7 @@ export async function sendText(input: {
     to: normalizeRecipient(contact.phone),
     type: "text",
     text: { body: input.text },
-  });
+  }, input.timeoutMs);
 
   return persistOutbound({
     conversationId: input.conversationId,
@@ -336,12 +337,13 @@ async function persistOutbound(input: {
 /** Llama a Graph /messages y traduce errores de Meta a SendError. */
 export async function callGraphSend(
   credentials: Credentials,
-  payload: unknown
+  payload: unknown,
+  timeoutMs?: number
 ): Promise<string> {
   try {
     const res = await graphRequest<{ messages?: { id: string }[] }>(
       `${credentials.phoneNumberId}/messages`,
-      { method: "POST", token: credentials.token, body: payload }
+      { method: "POST", token: credentials.token, body: payload, signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined }
     );
     const id = res.messages?.[0]?.id;
     if (!id) throw new SendError("meta_error", "Meta no devolvió ID de mensaje");

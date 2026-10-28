@@ -104,6 +104,50 @@ export function aiMockCompletion(messages: InMessage[]): string {
     [...messages].reverse().find((m) => m.role === "user")?.content ?? ""
   );
 
+  // 037: acciones de comercio contra el ecommerce mock, nunca proveedor real.
+  if (!system.includes("analista de CRM")) {
+    if(lastUser.includes("ECOM_FIND")) return JSON.stringify({action:"commerce_search",query:"camiseta"});
+    if(lastUser.includes("ECOM_PREPARE")) return JSON.stringify({action:"commerce_prepare",items:[{id:system.includes("shop.commerce.test")?"gid://shopify/ProductVariant/101":lastUser.includes("VARIANT")?"2:21":"1",quantity:lastUser.includes("QTY20")?20:1}],buyer:{name:"Cliente Ecommerce",email:/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.exec(lastUser)?.[0]??"comprador@example.test",address:"Calle 10 numero 20",city:"Bogota",country:"CO"}});
+    if(lastUser.includes("ECOM_FORCE_CONFIRM")||system.includes("ECOMMERCE CONECTADO")&&/^(si,? confirmo el pedido|sí,? confirmo el pedido|yes,? i confirm the order)$/i.test(lastUser.trim())) return JSON.stringify({action:"commerce_confirm"});
+    if(lastUser.includes("ECOM_STATUS")) return JSON.stringify({action:"commerce_order_status",reference:lastUser.match(/ECOM_STATUS\s+(#?\d+)/)?.[1]??"9999"});
+    if(lastUser.includes("ECOM_FAKE_CLAIM"))return JSON.stringify({action:"reply",text:"Tu pedido fue creado y el pago está confirmado."});
+  }
+
+  // 036: proveedor deliberadamente desobediente para verificar las guardas del servidor.
+  if (!system.includes("analista de CRM") && lastUser.includes("MISSION_BAD_JSON")) return "No puedo devolver JSON";
+  if (!system.includes("analista de CRM") && lastUser.includes("MISSION_FORCE_SCHEDULE")) {
+    const start = new Date(Date.now() + 5 * 24 * 3600_000);
+    start.setUTCHours(15, 0, 0, 0);
+    while ([0, 6].includes(start.getUTCDay())) start.setTime(start.getTime() + 24 * 3600_000);
+    return JSON.stringify({ action: "schedule_meeting", email: "mission@example.test", datetime: start.toISOString(), clientOk: lastUser });
+  }
+  if (!system.includes("analista de CRM") && lastUser.includes("MISSION_FORCE_OFFER")) return JSON.stringify({ action: "reply", text: `Podemos ayudarte con tu proyecto: ${lastUser.replace("MISSION_FORCE_OFFER", "").trim()}. ¿Te gustaría agendar una reunión?` });
+  if (!system.includes("analista de CRM") && lastUser.includes("MISSION_ECOMMERCE")) {
+    const url = /Tienda configurada: (https:\/\/\S+?)\. Puedes/.exec(system)?.[1];
+    return JSON.stringify({ action: "reply", text: url ? `Puedes continuar la compra en ${url}. ¿Qué producto buscas?` : "¿Qué producto estás buscando?" });
+  }
+
+  // 032: proveedor determinista del chat demo, siempre tras el gate de mocks.
+  if (system.includes("[CHAT_DEMO_CONFIGURACION]")) {
+    if (lastUser.includes("DEMO_FORMATO_INVALIDO")) return "No hay JSON en esta respuesta";
+    const name = /Eres "([^"\n]+)"/.exec(system)?.[1] ?? "Agente";
+    const english = system.includes("Responde SIEMPRE en inglés natural") ||
+      (system.includes("Puedes responder en español e inglés") && /\bhello\b/i.test(lastUser));
+    const greeting = english ? `Hello! I am ${name}. How can I help you?` : `¡Hola! Soy ${name}. ¿Cómo puedo ayudarte?`;
+    if (lastUser.includes("DEMO_AGENDAR")) return JSON.stringify({ action: "schedule_meeting", email: "demo@test.local", datetime: "2026-12-01T10:00:00-05:00", clientOk: lastUser, reply: english ? "We can simulate a meeting request." : "Podemos simular una solicitud de reunión." });
+    if (lastUser.includes("DEMO_CALIFICAR")) return JSON.stringify({ action: "move_stage", stage: "Calificado", reply: "Tu necesidad encaja con nuestros servicios." });
+    if (lastUser.includes("DEMO_FICHA")) return JSON.stringify({ action: "update_lead", note: "Dato de demostración", reply: "Entendido, gracias por contármelo." });
+    if (lastUser.includes("DEMO_SEGUIR")) return JSON.stringify({ action: "follow_up_later", reply: "Con gusto retomamos la conversación más adelante." });
+    if (lastUser.includes("DEMO_SILENCIO")) return JSON.stringify({ action: "none" });
+    if (lastUser.includes("DEMO_DERIVAR")) return JSON.stringify({ action: "handoff", farewell: english ? "A teammate can help you." : "Un compañero del equipo puede ayudarte." });
+    const remembered = /me llamo ([\p{L}]+)/iu.exec(messages.filter(m => m.role === "user").map(m => flattenContent(m.content)).join("\n"))?.[1];
+    const knowledge = /DEMO_KB=([^\n]+)/.exec(system)?.[1];
+    const text = lastUser.includes("DEMO_RECUERDA") ? `Recuerdo que te llamas ${remembered ?? "sin nombre"}.`
+      : lastUser.includes("DEMO_CONOCIMIENTO") ? (knowledge ?? "No hay conocimiento confirmado") : greeting;
+    const reply = JSON.stringify({ action: "reply", text });
+    return lastUser.includes("DEMO_ENVUELTO") ? `Aquí va:\n\`\`\`json\n${reply}\n\`\`\`` : reply;
+  }
+
   // 029: prueba del chat de ayuda; solo se usa tras el gate interno de mocks.
   if (system.includes("asistente de ayuda de Seomos CRM")) {
     const context = JSON.parse(lastUser) as { question: string; currentScreen: { pathname: string }; conversation: { role: string; content: string }[] };
@@ -192,6 +236,14 @@ export function aiMockCompletion(messages: InMessage[]): string {
     });
   }
 
+  // 031: fixture solo para el self-test del idioma en el pipeline real.
+  if (lastUser.includes("LANGUAGE_PROBE")) {
+    const english = system.includes("Responde SIEMPRE en inglés natural") ||
+      (system.includes("Puedes responder en español e inglés") && /\bhello\b/i.test(lastUser));
+    const reply = JSON.stringify({ action: "reply", text: english ? "Hello! How can I help you today?" : "¡Hola! ¿Cómo puedo ayudarte hoy?" });
+    return lastUser.includes("WRAPPED") ? `Aquí está:\n\`\`\`json\n${reply}\n\`\`\`` : reply;
+  }
+
   const text = lastUser.toLowerCase();
   const { serviceId, serviceEvidence } = mockServiceDetection(system, lastUser);
 
@@ -233,8 +285,7 @@ export function aiMockCompletion(messages: InMessage[]): string {
     return JSON.stringify({ action: "handoff", reason: "cliente" });
   }
 
-  // 004: agendar reunión — solo si el system prompt ofrece la acción (es
-  // decir, con Google Calendar conectado) y el cliente dio correo + intención.
+  // 004: agendar reunión cuando el prompt ofrece la acción, con o sin Google.
   // El correo puede haberlo dado en un mensaje ANTERIOR (caso real: primero el
   // correo, después "11 am" a secas para elegir horario).
   const allUser = messages
@@ -254,6 +305,9 @@ export function aiMockCompletion(messages: InMessage[]): string {
   const bareTime = /^\s*(a\s+las\s+)?\d{1,2}(:\d{2})?\s*(a\.?\s*m\.?|p\.?\s*m\.?)?\s*$/i.test(
     lastUser
   );
+  if (system.includes('"action":"schedule_meeting"') && !emailMatch && /agend|reuni/.test(text)) {
+    return JSON.stringify({ action: "reply", text: "Con gusto podemos agendar una reunión. ¿Me compartes tu correo electrónico?" });
+  }
   if (
     system.includes("schedule_meeting") &&
     emailMatch &&
@@ -290,6 +344,7 @@ export function aiMockCompletion(messages: InMessage[]): string {
       email: emailMatch[0],
       datetime: start.toISOString(),
       clientOk: text.includes("sin confirmar") ? undefined : lastUser,
+      ...(text.includes("promesa incorrecta") ? { reply: "Te envié una invitación por correo con Google Meet." } : {}),
     });
   }
 

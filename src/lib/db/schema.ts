@@ -267,6 +267,31 @@ export const contact = pgTable(
   ]
 );
 
+/** Próxima reunión del prospecto + confirmación durable (033). */
+export const meeting = pgTable("meeting", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  contactId: text("contact_id").notNull().references(() => contact.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  startAt: timestamp("start_at", { withTimezone: true }).notNull(),
+  meetLink: text("meet_link"),
+  timezone: text("timezone").notNull(),
+  source: text("source", { enum: ["google", "manual", "legacy"] }).notNull(),
+  googleEventId: text("google_event_id"),
+  reminderEnabled: boolean("reminder_enabled").notNull().default(true),
+  reminderDueAt: timestamp("reminder_due_at", { withTimezone: true }).notNull(),
+  reminderStatus: text("reminder_status", { enum: ["pending", "sending", "sent", "skipped", "uncertain", "disabled", "cancelled"] }).notNull().default("pending"),
+  reminderClaimedAt: timestamp("reminder_claimed_at", { withTimezone: true }),
+  reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
+  reminderMessageId: text("reminder_message_id"),
+  reminderError: text("reminder_error"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("meeting_org_contact_uq").on(t.organizationId, t.contactId),
+  index("meeting_org_due_idx").on(t.organizationId, t.reminderStatus, t.reminderDueAt),
+]);
+
 export const pipelineStage = pgTable(
   "pipeline_stage",
   {
@@ -658,6 +683,12 @@ export const agentProfile = pgTable(
       .references(() => organization.id, { onDelete: "cascade" }),
     enabled: boolean("enabled").notNull().default(false),
     name: text("name").notNull().default("Asistente"),
+    responseLanguage: text("response_language", { enum: ["es", "en", "es-en"] }).notNull().default("es"),
+    mission: text("mission", { enum: ["legacy", "schedule", "sales", "ecommerce", "qualify", "support", "inform", "custom"] }).notNull().default("legacy"),
+    missionDetails: text("mission_details"),
+    ecommerceUrl: text("ecommerce_url"),
+    schedulingWarmupEnabled: boolean("scheduling_warmup_enabled").notNull().default(false),
+    schedulingWarmupMessages: integer("scheduling_warmup_messages").notNull().default(3),
     tone: text("tone"),
     /** Presets de tono elegidos en la UI (máx. 2, ids de TONE_PRESETS). Se
      * componen con `tone` (matices libres) al armar el prompt. */
@@ -673,7 +704,12 @@ export const agentProfile = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("agent_profile_org_uq").on(t.organizationId)]
+  (t) => [
+    uniqueIndex("agent_profile_org_uq").on(t.organizationId),
+    check("agent_profile_response_language_check", sql`${t.responseLanguage} in ('es', 'en', 'es-en')`),
+    check("agent_profile_mission_check", sql`${t.mission} in ('legacy', 'schedule', 'sales', 'ecommerce', 'qualify', 'support', 'inform', 'custom')`),
+    check("agent_profile_warmup_messages_check", sql`${t.schedulingWarmupMessages} between 1 and 50`),
+  ]
 );
 
 export const kbEntry = pgTable(
@@ -1007,3 +1043,84 @@ export const mailingEvent = pgTable("mailing_event", {
   sendId: text("send_id").notNull().references(() => mailingSend.id, { onDelete: "cascade" }),
   providerEventId: text("provider_event_id").notNull(), kind: text("kind").notNull(), occurredAt: timestamp("occurred_at").notNull(),
 }, (t) => [uniqueIndex("mailing_event_org_provider_uq").on(t.organizationId, t.providerEventId)]);
+
+
+/** 037: conexión opcional por empresa; secretos nunca salen del servidor. */
+export const commerceConnection = pgTable("commerce_connection", {
+  id:text("id").primaryKey(),
+  organizationId:text("organization_id").notNull().references(()=>organization.id,{onDelete:"cascade"}),
+  provider:text("provider",{enum:["woocommerce","shopify"]}).notNull(),
+  url:text("url").notNull(),currency:text("currency").notNull(),
+  secretCipher:text("secret_cipher").notNull(),secretIv:text("secret_iv").notNull(),secretTag:text("secret_tag").notNull(),
+  ordersEnabled:boolean("orders_enabled").notNull().default(false),
+  createdAt:timestamp("created_at").notNull().defaultNow(),updatedAt:timestamp("updated_at").notNull().defaultNow(),
+},t=>[uniqueIndex("commerce_connection_org_uq").on(t.organizationId),check("commerce_provider_check",sql`${t.provider} in ('woocommerce','shopify')`)]);
+
+export const commerceCatalog = pgTable("commerce_catalog", {
+  organizationId:text("organization_id").notNull().references(()=>organization.id,{onDelete:"cascade"}),
+  conversationId:text("conversation_id").notNull().references(()=>conversation.id,{onDelete:"cascade"}),
+  products:jsonb("products").$type<import("@/lib/ecommerce/contracts").CommerceProduct[]>().notNull(),
+  updatedAt:timestamp("updated_at").notNull().defaultNow(),
+},t=>[uniqueIndex("commerce_catalog_org_conv_uq").on(t.organizationId,t.conversationId)]);
+
+export const commerceQuote = pgTable("commerce_quote", {
+  id:text("id").primaryKey(),
+  organizationId:text("organization_id").notNull().references(()=>organization.id,{onDelete:"cascade"}),
+  conversationId:text("conversation_id").notNull().references(()=>conversation.id,{onDelete:"cascade"}),
+  contactId:text("contact_id").notNull().references(()=>contact.id,{onDelete:"cascade"}),
+  connectionId:text("connection_id").notNull(),
+  quote:jsonb("quote").$type<import("@/lib/ecommerce/contracts").OrderQuote>().notNull(),
+  status:text("status",{enum:["prepared","submitting","created","uncertain","cancelled"]}).notNull().default("prepared"),
+  remoteId:text("remote_id"),remoteReference:text("remote_reference"),
+  createdAt:timestamp("created_at").notNull().defaultNow(),updatedAt:timestamp("updated_at").notNull().defaultNow(),
+},t=>[index("commerce_quote_org_conv_idx").on(t.organizationId,t.conversationId,t.createdAt),uniqueIndex("commerce_quote_active_org_conv_uq").on(t.organizationId,t.conversationId).where(sql`${t.status} in ('prepared','submitting','uncertain')`),check("commerce_quote_status_check",sql`${t.status} in ('prepared','submitting','created','uncertain','cancelled')`)]);
+
+
+/** 034: optional SMS connection; API and callback secrets stay server-side. */
+export const smsConnection = pgTable("sms_connection", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  secretCipher: text("secret_cipher").notNull(),
+  secretIv: text("secret_iv").notNull(),
+  secretTag: text("secret_tag").notNull(),
+  sender: text("sender"),
+  approvalEvidence: text("approval_evidence"),
+  deliveryEnabled: boolean("delivery_enabled").notNull().default(false),
+  webhookId: text("webhook_id"),
+  webhookSecret: jsonb("webhook_secret").$type<import("@/lib/crypto").EncryptedValue>(),
+  keyLast4: text("key_last4").notNull(),
+  email: text("email").notNull(),
+  companyName: text("company_name").notNull(),
+  smsCredits: integer("sms_credits"),
+  verifiedAt: timestamp("verified_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, t => [uniqueIndex("sms_connection_org_uq").on(t.organizationId)]);
+
+
+export const smsContact = pgTable("sms_contact", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  name: text("name").notNull(), phone: text("phone").notNull(),
+  consentEvidence: text("consent_evidence").notNull(), consentAt: timestamp("consent_at").notNull().defaultNow(),
+  optedOutAt: timestamp("opted_out_at"), createdAt: timestamp("created_at").notNull().defaultNow(),
+}, t => [uniqueIndex("sms_contact_org_phone_uq").on(t.organizationId, t.phone), uniqueIndex("sms_contact_org_id_uq").on(t.organizationId, t.id)]);
+
+export const smsMessage = pgTable("sms_message", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  contactId: text("contact_id").notNull().references(() => smsContact.id, { onDelete: "cascade" }),
+  operationId: text("operation_id").notNull(), direction: text("direction", { enum: ["in", "out"] }).notNull(),
+  content: text("content").notNull(), sender: text("sender").notNull(),
+  status: text("status").$type<import("@/lib/sms").SmsStatus>().notNull(),
+  providerMessageId: text("provider_message_id"), errorCode: text("error_code"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, t => [uniqueIndex("sms_message_org_operation_uq").on(t.organizationId, t.operationId),
+  uniqueIndex("sms_message_org_provider_uq").on(t.organizationId, t.providerMessageId),
+  index("sms_message_org_contact_idx").on(t.organizationId, t.contactId, t.createdAt)]);
+
+export const smsEvent = pgTable("sms_event", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  eventKey: text("event_key").notNull(), payload: jsonb("payload").$type<import("@/lib/brevo/events").SmsWebhookEvent>().notNull(),
+  processedAt: timestamp("processed_at"), createdAt: timestamp("created_at").notNull().defaultNow(),
+}, t => [uniqueIndex("sms_event_org_key_uq").on(t.organizationId, t.eventKey), index("sms_event_org_pending_idx").on(t.organizationId,t.processedAt)]);

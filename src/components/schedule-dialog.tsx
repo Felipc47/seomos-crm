@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { meetingLocalToIso } from "@/lib/meeting";
 import { CalendarPlus } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 
 /**
- * Modal "Agendar reunión" (004): crea el evento en Google Calendar invitando
- * al prospecto + invitados internos. Se abre desde el slide-over del lead.
+ * Modal "Agendar reunión" (004): guarda en el CRM y, con Google conectado,
+ * crea el evento e invita al prospecto y al equipo.
  */
 export function ScheduleDialog({
   contactId,
@@ -24,6 +25,14 @@ export function ScheduleDialog({
   onScheduled: () => void;
 }) {
   const toast = useToast();
+  const [timezone, setTimezone] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    void fetch(`/api/contacts/${contactId}/meeting`).then(async (res) => {
+      if (res.ok && active) setTimezone((await res.json()).timezone);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [contactId]);
   const [email, setEmail] = useState(defaultEmail ?? "");
   const [title, setTitle] = useState("");
   const [datetime, setDatetime] = useState("");
@@ -32,10 +41,12 @@ export function ScheduleDialog({
   const [error, setError] = useState<React.ReactNode | null>(null);
 
   const canSave =
-    /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim()) && datetime.length > 0;
+    Boolean(timezone) && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim()) && datetime.length > 0;
 
   async function schedule() {
     if (!canSave || saving) return;
+    let startIso: string;
+    try { startIso = meetingLocalToIso(datetime, timezone!); } catch (err) { setError(err instanceof Error ? err.message : "Fecha inválida"); return; }
     setSaving(true);
     setError(null);
     const res = await fetch(`/api/contacts/${contactId}/schedule`, {
@@ -43,7 +54,7 @@ export function ScheduleDialog({
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         prospectEmail: email.trim(),
-        startIso: new Date(datetime).toISOString(),
+        startIso,
         durationMin: duration,
         title: title.trim() || undefined,
       }),
@@ -76,10 +87,12 @@ export function ScheduleDialog({
       return;
     }
     const data = (await res.json()) as {
-      event: { meetLink: string | null };
+      event: { meetLink: string | null; calendarSynced: boolean };
     };
     toast(
-      data.event.meetLink
+      !data.event.calendarSynced
+        ? "Reunión registrada en el CRM"
+        : data.event.meetLink
         ? "Reunión agendada — invitaciones enviadas con Google Meet"
         : "Reunión agendada — invitaciones enviadas"
     );
@@ -107,9 +120,8 @@ export function ScheduleDialog({
           Agendar reunión
         </h3>
         <p className="mb-5 text-sm leading-relaxed text-mute">
-          Se crea en Google Calendar con Meet, invitando a{" "}
-          <strong className="text-foreground">{contactName}</strong> y a tus
-          invitados internos.
+          Registra la reunión con <strong className="text-foreground">{contactName}</strong> en el CRM.
+          Con Google Calendar conectado también se crea el evento con Meet y se envían invitaciones.
         </p>
 
         <div className="flex flex-col gap-3.5">
@@ -183,6 +195,8 @@ export function ScheduleDialog({
           </div>
         </div>
 
+        <p className="mt-3 text-xs text-mute">Hora de la empresa: {timezone ?? "cargando…"}. Confirmación automática por WhatsApp 45 minutos antes.</p>
+
         {error && (
           <p className="mt-3 text-[13px] leading-relaxed text-destructive">
             {error}
@@ -195,7 +209,7 @@ export function ScheduleDialog({
             disabled={!canSave || saving}
             className="flex-1 rounded-xl bg-brand py-3 text-sm font-bold text-primary-foreground shadow-accent transition-colors hover:bg-brand-hover hover:text-brand-hover-foreground disabled:opacity-50"
           >
-            {saving ? "Agendando…" : "Agendar y enviar invitaciones"}
+            {saving ? "Agendando…" : "Agendar reunión"}
           </button>
           <button
             onClick={onClose}

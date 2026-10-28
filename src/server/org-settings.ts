@@ -19,6 +19,8 @@ const calendarSettingsSchema = z.object({
     .array(z.string().trim().email())
     .max(10)
     .default([]),
+  /** Confirmación 033 fuera de ventana: plantilla UTILITY con {{1}}. */
+  meetingReminderTemplateId: z.string().trim().min(1).nullable().default(null),
   /** Título por defecto de la reunión. */
   defaultTitle: z.string().trim().max(120).default("Sesión de diagnóstico"),
   /** Duración por defecto en minutos. */

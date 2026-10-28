@@ -518,7 +518,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="mt-4 flex flex-col gap-2.5 sm:flex-row">
-                <span className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 text-xs font-extrabold">
+                <span className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 text-xs font-extrabold text-primary-foreground">
                   <UserRoundCheck className="h-4 w-4" /> Transferir al equipo
                 </span>
                 <span className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-xs font-extrabold">

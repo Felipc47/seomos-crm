@@ -1,0 +1,7 @@
+# Corrección: texto negro sobre naranja
+
+2026-10-12. El dueño rechaza texto negro sobre naranja en cualquier lugar del CRM. La causa compartida es accentForeground, que elegía negro por luminancia, junto a fallbacks oscuros en globals.css. Corregir superficies sólidas de marca a blanco tanto en estado normal como hover y en claro/oscuro, ajustando mínimamente luminosidad del fondo para mantener >=4,5:1. Mantener color elegido/metadata, tintes y superficies neutras. Cubrir Buttons compartidos, botones directos, contadores/iconos de selección, previews de marca y landing. No tocar datos, flujos, auth o integraciones.
+
+Plan de verificación: unitarias de contraste real para presets/custom y blancos obligatorios; tipos/lint/build/tests; Playwright por vistas de CRM y landing en ambos temas/375-390 px, incluido Guardar remitente, acciones seleccionadas, controles directos y hover. Camino infeliz: estados deshabilitados legibles y acentos muy claros ajustados. Publicar solo este fix sobre 327a89f y comprobar HTTPS/UI/CSS de producción.
+
+Verificación local: 432 tests unitarios verdes; Playwright 49 checks en 12 vistas, claro/oscuro, hover, estados deshabilitados, preview con acentos claros, landing y móvil. Guardar remitente conserva su comportamiento con Resend simulado; demo responde con IA simulada. No se alteran los datos de producción. Typecheck, lint, build y 432 tests en verde; deploy y comprobación pública pendientes.

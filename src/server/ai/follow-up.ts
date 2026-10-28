@@ -1,8 +1,11 @@
+import { unverifiedCommerceClaim } from "@/lib/ecommerce/contracts";
+import { renderMission, renderSchedulingOfferPolicy, guardMeetingOfferText } from "@/lib/agent-mission";
+import { getSchedulingOfferPolicy } from "./mission-policy";
 import { and, asc, desc, eq, isNull, lte } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@/lib/db";
 import { chatJson, type ChatMessage } from "@/lib/ai";
-import { composeInstructions, composeTone } from "@/lib/agent-behavior";
+import { composeInstructions, composeTone, composeResponseLanguage } from "@/lib/agent-behavior";
 import {
   addBusinessDays,
   atLocalTime,
@@ -281,6 +284,8 @@ async function composeFollowUpText(
     .map((m) => `${m.direction === "in" ? "CLIENTE" : "AGENTE"}: ${m.text}`)
     .join("\n");
 
+  const offerPolicy = await getSchedulingOfferPolicy(organizationId, conversationId, profile ?? {},
+    history.filter(message => message.direction === "in" && message.text).map(message => message.text!));
   const followUpTone = composeTone(profile?.tonePresets, profile?.tone);
   const followUpInstructions = composeInstructions(
     profile?.instructionSections,
@@ -297,6 +302,10 @@ async function composeFollowUpText(
           : null,
         `Escribe UN solo mensaje breve y natural de seguimiento para WhatsApp: saluda, retoma el tema pendiente de la conversación y facilita que responda. No inventes datos ni ofertas.`,
         `Respondes ÚNICAMENTE un objeto JSON: {"text":"..."} — sin markdown ni texto adicional.`,
+        renderMission(profile ?? {}),
+        profile?.mission === "ecommerce" ? "Este seguimiento no consulta la tienda ni crea pedidos. No anuncies stock, precios nuevos, pedidos creados o pagos confirmados." : null,
+        renderSchedulingOfferPolicy(offerPolicy),
+        composeResponseLanguage(profile?.responseLanguage),
       ]
         .filter(Boolean)
         .join("\n"),
@@ -312,9 +321,12 @@ async function composeFollowUpText(
   const result = await chatJson(z.object({ text: z.string().min(1) }), messages);
   if (!result.ok) {
     console.warn(`[seguimiento] LLM falló (${result.error}); uso respaldo`);
-    return FALLBACK_TEXT;
+    return profile?.responseLanguage === "en"
+      ? "Hello! I’m following up on our conversation. Are you still interested?"
+      : FALLBACK_TEXT;
   }
-  return result.data.text;
+  if(profile?.mission === "ecommerce" && unverifiedCommerceClaim(result.data.text)) return profile.responseLanguage === "en" ? "Hello! Would you like to continue reviewing the products you need?" : "¡Hola! ¿Quieres que retomemos la revisión de los productos que necesitas?";
+  return guardMeetingOfferText(result.data.text, offerPolicy, profile ?? {}, history.at(-1)?.text ?? "");
 }
 
 type DueLead = {

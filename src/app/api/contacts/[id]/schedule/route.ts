@@ -14,6 +14,8 @@ const bodySchema = z.object({
 });
 
 const ERROR_STATUS: Record<ScheduleError["code"], number> = {
+  invalid_date: 422,
+  meeting_busy: 409,
   not_connected: 409,
   reconnect_required: 409,
   contact_not_found: 404,

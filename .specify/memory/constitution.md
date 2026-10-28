@@ -1,3 +1,20 @@
+<!-- SYNC IMPACT REPORT — 2026-10-26
+2.1.0 -> 2.2.0 MINOR. El dueño solicita activar Brevo para SMS y confirma
+SEOMOS LLC como remitente. Brevo opcional exclusivamente SMS con adaptador,
+credencial cifrada por organización, consentimiento y bajas por canal. La primera
+parte solo verifica conexión/saldo; no habilita envíos sin aprobación externa.
+Plantillas revisadas: sin listas cerradas de proveedores. AGENTS/CLAUDE sincronizados.
+-->
+
+<!--
+SYNC IMPACT REPORT — 2026-10-26
+Versión 2.0.0 -> 2.1.0 (MINOR). Dueño autoriza conexión real de catálogo/pedidos y
+crear pedidos sin pagar tras confirmación, sin tienda concreta todavía. Añade
+WooCommerce/Shopify opcionales en adaptador dedicado; sin cobros/billing. Se
+sincronizan AGENTS.md, CLAUDE.md y specs/037. Plantillas no contienen proveedores.
+I, III-IX preservados. Pruebas con mocks; conexión comercial pendiente.
+-->
+
 <!--
 SYNC IMPACT REPORT — 2026-10-08
 Versión: 1.5.0 → 2.0.0 (MAJOR: redefinición del foco vertical VIII).
@@ -53,8 +70,9 @@ dependencias externas en runtime es CERRADA:
      2026-07-17), EXCLUSIVAMENTE para agendar reuniones con prospectos: accedida
      tras un adaptador dedicado (`src/lib/google/`), con OAuth por usuario cuyo
      refresh token se cifra en reposo (Principio I). Sin conexión configurada, el
-     producto funciona completo sin agendamiento; su fallo degrada sin colgar
-     ninguna otra función.
+     producto conserva el agendamiento en el CRM sin invitaciones ni Meet
+     (corrección autorizada por el dueño 2026-10-26); su fallo degrada sin
+     colgar ninguna otra función.
   4. **Resend**, opcional (enmiendas 1.4.0, 1.5.0 y 2.0.0; última aprobada
      por el dueño el 2026-10-08), para correo transaccional de avisos de nuevos
      leads, resúmenes operativos y restablecimiento de contraseña, además del
@@ -63,6 +81,18 @@ dependencias externas en runtime es CERRADA:
      variables de runtime y entregas idempotentes cuando corresponda. Sin
      configuración o ante un fallo del proveedor, el CRM conserva sus datos y
      credenciales y continúa sin colgar el flujo principal.
+  5. **WooCommerce REST API / Shopify Admin GraphQL**, opcionales (enmienda
+     2.1.0, solicitada por el dueño el 2026-10-26), solo para catálogo, precios,
+     disponibilidad, consulta de pedidos del cliente y creación de pedidos SIN
+     PAGAR tras resumen y confirmación explícita. Adaptador src/lib/ecommerce/,
+     conexión por organización con secretos cifrados. No ejecuta cobros, reembolsos
+     ni billing. Sin tienda o ante fallos el CRM continúa operando. Reintentos de
+     creación nunca duplican pedidos; resultados ambiguos se reconcilian por lectura.
+  6. **Brevo SMS API**, opcional (enmienda 2.2.0, solicitada por el dueño el
+     2026-10-26), exclusivamente SMS de avisos/campañas con remitente aprobado y
+     consentimiento verificable por canal y finalidad. Adaptador `src/lib/brevo/`,
+     clave cifrada por organización. Resend conserva email. Conectar la API no
+     habilita envíos. Sin configuración/aprobación o ante fallos, el CRM continúa.
 - **PROHIBIDO en v1**: almacenamiento de objetos externo (S3/R2), proveedores de
   email distintos de Resend, Stripe u otro billing, y otros servicios de Google
   distintos de Calendar. Cualquier feature que los requiera queda fuera del
@@ -255,4 +285,4 @@ práctica, convención o preferencia; ante un conflicto, gana la constitución.
 - **Propagación**: al enmendar la constitución se revisan y, si procede, se actualizan
   las plantillas dependientes (plan, spec, tasks).
 
-**Version**: 2.0.0 | **Ratified**: 2026-07-09 | **Last Amended**: 2026-10-08
+**Version**: 2.2.0 | **Ratified**: 2026-07-09 | **Last Amended**: 2026-10-26

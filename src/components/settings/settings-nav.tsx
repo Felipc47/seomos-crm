@@ -3,12 +3,14 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, CalendarDays, MessageCircle, Palette, Plug, UserRound, Users } from "lucide-react";
+import { Bell, CalendarDays, MessageCircle, Smartphone, Palette, Plug, ShoppingBag, UserRound, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
   { href: "/settings/profile", label: "Perfil", icon: UserRound, adminOnly: false },
   { href: "/settings/whatsapp", label: "WhatsApp", icon: MessageCircle, adminOnly: true },
+  { href: "/settings/sms", label: "SMS", icon: Smartphone, adminOnly: true },
+  { href: "/settings/ecommerce", label: "Ecommerce", icon: ShoppingBag, adminOnly: true },
   { href: "/settings/calendar", label: "Calendario", icon: CalendarDays, adminOnly: true },
   { href: "/settings/notifications", label: "Notificaciones", icon: Bell, adminOnly: true },
   { href: "/settings/integrations", label: "Integraciones", icon: Plug, adminOnly: true },

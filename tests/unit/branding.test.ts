@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ACCENT_PRESETS,
+  accentForeground,
   accentCssVariables,
   isValidHex,
   normalizeBranding,
@@ -16,12 +17,14 @@ describe("white-label: acento", () => {
       });
       return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
     };
-    for (const color of ["#e84b1d", "#797979", "#30bd00", "#3f5972", "#ffffff", "#111111"]) {
+    for (const color of ["#e84b1d", "#f14c0c", "#ff9500", "#797979", "#30bd00", "#3f5972", "#ffffff", "#111111"]) {
       const css = accentCssVariables(color);
       expect(css).toContain(":root,.dark{");
       for (const state of ["accent", "accent-hover"]) {
         const bg = css.match(new RegExp(`--${state}:(#[a-f0-9]{6});`))![1]!;
         const fg = css.match(new RegExp(`--${state}-contrast:(#[a-f0-9]{6});`))![1]!;
+        expect(fg).toBe("#ffffff");
+        expect(accentForeground(bg)).toBe("#ffffff");
         const values = [luminance(bg), luminance(fg)].sort((a, b) => b - a);
         expect((values[0]! + 0.05) / (values[1]! + 0.05)).toBeGreaterThanOrEqual(4.5);
       }

@@ -1,3 +1,6 @@
+import { unverifiedCommerceClaim } from "@/lib/ecommerce/contracts";
+import { commercePrompt, executeCommerceAction } from "@/server/ecommerce/agent";
+import { getSchedulingOfferPolicy, guardSchedulingAction } from "@/server/ai/mission-policy";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { isNegativeStage, isReasonForStage } from "@/lib/lead-closure";
@@ -519,25 +522,23 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
     .orderBy(asc(schema.pipelineStage.position));
   const services = await listServiceRoutingOptions(organizationId);
 
-  // 004: la acción schedule_meeting solo se ofrece con Calendar conectado y
-  // NUNCA en conversaciones de prueba históricas.
+  const schedulingOffer = await getSchedulingOfferPolicy(organizationId, conversationId, profile,
+    history.filter(message => message.direction === "in" && message.text).map(message => message.text!));
+
+  // 004: el CRM permite agendar sin Google. Solo se excluyen pruebas históricas.
   let calendarAvailable = false;
   let scheduling: SchedulingContext | undefined;
   let calSettings: CalendarSettings | undefined;
-  if (!conversation.isTest && isGoogleConfigured()) {
-    const googleConn = await getGoogleConnection(organizationId);
+  if (!conversation.isTest && schedulingOffer.allowed) {
+    calSettings = await getCalendarSettings(organizationId);
+    scheduling = buildSchedulingContext(calSettings);
+    const googleConn = isGoogleConfigured() ? await getGoogleConnection(organizationId) : null;
     calendarAvailable = googleConn?.status === "connected";
-    if (calendarAvailable) {
-      calSettings = await getCalendarSettings(organizationId);
-      scheduling = buildSchedulingContext(calSettings);
-      // Disponibilidad real por día: única fuente para proponer horarios.
-      const days = await fetchAvailabilityByDay(organizationId, calSettings);
-      if (days.length > 0) {
-        scheduling.availabilityLabel = buildAvailabilityLabel(
-          days,
-          calSettings.timezone
-        );
-      }
+    const days = await fetchAvailabilityByDay(organizationId, calSettings);
+    if (days.length > 0) {
+      scheduling.availabilityLabel = buildAvailabilityLabel(days, calSettings.timezone);
+    } else if (calendarAvailable) {
+      calendarAvailable = (await getGoogleConnection(organizationId))?.status === "connected";
     }
   }
 
@@ -578,11 +579,14 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
         kb,
         stages,
         services,
+        schedulingAvailable: !conversation.isTest,
+        offerPolicy: schedulingOffer,
         calendarAvailable,
         scheduling,
         contactEmail: knownEmail,
         contactName: knownName,
         leadOrigin,
+        commerceContext: profile.mission === "ecommerce" && !conversation.isTest ? await commercePrompt(organizationId, conversationId).catch(() => "ECOMMERCE: no fue posible verificar la conexión. No inventes catálogo, stock ni pedidos.") : undefined,
       }),
     },
     ...(await buildHistoryMessages(organizationId, history)),
@@ -608,7 +612,13 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
     return;
   }
 
-  let action: AgentActionType = result.data;
+  let action: AgentActionType = guardSchedulingAction(result.data, schedulingOffer, profile, lastInbound.text ?? "");
+
+  if(profile.mission==="ecommerce") {
+    const safeText=profile.responseLanguage==="en"?"Let's verify the order with the store before confirming its status.":"Verifiquemos el pedido con la tienda antes de confirmar su estado.";
+    if(action.action==="reply"&&unverifiedCommerceClaim(action.text))action={...action,text:safeText};
+    else if("reply" in action&&action.reply&&unverifiedCommerceClaim(action.reply))action={...action,reply:safeText};
+  }
 
   // Clasificación embebida en el turno principal: aprovecha texto, audio e
   // imagen sin otra llamada. La pasada de ficha posterior actúa como segundo
@@ -667,6 +677,14 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
   }
 
   switch (action.action) {
+    case "commerce_search":
+    case "commerce_prepare":
+    case "commerce_confirm":
+    case "commerce_order_status": {
+      const reply = await executeCommerceAction(action, {organizationId,conversationId,contactId:conversation.contactId,phone:contactRow?.phone??"",inboundId:lastInbound.id,inboundAt:lastInbound.createdAt,inboundText:lastInbound.text??"",inboundTexts:history.filter(m=>m.direction==="in"&&m.text).map(m=>m.text!),isTest:conversation.isTest,mission:profile.mission}, profile.responseLanguage);
+      await deliverReply(conversation,reply,{allowRepeat:true});
+      return;
+    }
     case "none":
       return;
     case "reply":
@@ -695,7 +713,6 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
       await executeScheduleMeeting(
         conversation,
         action,
-        calendarAvailable,
         scheduling,
         calSettings,
         inboundTexts,
@@ -817,7 +834,6 @@ async function buildHistoryMessages(
 async function executeScheduleMeeting(
   conversation: Conversation,
   action: Extract<AgentActionType, { action: "schedule_meeting" }>,
-  calendarAvailable: boolean,
   scheduling: SchedulingContext | undefined,
   calSettings: CalendarSettings | undefined,
   inboundTexts: string[],
@@ -837,15 +853,15 @@ async function executeScheduleMeeting(
   if (!email) {
     await deliverReply(
       conversation,
-      "Para enviarte la invitación necesito tu correo electrónico. ¿Me lo compartes?",
+      "Para registrar la reunión necesito tu correo electrónico. ¿Me lo compartes?",
       { allowRepeat: true }
     );
     return;
   }
 
   const start = new Date(action.datetime);
-  if (!calendarAvailable || !calSettings || Number.isNaN(start.getTime())) {
-    // Sin conexión (no debería ofrecerse) o fecha imposible de parsear:
+  if (conversation.isTest || !calSettings || Number.isNaN(start.getTime())) {
+    // Conversación de prueba histórica o fecha imposible de parsear:
     // pedir la fecha de nuevo en lugar de fallar.
     await deliverReply(
       conversation,
@@ -881,7 +897,7 @@ async function executeScheduleMeeting(
     await deliverReply(
       conversation,
       opciones
-        ? `Antes de agendar, confírmame qué horario te queda mejor. Disponibilidad real: ${opciones}. ¿Cuál prefieres?`
+        ? `Antes de agendar, confírmame qué horario te queda mejor. Horarios propuestos: ${opciones}. ¿Cuál prefieres?`
         : "Antes de agendar, confírmame qué día y hora te quedan mejor y con gusto la programo.",
       { allowRepeat: true }
     );
@@ -949,8 +965,9 @@ async function executeScheduleMeeting(
       : "";
     await deliverReply(
       conversation,
-      action.reply ??
-        `¡Listo! Agendé la reunión para el ${when}. Te llegará la invitación al correo ${email}.${meetPart}`
+      event.calendarSynced
+        ? action.reply ?? `¡Listo! Agendé la reunión para el ${when}. Te llegará la invitación al correo ${email}.${meetPart}`
+        : `¡Listo! Registré la reunión para el ${when}. La confirmación queda por este chat.`
     );
   } catch (err) {
     // Choque de agenda: no es un error del sistema — se negocia otra hora

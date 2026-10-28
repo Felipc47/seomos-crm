@@ -1,3 +1,4 @@
+import { sweepMeetingReminders } from "@/server/meetings/runner";
 import { timingSafeEqual } from "node:crypto";
 import { getEnv, isMockEnabled } from "@/lib/env";
 import { sweepPendingConversations } from "@/server/ai/sweep";
@@ -36,11 +37,12 @@ async function handle(req: Request): Promise<Response> {
     const parsed = override ? new Date(override) : null;
     if (parsed && !Number.isNaN(parsed.getTime())) now = parsed;
   }
+  const meetings = await sweepMeetingReminders(now).catch(() => ({ error: "No se pudo completar el barrido de reuniones" }));
   const result = await sweepPendingConversations(now);
   const followUps = await sweepFollowUps(now);
   const weeklyEmail = await sendWeeklyLeadDigests(now);
   const mailing = await sweepMailing(now).catch(() => ({ error: "No se pudo completar el barrido de mailing" }));
-  return Response.json({ ok: true, ...result, followUps, weeklyEmail, mailing });
+  return Response.json({ ok: true, ...result, meetings, followUps, weeklyEmail, mailing });
 }
 
 export const POST = handle;

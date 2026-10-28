@@ -45,16 +45,24 @@ producción.
 
 Ver [.specify/memory/constitution.md](.specify/memory/constitution.md).
 
-- **Soberanía (II, enmienda 2.0.0)**: dependencias de runtime SOLO WhatsApp
+- **Soberanía (II, enmienda 2.1.0)**: dependencias de runtime SOLO WhatsApp
   Cloud API + proveedor LLM OpenRouter-compatible opcional + Google Calendar
   API opcional (únicamente agendamiento, adaptador en `src/lib/google/`, OAuth
   por usuario con token cifrado) + Resend opcional (avisos de nuevos
   leads, resúmenes operativos, restablecimiento de contraseñas y mailing
   con campañas/secuencias y dominios de remitente verificados por DNS; adaptador
-  dedicado, secreto en runtime y fallo tolerante). PROHIBIDO en v1 introducir
+  dedicado, secreto en runtime y fallo tolerante) + WooCommerce/Shopify opcionales
+  para catálogo y pedidos sin pagar (037). Brevo SMS opcional autorizado por el dueño (2.2.0), exclusivamente SMS
+  con adaptador `src/lib/brevo/`, credencial cifrada por empresa, remitente aprobado
+  y consentimiento independiente. Conectar la API no habilita envíos.
+  PROHIBIDO en v1 introducir
   S3/R2, otros proveedores de email,
   Stripe u otros servicios de Google distintos de Calendar. Auth y BD
   self-hosted.
+- **Ecommerce (037, enmienda 2.1.0)**: WooCommerce y Shopify opcionales tras
+  `src/lib/ecommerce/`, conexión cifrada por empresa, catálogo/stock/pedidos y
+  creación sin pagar solo después de resumen y confirmación. No cobros ni
+  reembolsos. Resultado de escritura ambiguo se reconcilia sin repetir POST.
 - **Seguridad (I)**: secretos cifrados en reposo (AES-256-GCM, `lib/crypto`);
   jamás al cliente ni a logs. El token de WhatsApp solo muestra sus últimos 4.
 - **Multi-tenancy (III)**: `organization_id` NOT NULL en toda tabla de dominio;
