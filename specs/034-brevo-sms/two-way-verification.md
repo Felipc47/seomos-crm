@@ -24,8 +24,8 @@ Chrome corporativo `ceo@seomos.com`, verificado el 28 de octubre:
 remitente US `TFN_PENDING_5` continúa **Draft** y SMS prepaid tiene **0 créditos**.
 Se generó una clave restringida tras la confirmación expresa del dueño:
 Account Read, Transactional SMS Read/write, Webhooks Read/write. Su valor no se
-incluye en código, logs ni documentación. La pantalla de copia permanece abierta
-hasta guardar la conexión cifrada directamente en el CRM.
+incluye en código, logs ni documentación. La clave se guardó cifrada directamente
+en el CRM tras autorizar la IP del servidor; el campo quedó vacío.
 
 La revisión automática rechazó un resguardo temporal alternativo de la clave;
 no se insistió por otro canal. Se conserva el flujo de conexión directa al CRM.
@@ -68,7 +68,7 @@ por ambigüedad; se leyó el contrato del conector antes de realizar el cambio e
 - Se solicitó autorización expresa para añadir exclusivamente esa IP; no se
   desactivó la protección ni se autorizó otro origen.
 
-Punto de reanudación: la aprobación para autorizar la IP está pendiente. La clave
+Punto histórico anterior (resuelto en la continuación): la aprobación para autorizar la IP estaba pendiente. La clave
 permanece en memoria de la sesión del navegador y en el campo de contraseña de la
 conexión pendiente del CRM; nunca se imprimió ni se guardó en un temporal. No
 reportar la cuenta como conectada ni el webhook como registrado hasta verificarlos.
@@ -82,7 +82,8 @@ solo sufijo público. La API no informa saldo SMS (null), sin interpretarlo como
 
 El registro de webhook fue rechazado. Contrato oficial verificado en
 https://github.com/getbrevo/brevo-node/blob/main/src/api/resources/webhooks/client/requests/CreateWebhookRequest.ts
-acepta `reply`, no `replied`, y no admite `accepted` en events. Se corrige la
+mostraba el enum general de email, insuficiente para SMS. La primera corrección
+aceptaba `reply`, pero conservaba `unsubscribed` y omitía `accepted`. Se corrigió la
 suscripción conservando el parser del callback `msg_status: replied`. El mock
 rechazará eventos fuera del contrato para detectar esta incompatibilidad localmente.
 
@@ -90,3 +91,44 @@ Verificación de la corrección: typecheck, lint y build aprobados; 572 unitario
 y 78 comprobaciones funcionales (35 conexión + 43 bidireccionales) aprobados.
 El mock valida ahora el enum de suscripciones de Brevo y rechaza los nombres
 inválidos antes de crear el webhook ficticio. No se probaron envíos reales.
+
+PR correctiva: https://github.com/Felipc47/seomos-crm/pull/9, integrada en
+2bd09a4932d31b5017e3a9831f367210f8a3e546. Coolify fijado únicamente a ese
+commit. Despliegue zr40pheomdziodtqzhbnk6ta finalizado el 2026-10-28T23:28:17Z; imagen anterior 4129b442
+conservada como punto de retorno. La cuenta ya conectada no se reemplazó.
+
+
+## Contrato SMS confirmado en vivo — 2026-10-28 18:42 Bogotá
+
+La corrección PR #9 aún fue rechazada por Brevo HTTP 400. La página vigente y el
+SDK general no distinguen correctamente todos los eventos SMS. El contrato SMS
+sí aparece explícito en la referencia oficial anterior:
+https://sendinblue.readme.io/reference/createwebhook
+
+Registro aceptado con **HTTP 201** usando type transactional, channel sms y
+`sent`, `accepted`, `delivered`, `reply`, `softBounce`, `hardBounce`, `unsubscribe`.
+En particular, SMS requiere `unsubscribe` singular; `unsubscribed` es de email,
+y `reply` es la suscripción aunque el callback trae `msg_status: replied`.
+
+La operación se ejecutó desde el contenedor mediante la sesión administrativa de
+Coolify, descifrando la credencial únicamente en memoria del servidor y reservando
+el token del callback cifrado antes del POST. Las respuestas 400 anteriores
+liberaron la reserva; el HTTP 201 persistió el id del webhook y el token cifrado.
+Solo se imprimieron código HTTP, mensaje sanitizado y booleano de éxito.
+
+Recarga autenticada de https://seomos.cloud/settings/sms confirma «Cuenta API
+conectada» y «Webhook de respuestas registrado». Campo de nueva clave vacío.
+Evidencia: /private/tmp/brevo-integracion-configurada.jpg. La lista de webhooks de
+Brevo también muestra «SEOMOS CRM SMS — Active» (id 2648168); evidencia en
+/private/tmp/brevo-webhook-activo.jpg. El código y el mock se ajustan al contrato
+aceptado. Última corrección lista para publicar tras gates aprobados.
+
+Los envíos reales continúan pendientes de aprobación del remitente US (Draft),
+créditos y una prueba expresamente autorizada. El saldo API es null/No disponible.
+No se enviaron SMS reales ni se compraron créditos.
+
+
+Validación del candidato final: typecheck, lint y build aprobados; **572/572**
+unitarios, **35/35 + 43/43** comprobaciones E2E y **9/9** de modo producción.
+Logs locales: /private/tmp/brevo-sms-events-{unit,build,e2e}.log.
+No hay cambios de esquema ni de dependencias en esta corrección.

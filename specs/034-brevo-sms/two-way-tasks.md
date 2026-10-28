@@ -13,7 +13,7 @@
 - [x] Verificar migraciones y rutas protegidas/mocks cerrados en producción.
 - [x] Autorizar exclusivamente 179.197.226.44 en Brevo tras confirmación; bloqueo API continúa activo.
 - [x] Guardar la clave cifrada directamente en CRM; cuenta ceo@seomos.com confirmada.
-- [ ] Corregir eventos del registro webhook (`reply`, sin `accepted`) según SDK oficial, verificar y publicar.
-- [ ] Registrar y verificar el webhook real.
-- [ ] Confirmar remitente aprobado y saldo; el actual sigue Draft y 0 créditos.
-- [ ] Prueba real autorizada y evidencia; declarar bloqueos externos si existen.
+- [x] Verificar contrato SMS con API real: `accepted`, `reply`, `softBounce`, `hardBounce`, `unsubscribe` (singular); SDK general insuficiente.
+- [x] Registrar webhook real: Brevo HTTP 201 y CRM confirma recepción configurada tras recarga.
+- [ ] Bloqueo externo: remitente sigue Draft; la API no informa saldo SMS.
+- [ ] Prueba real pendiente de remitente aprobado, créditos y autorización de destinatario/envío.
