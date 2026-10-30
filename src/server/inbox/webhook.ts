@@ -61,6 +61,8 @@ export type WebhookMessage = {
   video?: WebhookMedia;
   document?: WebhookMedia;
   sticker?: WebhookMedia;
+  /** Se valida por campo al normalizar; no confundir con value.contacts. */
+  contacts?: unknown;
 };
 
 export type WebhookStatus = {

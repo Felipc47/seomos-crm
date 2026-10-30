@@ -1,3 +1,4 @@
+import type { SharedContact } from "@/lib/shared-contacts";
 import {
   boolean,
   check,
@@ -501,6 +502,8 @@ export const message = pgTable(
     /** Nombre de archivo del documento (lo manda Meta; en salientes, el del
      * archivo subido) para mostrarlo y usarlo al descargar. */
     mediaFilename: text("media_filename"),
+    /** Fichas compartidas: campos conocidos, nunca el payload crudo. */
+    sharedContacts: jsonb("shared_contacts").$type<SharedContact[]>(),
     status: text("status", {
       enum: ["pending", "sent", "delivered", "read", "failed"],
     })

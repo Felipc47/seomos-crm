@@ -1,3 +1,4 @@
+import type { SharedContact } from "@/lib/shared-contacts";
 /** DTOs que viajan por la API interna (lado cliente). */
 
 import type { PhoneCountry } from "@/lib/phone-country";
@@ -50,6 +51,7 @@ export type ContactReportReason =
   | "other";
 
 export type MessageDto = {
+  sharedContacts?: SharedContact[] | null;
   id: string;
   conversationId: string;
   direction: "in" | "out";
