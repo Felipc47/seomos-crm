@@ -1,3 +1,4 @@
+import { parseSharedContacts, type SharedContact } from "@/lib/shared-contacts";
 import { and, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
@@ -150,6 +151,7 @@ export async function processMessagesValue(value: WebhookValue): Promise<void> {
       mediaId: media?.id ?? null,
       mediaMime: media?.mime_type ?? null,
       mediaFilename: media?.filename ?? null,
+      sharedContacts: msg.type === "contacts" ? parseSharedContacts(msg.contacts) : null,
       timestamp: msg.timestamp,
     });
   }
@@ -165,6 +167,7 @@ export async function ingestInboundMessage(input: {
   mediaId?: string | null;
   mediaMime?: string | null;
   mediaFilename?: string | null;
+  sharedContacts?: SharedContact[] | null;
   timestamp: string;
 }): Promise<void> {
   const db = getDb();
@@ -196,6 +199,7 @@ export async function ingestInboundMessage(input: {
       mediaId: input.mediaId ?? null,
       mediaMime: input.mediaMime ?? null,
       mediaFilename: input.mediaFilename ?? null,
+      sharedContacts: input.sharedContacts ?? null,
       status: "delivered",
       waTimestamp,
     })
@@ -296,5 +300,6 @@ export function serializeMessage(m: typeof schema.message.$inferSelect) {
     hasMedia: m.mediaId !== null,
     mediaMime: m.mediaMime,
     mediaFilename: m.mediaFilename,
+    sharedContacts: m.sharedContacts ?? null,
   };
 }

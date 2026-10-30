@@ -253,6 +253,13 @@
       "when": 1793226895300,
       "tag": "0035_fine_firelord",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793391583210,
+      "tag": "0036_burly_oracle",
+      "breakpoints": true
     }
   ]
 }

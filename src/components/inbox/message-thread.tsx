@@ -16,6 +16,7 @@ import {
 import type { MessageDto } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { mediaLabel } from "./helpers";
+import { SharedContactAttachment } from "./shared-contact-attachment";
 
 function mediaUrl(m: MessageDto): string {
   return `/api/conversations/${m.conversationId}/messages/${m.id}/media`;
@@ -274,7 +275,9 @@ export function MessageThread({ messages }: { messages: MessageDto[] }) {
                   !grouped && (out ? "rounded-br-[5px]" : "rounded-bl-[5px]")
                 )}
               >
-                {m.type === "template" && m.hasMedia ? (
+                {m.type === "contacts" ? (
+                  <SharedContactAttachment m={m} />
+                ) : m.type === "template" && m.hasMedia ? (
                   /* Plantilla con encabezado multimedia (016): el adjunto
                      arriba y el cuerpo debajo, como lo ve el destinatario. */
                   <div className="space-y-1.5">
