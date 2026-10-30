@@ -6,4 +6,4 @@
 - [x] Tarjetas y fallback de históricos.
 - [x] Unit tests y self-test E2E con mocks, fallos e aislamiento.
 - [x] Typecheck, lint, build y tests completos.
-- [ ] Publicar y verificar producción.
+- [x] Publicar y verificar producción. Deployment finished, servicio sano y UI autenticada comprobada.
