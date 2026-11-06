@@ -1,3 +1,6 @@
+import { eq } from "drizzle-orm";
+import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { requireSession, UnauthorizedError } from "@/lib/auth/session";
 import { subscribe } from "@/server/events/bus";
 
@@ -27,12 +30,17 @@ export async function GET(req: Request) {
 
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
+      let pending = Promise.resolve();
+      let closed = false;
       const send = (chunk: string) => {
-        try {
+        // Una membresía eliminada no debe conservar acceso por un SSE abierto.
+        pending = pending.then(async () => {
+          if (closed) return;
+          const [member] = await getDb().select({ id: schema.member.id }).from(schema.member)
+            .where(scoped(schema.member.organizationId, organizationId, eq(schema.member.userId, session.userId))).limit(1);
+          if (!member) { cleanup?.(); return; }
           controller.enqueue(encoder.encode(chunk));
-        } catch {
-          cleanup?.();
-        }
+        }).catch(() => cleanup?.());
       };
 
       send(`: conectado\n\n`);
@@ -48,6 +56,7 @@ export async function GET(req: Request) {
       const heartbeat = setInterval(() => send(`: ping\n\n`), HEARTBEAT_MS);
 
       cleanup = () => {
+        closed = true;
         clearInterval(heartbeat);
         unsubscribe();
         try {

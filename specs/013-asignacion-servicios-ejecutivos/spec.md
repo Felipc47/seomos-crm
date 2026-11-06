@@ -1,3 +1,5 @@
+> Actualización 2026-11-06: [036 — Gestión de equipo y servicios](../036-team-service-management/spec.md) amplía la asignación a todos los roles y sustituye la liberación de servicios al cambiar de rol. Las secciones originales documentan el alcance histórico.
+
 # Feature Specification: Asignación de servicios a ejecutivos comerciales
 
 **Feature Branch**: `codex/013-asignacion-servicios-ejecutivos`

@@ -16,6 +16,8 @@ export const GET = withAuth(async (session) => {
     .select({
       id: schema.member.id,
       role: schema.member.role,
+      userId: schema.member.userId,
+      isSuperadmin: schema.user.isSuperadmin,
       createdAt: schema.member.createdAt,
       name: schema.user.name,
       email: schema.user.email,
@@ -40,6 +42,8 @@ export const GET = withAuth(async (session) => {
       name: m.name,
       email: m.email,
       createdAt: m.createdAt.toISOString(),
+      isSelf: m.userId === session.userId,
+      isSuperadmin: m.isSuperadmin,
       services: assignedServices
         .filter((service) => service.memberId === m.id)
         .map(({ id, name }) => ({ id, name })),

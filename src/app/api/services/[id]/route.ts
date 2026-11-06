@@ -29,7 +29,7 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
       return apiError(
         403,
         "forbidden",
-        "Solo el admin asigna responsables comerciales"
+        "Solo el admin asigna responsables de servicios"
       );
     }
 
@@ -69,7 +69,7 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
         return apiError(
           422,
           "invalid_assignee",
-          "Selecciona un ejecutivo comercial de esta empresa"
+          "Selecciona un miembro del equipo de esta empresa"
         );
       }
     }

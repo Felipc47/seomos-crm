@@ -1,9 +1,10 @@
-import { and, asc, desc, eq, isNotNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
+import { SERVICE_ASSIGNEE_ROLES } from "@/server/services/assignment";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,7 @@ export const GET = withAuth(async (session) => {
       memberId: schema.member.id,
       name: schema.user.name,
       email: schema.user.email,
+      role: schema.member.role,
     })
     .from(schema.member)
     .innerJoin(schema.user, eq(schema.user.id, schema.member.userId))
@@ -53,10 +55,7 @@ export const GET = withAuth(async (session) => {
       scoped(
         schema.member.organizationId,
         session.organizationId,
-        or(
-          eq(schema.member.role, "commercial"),
-          eq(schema.member.role, "member")
-        )
+        inArray(schema.member.role, SERVICE_ASSIGNEE_ROLES)
       )
     )
     .orderBy(asc(schema.user.name));
@@ -98,7 +97,7 @@ export const GET = withAuth(async (session) => {
       assignedExecutive: s.assignedMemberId
         ? {
             memberId: s.assignedMemberId,
-            name: s.assignedExecutiveName ?? "Ejecutivo",
+            name: s.assignedExecutiveName ?? "Miembro del equipo",
           }
         : null,
       forms: links.filter((l) => l.serviceId === s.id).map((l) => l.formId),
