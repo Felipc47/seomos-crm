@@ -6,6 +6,8 @@ import { getSessionOrNull } from "@/lib/auth/session";
 import { getBranding } from "@/server/branding";
 import { AppNav } from "@/components/app-nav";
 import { ToastProvider } from "@/components/ui/toast";
+import { getCalendarSettings } from "@/server/org-settings";
+import { TimezoneProvider } from "@/components/timezone-provider";
 import { HelpChat } from "@/components/help/help-chat";
 
 export default async function AppLayout({
@@ -13,12 +15,13 @@ export default async function AppLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const session = await getSessionOrNull();
   if (!session) redirect("/login");
-  const [branding, mailingEnabled] = await Promise.all([getBranding(session.organizationId), isMailingEnabled(session.organizationId)]);
+  const [branding, mailingEnabled, calendar] = await Promise.all([getBranding(session.organizationId), isMailingEnabled(session.organizationId), getCalendarSettings(session.organizationId)]);
   const authSession = await getAuth().api.getSession({
     headers: await headers(),
   });
 
   return (
+    <TimezoneProvider key={session.organizationId} initialTimezone={calendar.timezone}>
     <ToastProvider>
       <div className="flex h-dvh flex-col overflow-hidden bg-[var(--workspace)] md:flex-row">
         <AppNav
@@ -33,5 +36,6 @@ export default async function AppLayout({
         <HelpChat role={session.role} isSuperadmin={session.isSuperadmin} mailingEnabled={mailingEnabled} />
       </div>
     </ToastProvider>
+    </TimezoneProvider>
   );
 }

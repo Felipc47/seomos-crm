@@ -1,5 +1,7 @@
 "use client";
 
+import { useTimezone } from "@/components/timezone-provider";
+
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
@@ -16,13 +18,14 @@ type NotificationDto = {
   createdAt: string;
 };
 
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, timezone: string): string {
   const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
   if (mins < 1) return "ahora";
   if (mins < 60) return `hace ${mins} min`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `hace ${hours} h`;
   return new Date(iso).toLocaleDateString("es-CO", {
+    timeZone: timezone,
     day: "numeric",
     month: "short",
   });
@@ -37,6 +40,7 @@ export function NotificationsBell({
 }: {
   variant?: "sidebar" | "header";
 }) {
+  const { timezone } = useTimezone();
   const router = useRouter();
   const [items, setItems] = useState<NotificationDto[]>([]);
   const [unread, setUnread] = useState(0);
@@ -143,7 +147,7 @@ export function NotificationsBell({
                       <span className="flex items-baseline justify-between gap-2">
                         <span className="text-[13px] font-semibold">{n.title}</span>
                         <span className="shrink-0 text-[10.5px] text-faint">
-                          {timeAgo(n.createdAt)}
+                          {timeAgo(n.createdAt, timezone)}
                         </span>
                       </span>
                       {n.body && (

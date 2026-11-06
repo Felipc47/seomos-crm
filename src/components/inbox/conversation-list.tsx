@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { StageTag } from "@/components/ui/stage-tag";
 import { stageColor } from "@/lib/stage-colors";
 import { useStages } from "@/components/use-stage-colors";
+import { useTimezone } from "@/components/timezone-provider";
 import { formatTime, previewText } from "./helpers";
 import {
   InboxFilterDropdown,
@@ -259,6 +260,7 @@ export function ConversationList({
   onSelectedActionIdsChange: (ids: string[]) => void;
   selectionResetKey: number;
 }) {
+  const { timezone } = useTimezone();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "unread" | "archived">("all");
   const [stageFilter, setStageFilter] = useState("");
@@ -686,7 +688,7 @@ export function ConversationList({
                               unread ? "text-foreground" : "text-faint"
                             )}
                           >
-                            {formatTime(c.lastMessageAt)}
+                            {formatTime(c.lastMessageAt, timezone)}
                           </span>
                         </span>
                       </span>

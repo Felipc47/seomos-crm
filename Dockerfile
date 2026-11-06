@@ -37,6 +37,7 @@ COPY --from=builder --chown=seomos:seomos /app/public ./public
 COPY --from=builder --chown=seomos:seomos /app/migrate.bundle.mjs ./migrate.mjs
 COPY --from=builder --chown=seomos:seomos /app/seed-demo.bundle.mjs ./seed-demo.mjs
 COPY --from=builder --chown=seomos:seomos /app/drizzle ./drizzle
+COPY --from=builder --chown=seomos:seomos /app/scripts/set-organization-timezone.mjs ./scripts/set-organization-timezone.mjs
 
 USER seomos
 EXPOSE 3000

@@ -1,5 +1,7 @@
 "use client";
 
+import { useTimezone } from "@/components/timezone-provider";
+
 import { useCallback, useEffect, useState } from "react";
 import {
   ArchiveRestore,
@@ -562,6 +564,7 @@ function CreatedBanner({
 }
 
 export function CompaniesClient() {
+  const { timezone } = useTimezone();
   const router = useRouter();
   const [mailingBusy, setMailingBusy] = useState<string | null>(null);
   const toast = useToast();
@@ -684,12 +687,14 @@ export function CompaniesClient() {
                       ? `Eliminada — respaldo hasta el ${new Date(
                           c.purgeAt
                         ).toLocaleDateString("es-CO", {
+                          timeZone: timezone,
                           day: "numeric",
                           month: "long",
                         })}`
                       : `${c.adminEmail ?? "sin admin"} · desde ${new Date(
                           c.createdAt
                         ).toLocaleDateString("es-CO", {
+                          timeZone: timezone,
                           day: "numeric",
                           month: "short",
                           year: "numeric",

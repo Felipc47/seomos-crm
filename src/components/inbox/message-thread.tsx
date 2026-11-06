@@ -1,5 +1,8 @@
 "use client";
 
+import { useTimezone } from "@/components/timezone-provider";
+import { localDateKey } from "@/lib/timezone";
+
 import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
@@ -208,17 +211,21 @@ function StatusTicks({ status }: { status: MessageDto["status"] }) {
   return <AlertTriangle className={cn(cls, "text-destructive")} strokeWidth={1.7} />;
 }
 
-function dayLabel(iso: string): string {
+function dayLabel(iso: string, timezone: string): string {
   const d = new Date(iso);
   const today = new Date();
-  const yesterday = new Date(today.getTime() - 86400000);
-  if (d.toDateString() === today.toDateString()) return "Hoy";
-  if (d.toDateString() === yesterday.toDateString()) return "Ayer";
-  return d.toLocaleDateString("es-CO", { day: "numeric", month: "long" });
+  const todayKey = localDateKey(today, timezone);
+  const yesterday = new Date(`${todayKey}T12:00:00Z`);
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  const yesterdayKey = yesterday.toISOString().slice(0, 10);
+  if (localDateKey(d, timezone) === todayKey) return "Hoy";
+  if (localDateKey(d, timezone) === yesterdayKey) return "Ayer";
+  return d.toLocaleDateString("es-CO", { timeZone: timezone, day: "numeric", month: "long" });
 }
 
-function bubbleTime(iso: string): string {
+function bubbleTime(iso: string, timezone: string): string {
   return new Date(iso).toLocaleTimeString("es-CO", {
+    timeZone: timezone,
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
@@ -226,6 +233,7 @@ function bubbleTime(iso: string): string {
 }
 
 export function MessageThread({ messages }: { messages: MessageDto[] }) {
+  const { timezone } = useTimezone();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -242,8 +250,8 @@ export function MessageThread({ messages }: { messages: MessageDto[] }) {
         const prev = messages[i - 1];
         const newDay =
           !prev ||
-          new Date(prev.createdAt).toDateString() !==
-            new Date(m.createdAt).toDateString();
+          localDateKey(prev.createdAt, timezone) !==
+            localDateKey(m.createdAt, timezone);
         const grouped =
           !newDay && prev !== undefined && prev.direction === m.direction;
         const out = m.direction === "out";
@@ -254,7 +262,7 @@ export function MessageThread({ messages }: { messages: MessageDto[] }) {
               <div className="my-5 flex items-center justify-center gap-4">
                 <span className="h-px w-10 bg-border" />
                 <span className="text-[10px] font-medium tracking-wide text-mute">
-                  {dayLabel(m.createdAt)}
+                  {dayLabel(m.createdAt, timezone)}
                 </span>
                 <span className="h-px w-10 bg-border" />
               </div>
@@ -324,7 +332,7 @@ export function MessageThread({ messages }: { messages: MessageDto[] }) {
                     </span>
                   )}
                   <span className="text-[10.5px] text-text-4">
-                    {bubbleTime(m.createdAt)}
+                    {bubbleTime(m.createdAt, timezone)}
                   </span>
                   {out && <StatusTicks status={m.status} />}
                 </span>

@@ -1,5 +1,7 @@
 "use client";
 
+import { useTimezone } from "@/components/timezone-provider";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
@@ -26,8 +28,9 @@ type NotificationDto = {
 
 const PAGE_SIZE = 50;
 
-function formatWhen(iso: string): string {
+function formatWhen(iso: string, timezone: string): string {
   return new Date(iso).toLocaleString("es-CO", {
+    timeZone: timezone,
     day: "numeric",
     month: "short",
     hour: "numeric",
@@ -42,6 +45,7 @@ function formatWhen(iso: string): string {
  * organización y el filtro por destinatario vive en el servidor).
  */
 export function NotificationsClient() {
+  const { timezone } = useTimezone();
   const router = useRouter();
   const [items, setItems] = useState<NotificationDto[]>([]);
   const [hasMore, setHasMore] = useState(false);
@@ -151,7 +155,7 @@ export function NotificationsClient() {
                           {n.title}
                         </span>
                         <span className="shrink-0 text-[11px] text-faint">
-                          {formatWhen(n.createdAt)}
+                          {formatWhen(n.createdAt, timezone)}
                         </span>
                       </span>
                       {n.body && (

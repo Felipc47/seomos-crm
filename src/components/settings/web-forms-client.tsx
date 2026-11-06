@@ -1,5 +1,7 @@
 "use client";
 
+import { useTimezone } from "@/components/timezone-provider";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -67,15 +69,17 @@ function statusLabel(integration: WebFormIntegrationDto): {
   return { text: "Lista", className: "border-border text-text-2" };
 }
 
-function formatDate(value: string | null): string {
+function formatDate(value: string | null, timezone: string): string {
   if (!value) return "Aún no ha recibido envíos";
   return new Intl.DateTimeFormat("es-CO", {
+    timeZone: timezone,
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
 }
 
 export function WebFormsClient() {
+  const { timezone } = useTimezone();
   const toast = useToast();
   const [integrations, setIntegrations] = useState<WebFormIntegrationDto[]>([]);
   const [services, setServices] = useState<ServiceOption[]>([]);
@@ -375,7 +379,7 @@ export function WebFormsClient() {
                     <div>
                       <p className="text-sm font-bold">Última actividad</p>
                       <p className="mt-1 text-xs text-mute">
-                        {formatDate(integration.lastUsedAt)}
+                        {formatDate(integration.lastUsedAt, timezone)}
                         {integration.lastError ? ` · ${integration.lastError}` : ""}
                       </p>
                     </div>
