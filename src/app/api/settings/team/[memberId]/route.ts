@@ -1,87 +1,38 @@
-import { and, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
-import { getDb, schema } from "@/lib/db";
-import { scoped } from "@/lib/db/tenant";
 import { isOrgAdmin } from "@/lib/permissions";
-import { isCommercialMemberRole } from "@/server/services/assignment";
+import { mutateTeamMember, TeamMutationError } from "@/server/team";
 
 export const dynamic = "force-dynamic";
-
 type Params = { params: Promise<{ memberId: string }> };
-
 const patchSchema = z.object({
-  role: z.enum(["owner", "agent_editor", "commercial", "marketing"]),
-});
+  name: z.string().trim().min(1).max(120).optional(),
+  email: z.string().trim().toLowerCase().email().max(254).optional(),
+  role: z.enum(["owner", "agent_editor", "commercial", "marketing"]).optional(),
+}).strict().refine((data) => Object.keys(data).length > 0, "Indica un cambio");
 
-/** Cambia el rol de un miembro del equipo (admin only). La empresa nunca se
- * queda sin admin: el último owner no puede ser degradado. */
 export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
-  if (!isOrgAdmin(session.role)) {
-    return apiError(403, "forbidden", "Solo el admin asigna roles");
-  }
+  if (!isOrgAdmin(session.role)) return apiError(403, "forbidden", "Solo el admin puede modificar el equipo");
   const { memberId } = await ctx.params;
   const body = await parseBody(req, patchSchema);
   if (!body.ok) return body.response;
-
-  const db = getDb();
-  const rows = await db
-    .select()
-    .from(schema.member)
-    .where(
-      and(
-        eq(schema.member.id, memberId),
-        eq(schema.member.organizationId, session.organizationId)
-      )
-    )
-    .limit(1);
-  const target = rows[0];
-  if (!target) return apiError(404, "not_found", "Miembro no encontrado");
-
-  if (target.role === "owner" && body.data.role !== "owner") {
-    const others = await db
-      .select({ id: schema.member.id })
-      .from(schema.member)
-      .where(
-        and(
-          eq(schema.member.organizationId, session.organizationId),
-          eq(schema.member.role, "owner"),
-          ne(schema.member.id, memberId)
-        )
-      )
-      .limit(1);
-    if (others.length === 0) {
-      return apiError(
-        422,
-        "last_admin",
-        "La empresa no puede quedarse sin admin"
-      );
-    }
+  try {
+    const result = await mutateTeamMember({ actor: session, organizationId: session.organizationId, memberId, change: body.data });
+    return Response.json({ ok: true, ...result });
+  } catch (error) {
+    if (error instanceof TeamMutationError) return apiError(error.status, error.code, error.message);
+    throw error;
   }
+});
 
-  await db.transaction(async (tx) => {
-    await tx
-      .update(schema.member)
-      .set({ role: body.data.role })
-      .where(
-        scoped(
-          schema.member.organizationId,
-          session.organizationId,
-          eq(schema.member.id, memberId)
-        )
-      );
-    if (!isCommercialMemberRole(body.data.role)) {
-      await tx
-        .update(schema.service)
-        .set({ assignedMemberId: null, updatedAt: new Date() })
-        .where(
-          scoped(
-            schema.service.organizationId,
-            session.organizationId,
-            eq(schema.service.assignedMemberId, memberId)
-          )
-        );
-    }
-  });
-  return Response.json({ ok: true });
+export const DELETE = withAuth(async (session, _req: Request, ctx: Params) => {
+  if (!isOrgAdmin(session.role)) return apiError(403, "forbidden", "Solo el admin puede eliminar miembros");
+  const { memberId } = await ctx.params;
+  try {
+    await mutateTeamMember({ actor: session, organizationId: session.organizationId, memberId, remove: true });
+    return Response.json({ ok: true });
+  } catch (error) {
+    if (error instanceof TeamMutationError) return apiError(error.status, error.code, error.message);
+    throw error;
+  }
 });

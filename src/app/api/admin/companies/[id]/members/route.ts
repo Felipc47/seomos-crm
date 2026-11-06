@@ -1,9 +1,8 @@
-import { and, eq, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
-import { scoped } from "@/lib/db/tenant";
-import { isCommercialMemberRole } from "@/server/services/assignment";
+import { mutateTeamMember, TeamMutationError } from "@/server/team";
 
 export const dynamic = "force-dynamic";
 
@@ -50,60 +49,14 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
   const body = await parseBody(req, patchSchema);
   if (!body.ok) return body.response;
 
-  const db = getDb();
-  const rows = await db
-    .select()
-    .from(schema.member)
-    .where(
-      and(
-        eq(schema.member.id, body.data.memberId),
-        eq(schema.member.organizationId, id)
-      )
-    )
-    .limit(1);
-  const target = rows[0];
-  if (!target) return apiError(404, "not_found", "Miembro no encontrado");
-
-  if (target.role === "owner" && body.data.role !== "owner") {
-    const others = await db
-      .select({ id: schema.member.id })
-      .from(schema.member)
-      .where(
-        and(
-          eq(schema.member.organizationId, id),
-          eq(schema.member.role, "owner"),
-          ne(schema.member.id, body.data.memberId)
-        )
-      )
-      .limit(1);
-    if (others.length === 0) {
-      return apiError(422, "last_admin", "La empresa no puede quedarse sin admin");
-    }
+  try {
+    await mutateTeamMember({
+      actor: session, organizationId: id, memberId: body.data.memberId,
+      change: { role: body.data.role }, asSuperadmin: true,
+    });
+    return Response.json({ ok: true });
+  } catch (error) {
+    if (error instanceof TeamMutationError) return apiError(error.status, error.code, error.message);
+    throw error;
   }
-
-  await db.transaction(async (tx) => {
-    await tx
-      .update(schema.member)
-      .set({ role: body.data.role })
-      .where(
-        scoped(
-          schema.member.organizationId,
-          id,
-          eq(schema.member.id, body.data.memberId)
-        )
-      );
-    if (!isCommercialMemberRole(body.data.role)) {
-      await tx
-        .update(schema.service)
-        .set({ assignedMemberId: null, updatedAt: new Date() })
-        .where(
-          scoped(
-            schema.service.organizationId,
-            id,
-            eq(schema.service.assignedMemberId, body.data.memberId)
-          )
-        );
-    }
-  });
-  return Response.json({ ok: true });
 });

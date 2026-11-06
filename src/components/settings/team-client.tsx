@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { KeyRound, Loader2, UserPlus } from "lucide-react";
+import { KeyRound, Loader2, Pencil, Trash2, UserPlus } from "lucide-react";
 import { ContactAvatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { normalizeRole } from "@/lib/permissions";
 
 type Member = {
   id: string;
@@ -14,6 +16,8 @@ type Member = {
   name: string;
   email: string;
   createdAt: string;
+  isSelf: boolean;
+  isSuperadmin: boolean;
   services: { id: string; name: string }[];
 };
 
@@ -26,6 +30,11 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export function TeamClient() {
+  const [editing, setEditing] = useState<{ id: string; name: string; email: string; role: string } | null>(null);
+  const [deleting, setDeleting] = useState<Member | null>(null);
+  const [memberBusy, setMemberBusy] = useState(false);
+  const [memberError, setMemberError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [limit, setLimit] = useState<number | null>(null);
   const [name, setName] = useState("");
@@ -68,21 +77,44 @@ export function TeamClient() {
     );
   }
 
-  async function changeRole(memberId: string, newRole: string) {
-    const res = await fetch(`/api/settings/team/${memberId}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ role: newRole }),
+  async function saveMember() {
+    if (!editing) return;
+    setMemberBusy(true);
+    setMemberError(null);
+    const response = await fetch(`/api/settings/team/${editing.id}`, {
+      method: "PATCH", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: editing.name, email: editing.email, role: editing.role }),
     }).catch(() => null);
-    if (!res?.ok) {
-      const data = (await res?.json().catch(() => null)) as {
-        error?: { message?: string };
-      } | null;
-      setError(data?.error?.message ?? "No se pudo cambiar el rol");
-    } else {
-      setError(null);
+    const data = await response?.json().catch(() => null) as {
+      signInAgain?: boolean; error?: { message?: string };
+    } | null;
+    setMemberBusy(false);
+    if (!response?.ok) {
+      setMemberError(data?.error?.message ?? "No se pudo guardar. Revisa tu conexión e inténtalo otra vez.");
+      return;
     }
-    void refetch();
+    if (data?.signInAgain) { window.location.assign("/login"); return; }
+    const target = members.find((member) => member.id === editing.id);
+    if (target?.isSelf && editing.role !== "owner") { window.location.assign("/settings/profile"); return; }
+    setEditing(null);
+    setFeedback("Miembro actualizado.");
+    await refetch();
+  }
+
+  async function removeMember() {
+    if (!deleting) return;
+    setMemberBusy(true);
+    setMemberError(null);
+    const response = await fetch(`/api/settings/team/${deleting.id}`, { method: "DELETE" }).catch(() => null);
+    setMemberBusy(false);
+    if (!response?.ok) {
+      const data = await response?.json().catch(() => null) as { error?: { message?: string } } | null;
+      setMemberError(data?.error?.message ?? "No se pudo eliminar. Revisa tu conexión e inténtalo otra vez.");
+      return;
+    }
+    setDeleting(null);
+    setFeedback("Miembro eliminado del equipo. Sus servicios y prospectos quedaron sin asignar.");
+    await refetch();
   }
 
   async function create() {
@@ -234,74 +266,78 @@ export function TeamClient() {
             {resetFeedback.message}
           </p>
         )}
+        {feedback && <p role="status" className="text-sm text-[color:var(--success-fg)]">{feedback}</p>}
         {members.map((m) => (
-          <div
-            key={m.id}
-            data-testid={`team-member-${m.id}`}
-            className="flex flex-col gap-3 rounded-lg border bg-card px-4 py-3 sm:flex-row sm:items-center"
-          >
-            <div className="flex min-w-0 flex-1 items-start gap-3">
-              <ContactAvatar name={m.name} seed={m.id} size="sm" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{m.name}</p>
-                <p className="break-all text-xs text-muted-foreground">
-                  {m.email}
-                </p>
-                {(m.role === "commercial" || m.role === "member") && (
-                  <div className="mt-1.5 flex flex-wrap gap-1.5">
-                    {m.services.length > 0 ? (
-                      m.services.map((service) => (
-                        <span
-                          key={service.id}
-                          className="rounded-full bg-brand-tint px-2 py-0.5 text-[11px] font-bold text-brand"
-                        >
-                          {service.name}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-[11px] text-muted-foreground">
-                        Sin servicios asignados
-                      </span>
-                    )}
+          <div key={m.id} data-testid={`team-member-${m.id}`} className="rounded-lg border bg-card px-4 py-3">
+            {editing?.id === m.id ? (
+              <form className="space-y-3" aria-label={`Editar a ${m.name}`} onSubmit={(event) => { event.preventDefault(); void saveMember(); }}>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`edit-name-${m.id}`}>Nombre del miembro</Label>
+                    <Input id={`edit-name-${m.id}`} value={editing.name} maxLength={120} required disabled={memberBusy}
+                      onChange={(event) => setEditing({ ...editing, name: event.target.value })} autoFocus />
                   </div>
-                )}
-              </div>
-            </div>
-            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
-              <select
-                aria-label={`Rol de ${m.name}`}
-                value={m.role === "member" ? "commercial" : m.role}
-                onChange={(e) => void changeRole(m.id, e.target.value)}
-                className="h-9 min-w-0 flex-1 rounded-lg border bg-background px-2 text-xs font-semibold outline-none focus:border-brand sm:flex-none"
-              >
-                <option value="owner">{ROLE_LABELS.owner}</option>
-                <option value="agent_editor">{ROLE_LABELS.agent_editor}</option>
-                <option value="commercial">{ROLE_LABELS.commercial}</option>
-                <option value="marketing">{ROLE_LABELS.marketing}</option>
-              </select>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="flex-1 sm:flex-none"
-                disabled={resettingMemberId !== null}
-                onClick={() => void resetPassword(m)}
-                aria-label={`Restablecer contraseña de ${m.name}`}
-              >
-                {resettingMemberId === m.id ? (
-                  <Loader2
-                    className="h-4 w-4 animate-spin"
-                    aria-hidden="true"
-                  />
-                ) : (
-                  <KeyRound className="h-4 w-4" aria-hidden="true" />
-                )}
-                {resettingMemberId === m.id ? "Enviando…" : "Restablecer"}
-              </Button>
-            </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`edit-email-${m.id}`}>Correo del miembro</Label>
+                    <Input id={`edit-email-${m.id}`} type="email" value={editing.email} maxLength={254} required disabled={memberBusy}
+                      onChange={(event) => setEditing({ ...editing, email: event.target.value })} />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`edit-role-${m.id}`}>Rol del miembro</Label>
+                  <select id={`edit-role-${m.id}`} value={editing.role} disabled={memberBusy || m.isSuperadmin}
+                    onChange={(event) => setEditing({ ...editing, role: event.target.value })}
+                    className="h-10 w-full rounded-lg border bg-background px-3 text-sm outline-none focus:border-brand">
+                    {Object.entries(ROLE_LABELS).filter(([value]) => value !== "member").map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                </div>
+                <p className="text-xs text-muted-foreground">Si cambias el correo, el miembro deberá volver a iniciar sesión con el nuevo correo y su contraseña actual.</p>
+                {memberError && <p role="alert" className="text-sm text-destructive">{memberError}</p>}
+                <div className="flex flex-wrap gap-2">
+                  <Button type="submit" size="sm" disabled={memberBusy || !editing.name.trim() || !editing.email.trim()}>{memberBusy ? "Guardando…" : "Guardar cambios"}</Button>
+                  <Button type="button" variant="outline" size="sm" disabled={memberBusy} onClick={() => { setEditing(null); setMemberError(null); }}>Cancelar edición</Button>
+                </div>
+              </form>
+            ) : (
+              <>
+                <div className="flex min-w-0 items-start gap-3">
+                  <ContactAvatar name={m.name} seed={m.id} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words text-sm font-medium">{m.name}{m.isSelf ? " (tú)" : ""}</p>
+                    <p className="break-all text-xs text-muted-foreground">{m.email}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{ROLE_LABELS[normalizeRole(m.role)]}{m.isSuperadmin ? " · Superadmin" : ""}</p>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {m.services.length > 0 ? m.services.map((service) => (
+                        <span key={service.id} className="rounded-full bg-brand-tint px-2 py-0.5 text-[11px] font-bold text-brand">{service.name}</span>
+                      )) : <span className="text-[11px] text-muted-foreground">Sin servicios asignados</span>}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" size="sm" disabled={memberBusy || (m.isSuperadmin && !m.isSelf)}
+                    aria-label={`Editar a ${m.name}`} onClick={() => { setEditing({ id: m.id, name: m.name, email: m.email, role: normalizeRole(m.role) }); setMemberError(null); setFeedback(null); }}>
+                    <Pencil className="h-4 w-4" aria-hidden="true" />Editar
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" disabled={resettingMemberId !== null || memberBusy}
+                    onClick={() => void resetPassword(m)} aria-label={`Restablecer contraseña de ${m.name}`}>
+                    {resettingMemberId === m.id ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <KeyRound className="h-4 w-4" aria-hidden="true" />}
+                    {resettingMemberId === m.id ? "Enviando…" : "Restablecer"}
+                  </Button>
+                  {!m.isSelf && !m.isSuperadmin && <Button type="button" variant="outline" size="sm" disabled={memberBusy}
+                    aria-label={`Eliminar a ${m.name}`} onClick={() => { setDeleting(m); setMemberError(null); setFeedback(null); }}>
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />Eliminar
+                  </Button>}
+                </div>
+              </>
+            )}
           </div>
         ))}
       </div>
+      {deleting && <ConfirmDialog title="Eliminar miembro del equipo" busy={memberBusy}
+        message={<><strong>{deleting.name}</strong> perderá acceso a esta empresa. Sus servicios y prospectos quedarán sin asignar. Se conservarán contactos, conversaciones e historial.
+          {memberError && <span role="alert" className="mt-3 block text-destructive">{memberError}</span>}</>}
+        onCancel={() => { if (!memberBusy) { setDeleting(null); setMemberError(null); } }}
+        onConfirm={() => void removeMember()} />}
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Link2, Plus, Trash2, UserRound, X } from "lucide-react";
+import { normalizeRole, ROLE_LABELS } from "@/lib/permissions";
 import type { TemplateDto } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +31,7 @@ type ServiceDto = {
 };
 
 type ExecutiveDto = {
+  role: string;
   memberId: string;
   name: string;
   email: string;
@@ -195,7 +197,7 @@ export function ServicesClient({
           <CardDescription>
             Define quién atiende cada servicio, vincula sus formularios de Meta
             y elige la plantilla de saludo. Cada nuevo prospecto quedará
-            asignado automáticamente al ejecutivo responsable.
+            asignado al miembro responsable al derivarse a atención humana.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -267,11 +269,11 @@ export function ServicesClient({
                         className="h-4 w-4 shrink-0 text-brand"
                         strokeWidth={2.2}
                       />
-                      Ejecutivo responsable
+                      Responsable del servicio
                     </span>
                     {canManageAssignments ? (
                       <select
-                        aria-label={`Ejecutivo responsable de ${svc.name}`}
+                        aria-label={`Responsable del servicio de ${svc.name}`}
                         value={svc.assignedMemberId ?? ""}
                         disabled={assigningId === svc.id}
                         onChange={(event) =>
@@ -288,7 +290,7 @@ export function ServicesClient({
                             key={executive.memberId}
                             value={executive.memberId}
                           >
-                            {executive.name}
+                            {executive.name} · {ROLE_LABELS[normalizeRole(executive.role)]}
                           </option>
                         ))}
                       </select>
@@ -300,7 +302,7 @@ export function ServicesClient({
                   </div>
                   {canManageAssignments && executives.length === 0 && (
                     <p className="mt-2 text-xs text-mute">
-                      Aún no hay ejecutivos comerciales.{" "}
+                      Aún no hay miembros del equipo.{" "}
                       <Link
                         href="/settings/team"
                         className="font-bold text-brand hover:underline"

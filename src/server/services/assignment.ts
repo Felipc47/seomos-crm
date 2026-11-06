@@ -1,11 +1,7 @@
-/**
- * Better Auth conservó `member` en cuentas antiguas; para distribución de
- * servicios equivale al rol comercial migrado. Cualquier valor desconocido se
- * rechaza de forma conservadora.
- */
-export function isCommercialMemberRole(role: string): boolean {
-  return role === "commercial" || role === "member";
-}
+/** Roles actuales y legados válidos para recibir servicios. */
+export const SERVICE_ASSIGNEE_ROLES = [
+  "owner", "admin", "agent_editor", "commercial", "marketing", "member",
+];
 
 export function isEligibleServiceAssignee(
   member:
@@ -20,7 +16,7 @@ export function isEligibleServiceAssignee(
   return Boolean(
     member &&
       member.organizationId === organizationId &&
-      isCommercialMemberRole(member.role)
+      SERVICE_ASSIGNEE_ROLES.includes(member.role)
   );
 }
 

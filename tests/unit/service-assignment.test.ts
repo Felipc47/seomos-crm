@@ -1,25 +1,21 @@
 import { describe, expect, it } from "vitest";
 import {
   hasExplicitServiceIntent,
-  isCommercialMemberRole,
   isEligibleServiceAssignee,
   resolveDetectedService,
 } from "@/server/services/assignment";
 
-describe("asignación comercial por servicio", () => {
-  it.each(["commercial", "member"])(
-    "acepta el rol comercial vigente o legado: %s",
-    (role) => {
-      expect(isCommercialMemberRole(role)).toBe(true);
+describe("asignación por servicio a todos los roles", () => {
+  it.each(["owner", "admin", "agent_editor", "commercial", "marketing", "member"])(
+    "acepta miembros del mismo tenant con rol %s", (role) => {
+      expect(isEligibleServiceAssignee({ organizationId: "org_a", role }, "org_a")).toBe(true);
+      expect(isEligibleServiceAssignee({ organizationId: "org_b", role }, "org_a")).toBe(false);
     }
   );
 
-  it.each(["owner", "marketing", "agent_editor", "unknown"])(
-    "rechaza roles no comerciales: %s",
-    (role) => {
-      expect(isCommercialMemberRole(role)).toBe(false);
-    }
-  );
+  it.each(["unknown", "", "superadmin"])("rechaza un rol desconocido: %s", (role) => {
+    expect(isEligibleServiceAssignee({ organizationId: "org_a", role }, "org_a")).toBe(false);
+  });
 
   it("exige que el miembro pertenezca a la organización activa", () => {
     expect(
