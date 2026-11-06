@@ -43,6 +43,7 @@ import {
   ViewToggle,
   type ViewOption,
 } from "@/components/ui/view-toggle";
+import { useTimezone } from "@/components/timezone-provider";
 import { formatTime } from "@/components/inbox/helpers";
 import { StageManager } from "./stage-manager";
 import { LeadClosureDialog } from "./lead-closure-dialog";
@@ -337,6 +338,7 @@ function PipelineList({
   onMove: (lead: BoardLead, stage: StageDto) => void;
   onEdit: (lead: BoardLead) => void;
 }) {
+  const { timezone } = useTimezone();
   if (leads.length === 0) {
     return (
       <div className="flex h-full min-h-56 flex-col items-center justify-center gap-2 text-center">
@@ -424,14 +426,14 @@ function PipelineList({
               <p className="text-[12px] font-semibold text-mute">
                 <span className="mr-1 text-faint xl:hidden">Actividad:</span>
                 {lead.lastActivityAt
-                  ? formatTime(lead.lastActivityAt)
+                  ? formatTime(lead.lastActivityAt, timezone)
                   : "Sin actividad"}
               </p>
 
               {lead.followUpDueAt ? (
                 <p className="flex items-center gap-1.5 text-[12px] font-medium text-mute">
                   <AlarmClock className="h-3.5 w-3.5 shrink-0" />
-                  {formatTime(lead.followUpDueAt)}
+                  {formatTime(lead.followUpDueAt, timezone)}
                 </p>
               ) : (
                 <p className="text-[12px] text-faint">Sin seguimiento</p>
@@ -539,6 +541,7 @@ function LeadCard({
   overlay?: boolean;
   onEdit?: () => void;
 }) {
+  const { timezone } = useTimezone();
   const reason = closureReasonLabel(lead.closureReason);
   return (
     <div
@@ -563,7 +566,7 @@ function LeadCard({
       <div className="mt-3 flex items-center gap-1.5 border-t pt-2.5">
         <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-[10px] text-mute">
           <Clock3 className="h-3 w-3 shrink-0" />
-          {lead.lastActivityAt ? formatTime(lead.lastActivityAt) : "Sin actividad"}
+          {lead.lastActivityAt ? formatTime(lead.lastActivityAt, timezone) : "Sin actividad"}
         </span>
         {onEdit && (
           <button
@@ -595,7 +598,7 @@ function LeadCard({
       {lead.followUpDueAt && (
         <div className="mt-2.5 flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1.5 text-[10px] font-medium text-mute">
           <AlarmClock className="h-3.5 w-3.5" />
-          Seguimiento {formatTime(lead.followUpDueAt)}
+          Seguimiento {formatTime(lead.followUpDueAt, timezone)}
         </div>
       )}
       {reason && (

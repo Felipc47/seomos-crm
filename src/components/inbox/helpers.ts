@@ -1,17 +1,13 @@
 /** Utilidades de presentación de la bandeja. */
 
-export function formatTime(iso: string | null): string {
+import { DEFAULT_TIMEZONE, localDateKey } from "@/lib/timezone";
+
+export function formatTime(iso: string | null, timezone = DEFAULT_TIMEZONE): string {
   if (!iso) return "";
   const d = new Date(iso);
-  const now = new Date();
-  const sameDay = d.toDateString() === now.toDateString();
-  if (sameDay) {
-    return d.toLocaleTimeString("es-CO", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-  return d.toLocaleDateString("es-CO", { day: "numeric", month: "short" });
+  const sameDay = localDateKey(d, timezone) === localDateKey(new Date(), timezone);
+  if (sameDay) return d.toLocaleTimeString("es-CO", { timeZone: timezone, hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleDateString("es-CO", { timeZone: timezone, day: "numeric", month: "short" });
 }
 
 export function formatRemaining(ms: number): string {

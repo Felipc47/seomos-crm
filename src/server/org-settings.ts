@@ -1,6 +1,8 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
+import { DEFAULT_TIMEZONE, timezoneSchema } from "@/lib/timezone";
 
 /**
  * Settings de organización de la feature 004, guardados en
@@ -26,7 +28,7 @@ const calendarSettingsSchema = z.object({
   /** Duración por defecto en minutos. */
   defaultDurationMin: z.number().int().min(15).max(240).default(45),
   /** Zona horaria IANA del negocio (para interpretar y proponer fechas). */
-  timezone: z.string().trim().min(1).default("America/Bogota"),
+  timezone: timezoneSchema.catch(DEFAULT_TIMEZONE).default(DEFAULT_TIMEZONE),
   /** Inicio de jornada en minutos locales (540 = 9:00 a.m.). */
   workStartMin: z.number().int().min(0).max(1439).default(9 * 60),
   /** Fin de jornada en minutos locales (1050 = 5:30 p.m.). */
@@ -105,6 +107,19 @@ export async function getCalendarSettings(
   const meta = await readMetadata(organizationId);
   const parsed = calendarSettingsSchema.safeParse(meta.calendar ?? {});
   return parsed.success ? parsed.data : calendarSettingsSchema.parse({});
+}
+
+/** Cambio atómico de un campo: preserva calendario y metadata de otras funciones. */
+export async function saveOrganizationTimezone(organizationId: string, timezone: string): Promise<void> {
+  const validated = timezoneSchema.parse(timezone);
+  await getDb().update(schema.organization).set({
+    metadata: sql`jsonb_set(
+      coalesce(${schema.organization.metadata}::jsonb, '{}'::jsonb),
+      '{calendar}',
+      coalesce(${schema.organization.metadata}::jsonb->'calendar', '{}'::jsonb)
+        || jsonb_build_object('timezone', ${validated}::text)
+    )::text`,
+  }).where(scoped(schema.organization.id, organizationId));
 }
 
 export async function saveCalendarSettings(
