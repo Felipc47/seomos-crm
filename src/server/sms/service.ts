@@ -1,3 +1,4 @@
+import { isCompanyServiceActive } from "@/server/company-service";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
@@ -77,6 +78,7 @@ export async function optOutSms(org: string, id: string) {
   return row;
 }
 export async function sendSms(org: string, input: z.infer<typeof smsSendInput>) {
+  if (!(await isCompanyServiceActive(org))) throw new SmsError("service_suspended", "El servicio de esta empresa está en pausa", 403);
   const findExisting = async () => (await getDb().select().from(messages)
     .where(scoped(messages.organizationId,org,eq(messages.operationId,input.operationId))).limit(1))[0];
   const checkExisting = (row: typeof messages.$inferSelect) => {

@@ -1,3 +1,4 @@
+import { isCompanyServiceActive } from "@/server/company-service";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
@@ -340,6 +341,9 @@ export async function callGraphSend(
   payload: unknown,
   timeoutMs?: number
 ): Promise<string> {
+  if (!(await isCompanyServiceActive(credentials.organizationId))) {
+    throw new SendError("blocked", "El servicio de esta empresa está en pausa");
+  }
   try {
     const res = await graphRequest<{ messages?: { id: string }[] }>(
       `${credentials.phoneNumberId}/messages`,

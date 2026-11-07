@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 /** GET público: el login necesita la marca antes de autenticarse. */
 export async function GET() {
-  const session = await getSessionOrNull();
+  const session = await getSessionOrNull({ allowSuspended: true });
   const branding = await getBranding(session?.organizationId);
   return Response.json({ branding, accentSet: resolveAccentSet(branding.accent) });
 }

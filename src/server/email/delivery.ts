@@ -1,3 +1,4 @@
+import { isCompanyServiceActive } from "@/server/company-service";
 import { and, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
@@ -23,6 +24,7 @@ export async function deliverEmail(input: {
   text: string;
 }): Promise<EmailDeliveryResult> {
   if (!isEmailConfigured()) return { status: "unconfigured" };
+  if (!(await isCompanyServiceActive(input.organizationId))) return { status: "failed" };
 
   const db = getDb();
   const reserved = await db

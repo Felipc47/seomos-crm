@@ -1,4 +1,5 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { activeCompanyCondition } from "@/server/company-service";
+import { and, eq } from "drizzle-orm";
 import { getDb, getSql, schema } from "@/lib/db";
 import { getEnv, isEmailConfigured } from "@/lib/env";
 import {
@@ -178,7 +179,7 @@ export async function sendWeeklyLeadDigests(
   const organizations = await db
     .select({ id: schema.organization.id, name: schema.organization.name })
     .from(schema.organization)
-    .where(isNull(schema.organization.deletedAt));
+    .where(activeCompanyCondition());
   const appUrl = `${getEnv().APP_BASE_URL.replace(/\/$/, "")}/pipeline`;
 
   for (const organization of organizations) {

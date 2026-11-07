@@ -10,12 +10,16 @@ import {
   Coins,
   Copy,
   Plus,
+  PauseCircle,
+  PlayCircle,
   RefreshCw,
   Trash2,
   Users,
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { ServiceDialog } from "./service-dialog";
+import type { SuspensionReason } from "@/lib/company-service";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -30,6 +34,9 @@ type CompanyDto = {
   whatsappConnected: boolean;
   adminEmail: string | null;
   deletedAt: string | null;
+  suspendedAt: string | null;
+  suspensionReason: SuspensionReason | null;
+  suspensionMessage: string | null;
   purgeAt: string | null;
   aiCredits: {
     balance: number;
@@ -566,6 +573,8 @@ function CreatedBanner({
 export function CompaniesClient() {
   const { timezone } = useTimezone();
   const router = useRouter();
+  const [serviceOf, setServiceOf] = useState<CompanyDto | null>(null);
+  const [serviceBusy, setServiceBusy] = useState<string | null>(null);
   const [mailingBusy, setMailingBusy] = useState<string | null>(null);
   const toast = useToast();
   const [companies, setCompanies] = useState<CompanyDto[] | null>(null);
@@ -590,6 +599,24 @@ export function CompaniesClient() {
     setCompanies(data.companies);
     setOwnOrgId(data.ownOrganizationId);
   }, []);
+
+  async function reactivateService(company: CompanyDto) {
+    if (serviceBusy) return;
+    setServiceBusy(company.id);
+    try {
+      const res = await fetch(`/api/admin/companies/${company.id}/service`, {
+        method: "PATCH", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ enabled: true }), signal: AbortSignal.timeout(10_000),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null) as { error?: { message?: string } } | null;
+        toast(data?.error?.message ?? "No se pudo reactivar el servicio"); return;
+      }
+      await refetch();
+      toast(`Servicio reactivado para «${company.name}»`);
+    } catch { toast("Sin conexión con el servidor. Inténtalo de nuevo."); }
+    finally { setServiceBusy(null); }
+  }
 
   async function toggleMailing(company: CompanyDto) {
     if (mailingBusy) return;
@@ -663,6 +690,7 @@ export function CompaniesClient() {
             {companies.map((c) => (
               <li
                 key={c.id}
+                data-testid={`company-${c.id}`}
                 className={cn(
                   "flex flex-wrap items-center gap-3 rounded-[15px] border bg-surface px-5 py-4 sm:gap-4",
                   c.deletedAt && "opacity-80"
@@ -713,6 +741,16 @@ export function CompaniesClient() {
                   </div>
                 ) : (
                   <div className="ml-14 flex basis-full flex-wrap items-center gap-2">
+                    <span className={cn("rounded-full px-2.5 py-1 text-[11px] font-extrabold", c.suspendedAt ? "bg-destructive/10 text-destructive" : "bg-success/15 text-success")}>
+                      {c.suspendedAt ? "Servicio suspendido" : "Servicio activo"}
+                    </span>
+                    {c.id !== ownOrgId && <>
+                      <Button size="sm" variant="outline" disabled={serviceBusy !== null} onClick={() => c.suspendedAt ? void reactivateService(c) : setServiceOf(c)}>
+                        {c.suspendedAt ? <PlayCircle className="h-4 w-4" /> : <PauseCircle className="h-4 w-4" />}
+                        {serviceBusy === c.id ? "Reactivando…" : c.suspendedAt ? "Reactivar servicio" : "Suspender servicio"}
+                      </Button>
+                      {c.suspendedAt && <Button size="sm" variant="ghost" onClick={() => setServiceOf(c)}>Editar aviso</Button>}
+                    </>}
                     <button
                       type="button"
                       role="switch"
@@ -789,6 +827,12 @@ export function CompaniesClient() {
           }}
         />
       )}
+
+      {serviceOf && <ServiceDialog company={serviceOf} onClose={() => setServiceOf(null)} onSaved={() => {
+        toast(`Servicio en pausa para «${serviceOf.name}»`);
+        setServiceOf(null);
+        void refetch();
+      }} />}
 
       {teamOf && <TeamDialog company={teamOf} onClose={() => setTeamOf(null)} />}
 

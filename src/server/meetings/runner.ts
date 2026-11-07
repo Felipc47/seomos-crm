@@ -1,4 +1,5 @@
-import { asc, eq, gt, isNull, lte } from "drizzle-orm";
+import { activeCompanyCondition, isCompanyServiceActive } from "@/server/company-service";
+import { asc, eq, gt, lte } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { isMeetingTemplate, meetingConfirmationDetails, meetingConfirmationText } from "@/lib/meeting";
@@ -19,11 +20,12 @@ async function finish(row: MeetingRow, state: "sent" | "skipped" | "uncertain", 
 /** Discovery global solo de tenants; toda consulta de dominio posterior es scoped(). */
 export async function sweepMeetingReminders(now = new Date()) {
   const db = getDb();
-  const organizations = await db.select({ id: schema.organization.id }).from(schema.organization).where(isNull(schema.organization.deletedAt));
+  const organizations = await db.select({ id: schema.organization.id }).from(schema.organization).where(activeCompanyCondition());
   const result = { sent: 0, skipped: 0, uncertain: 0 };
   const deadline = Date.now() + 40_000;
   let budget = 100;
   for (const org of organizations) {
+    if (!(await isCompanyServiceActive(org.id))) continue;
     if (budget <= 0 || Date.now() >= deadline) break;
     // Un proceso caído pudo enviar a Meta antes de caer: jamás reenviar a ciegas.
     const stalled = await db.update(schema.meeting).set({ reminderStatus: "uncertain", reminderError: "El envío quedó interrumpido; revisa el chat antes de confirmar manualmente.", updatedAt: new Date() })

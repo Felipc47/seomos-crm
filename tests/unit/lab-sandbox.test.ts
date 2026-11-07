@@ -1,4 +1,7 @@
+vi.mock("@/server/company-service", () => ({ isCompanyServiceActive: vi.fn(async () => true) }));
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { isCompanyServiceActive } from "@/server/company-service";
+import { chatJson } from "@/lib/ai";
 
 /**
  * Compatibilidad histórica: el turno sobre una conversación is_test persiste
@@ -78,9 +81,21 @@ vi.mock("@/lib/db", () => ({
 describe("guardarraíl de conversaciones de prueba en el pipeline", () => {
   beforeEach(() => {
     graphRequest.mockReset();
+    vi.mocked(chatJson).mockClear();
+    vi.mocked(isCompanyServiceActive).mockResolvedValue(true);
     selectQueue.length = 0;
     inserts.length = 0;
     vi.stubEnv("OPENROUTER_API_TOKEN", "token-test");
+  });
+
+  it("empresa suspendida no consume LLM ni genera mensajes", async () => {
+    vi.mocked(isCompanyServiceActive).mockResolvedValueOnce(false);
+    selectQueue.push([{ id: "cv_paused", organizationId: "org_paused", contactId: "ct_1", isTest: false }], [{ blockedAt: null }]);
+    const { runAgentTurn } = await import("@/server/ai/pipeline");
+    await runAgentTurn("cv_paused");
+    expect(chatJson).not.toHaveBeenCalled();
+    expect(graphRequest).not.toHaveBeenCalled();
+    expect(inserts).toEqual([]);
   });
 
   it("turno sobre conversación is_test → persiste la respuesta y NO llama a Graph", async () => {

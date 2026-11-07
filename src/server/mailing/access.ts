@@ -1,4 +1,4 @@
-import { isNull } from "drizzle-orm";
+import { activeCompanyCondition } from "@/server/company-service";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { getEnv } from "@/lib/env";
@@ -13,6 +13,6 @@ export async function isMailingEnabled(organizationId: string): Promise<boolean>
   const [org] = await getDb()
     .select({ enabled: schema.organization.mailingEnabled })
     .from(schema.organization)
-    .where(scoped(schema.organization.id, organizationId, isNull(schema.organization.deletedAt)));
+    .where(scoped(schema.organization.id, organizationId, activeCompanyCondition()));
   return org?.enabled === true;
 }

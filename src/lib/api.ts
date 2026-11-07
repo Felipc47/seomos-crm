@@ -1,3 +1,4 @@
+import { ServiceSuspendedError } from "@/server/company-service";
 import { z } from "zod";
 import { requireSession, UnauthorizedError, type SessionContext } from "@/lib/auth/session";
 
@@ -22,6 +23,9 @@ export function withAuth<Args extends unknown[]>(
     try {
       session = await requireSession();
     } catch (err) {
+      if (err instanceof ServiceSuspendedError) {
+        return apiError(403, "service_suspended", err.message);
+      }
       if (err instanceof UnauthorizedError) {
         return apiError(401, "unauthorized", "No autenticado");
       }

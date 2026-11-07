@@ -1,3 +1,4 @@
+import { isCompanyServiceActive } from "@/server/company-service";
 import { sql } from "drizzle-orm";
 import { getDb,schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
@@ -7,6 +8,7 @@ import { commerceUrl } from "@/lib/ecommerce/transport";
 import { probeCommerce, searchCommerceProducts } from "@/lib/ecommerce/client";
 import { connectionInput,type CommerceConnection,type ConnectionInput } from "@/lib/ecommerce/contracts";
 export async function getCommerceConnection(org:string):Promise<CommerceConnection|null>{
+  if (!(await isCompanyServiceActive(org))) return null;
   const [r]=await getDb().select().from(schema.commerceConnection).where(scoped(schema.commerceConnection.organizationId,org)).limit(1);if(!r)return null;
   const secret=connectionInput.parse({...JSON.parse(decryptSecret({cipher:r.secretCipher,iv:r.secretIv,tag:r.secretTag})),provider:r.provider,url:r.url,ordersEnabled:r.ordersEnabled});
   return {...secret,id:r.id,currency:r.currency,version:r.updatedAt.toISOString()};

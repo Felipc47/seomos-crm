@@ -29,6 +29,9 @@ export const GET = withAuth(async (session) => {
       name: schema.organization.name,
       createdAt: schema.organization.createdAt,
       deletedAt: schema.organization.deletedAt,
+      suspendedAt: schema.organization.suspendedAt,
+      suspensionReason: schema.organization.suspensionReason,
+      suspensionMessage: schema.organization.suspensionMessage,
       mailingEnabled: schema.organization.mailingEnabled,
     })
     .from(schema.organization)
@@ -88,6 +91,9 @@ export const GET = withAuth(async (session) => {
       whatsappConnected: connected.has(o.id),
       adminEmail: adminBy.get(o.id) ?? null,
       deletedAt: o.deletedAt?.toISOString() ?? null,
+      suspendedAt: o.suspendedAt?.toISOString() ?? null,
+      suspensionReason: o.suspensionReason,
+      suspensionMessage: o.suspensionMessage,
       purgeAt: o.deletedAt ? purgeDate(o.deletedAt).toISOString() : null,
       aiCredits: creditsBy.get(o.id) ?? {
         balance: 0,

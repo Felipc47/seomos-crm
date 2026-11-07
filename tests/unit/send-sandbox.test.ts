@@ -1,3 +1,4 @@
+vi.mock("@/server/company-service", () => ({ isCompanyServiceActive: vi.fn(async () => false) }));
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -39,6 +40,12 @@ describe("guardarraíl de conversaciones de prueba en el sender", () => {
   beforeEach(() => {
     graphRequest.mockReset();
     selectRows.length = 0;
+  });
+
+  it("credenciales cargadas antes de suspender no permiten un envío posterior", async () => {
+    const { callGraphSend } = await import("@/server/inbox/send");
+    await expect(callGraphSend({ id: "creds", organizationId: "org_paused", phoneNumberId: "phone", wabaId: "waba", displayPhoneNumber: null, verifiedName: null, status: "connected", token: "fictitious-only" }, { type: "text" })).rejects.toMatchObject({ code: "blocked" });
+    expect(graphRequest).not.toHaveBeenCalled();
   });
 
   it("conversación is_test → lanza sandbox_violation y NO llama a Graph", async () => {

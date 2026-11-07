@@ -1,3 +1,4 @@
+import { isCompanyServiceActive } from "@/server/company-service";
 import { unverifiedCommerceClaim } from "@/lib/ecommerce/contracts";
 import { renderMission, renderSchedulingOfferPolicy, guardMeetingOfferText } from "@/lib/agent-mission";
 import { getSchedulingOfferPolicy } from "./mission-policy";
@@ -466,6 +467,7 @@ export async function sweepFollowUps(
     .limit(MAX_PER_SWEEP);
 
   for (const c of silent) {
+    if (!(await isCompanyServiceActive(c.organizationId))) continue;
     const { followUp, attention } = await orgSettings(c.organizationId);
     if (!followUp.enabled) continue;
     // Solo leads que siguen en la PRIMERA etapa abierta (típicamente «Nuevo»):
@@ -521,6 +523,7 @@ export async function sweepFollowUps(
     .limit(MAX_PER_SWEEP);
 
   for (const l of due) {
+    if (!(await isCompanyServiceActive(l.organizationId))) continue;
     const { followUp, attention } = await orgSettings(l.organizationId);
     // Apagado: se deja el due intacto — al reactivar, la rutina continúa.
     if (!followUp.enabled) continue;
