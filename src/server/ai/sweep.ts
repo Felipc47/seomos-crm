@@ -1,3 +1,4 @@
+import { activeCompanyCondition } from "@/server/company-service";
 import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scheduleAgentTurn } from "@/server/ai/pipeline";
@@ -29,8 +30,10 @@ export async function sweepPendingConversations(
   const candidates = await db
     .select({ id: schema.conversation.id })
     .from(schema.conversation)
+    .innerJoin(schema.organization, eq(schema.conversation.organizationId, schema.organization.id))
     .where(
       and(
+        activeCompanyCondition(),
         eq(schema.conversation.isTest, false),
         eq(schema.conversation.aiEnabled, true),
         isNull(schema.conversation.handoffAt),

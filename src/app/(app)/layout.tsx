@@ -1,3 +1,4 @@
+import { ServiceMonitor } from "@/components/companies/service-monitor";
 import { isMailingEnabled } from "@/server/mailing/access";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
@@ -23,6 +24,7 @@ export default async function AppLayout({
   return (
     <TimezoneProvider key={session.organizationId} initialTimezone={calendar.timezone}>
     <ToastProvider>
+      {!session.isSuperadmin && <ServiceMonitor />}
       <div className="flex h-dvh flex-col overflow-hidden bg-[var(--workspace)] md:flex-row">
         <AppNav
           branding={branding}

@@ -1,3 +1,4 @@
+import { isCompanyServiceActive, ServiceSuspendedError } from "@/server/company-service";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
@@ -19,6 +20,7 @@ export async function GET(req: Request) {
   try {
     session = await requireSession();
   } catch (err) {
+    if (err instanceof ServiceSuspendedError) return Response.json({ error: { code: "service_suspended", message: err.message } }, { status: 403 });
     if (err instanceof UnauthorizedError) {
       return new Response("No autenticado", { status: 401 });
     }
@@ -38,7 +40,7 @@ export async function GET(req: Request) {
           if (closed) return;
           const [member] = await getDb().select({ id: schema.member.id }).from(schema.member)
             .where(scoped(schema.member.organizationId, organizationId, eq(schema.member.userId, session.userId))).limit(1);
-          if (!member) { cleanup?.(); return; }
+          if (!member || !(await isCompanyServiceActive(organizationId))) { cleanup?.(); return; }
           controller.enqueue(encoder.encode(chunk));
         }).catch(() => cleanup?.());
       };

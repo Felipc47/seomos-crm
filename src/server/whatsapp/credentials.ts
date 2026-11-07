@@ -1,4 +1,5 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { activeCompanyCondition } from "@/server/company-service";
+import { and, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
@@ -51,7 +52,7 @@ export async function getCredentialsByPhoneNumberId(
     .where(
       and(
         eq(schema.metaCredentials.phoneNumberId, phoneNumberId),
-        isNull(schema.organization.deletedAt)
+        activeCompanyCondition()
       )
     )
     .limit(1);
@@ -64,11 +65,12 @@ export async function getCredentialsByWabaId(
 ): Promise<Credentials | null> {
   const db = getDb();
   const rows = await db
-    .select()
+    .select({ credentials: schema.metaCredentials })
     .from(schema.metaCredentials)
-    .where(eq(schema.metaCredentials.wabaId, wabaId))
+    .innerJoin(schema.organization, eq(schema.metaCredentials.organizationId, schema.organization.id))
+    .where(and(eq(schema.metaCredentials.wabaId, wabaId), activeCompanyCondition()))
     .limit(1);
-  return rows[0] ? toCredentials(rows[0]) : null;
+  return rows[0] ? toCredentials(rows[0].credentials) : null;
 }
 
 export async function getCredentialsByOrg(
@@ -76,11 +78,12 @@ export async function getCredentialsByOrg(
 ): Promise<Credentials | null> {
   const db = getDb();
   const rows = await db
-    .select()
+    .select({ credentials: schema.metaCredentials })
     .from(schema.metaCredentials)
-    .where(scoped(schema.metaCredentials.organizationId, organizationId))
+    .innerJoin(schema.organization, eq(schema.metaCredentials.organizationId, schema.organization.id))
+    .where(scoped(schema.metaCredentials.organizationId, organizationId, activeCompanyCondition()))
     .limit(1);
-  return rows[0] ? toCredentials(rows[0]) : null;
+  return rows[0] ? toCredentials(rows[0].credentials) : null;
 }
 
 export async function saveCredentials(input: {

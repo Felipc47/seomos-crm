@@ -1,5 +1,6 @@
+import { activeCompanyCondition } from "@/server/company-service";
 import { after } from "next/server";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import {
   bearerSecret,
@@ -58,7 +59,7 @@ export async function POST(req: Request, { params }: Params): Promise<Response> 
     .where(
       and(
         eq(schema.webFormIntegration.id, integrationId),
-        isNull(schema.organization.deletedAt)
+        activeCompanyCondition()
       )
     )
     .limit(1);

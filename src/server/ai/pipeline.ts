@@ -1,3 +1,4 @@
+import { isCompanyServiceActive } from "@/server/company-service";
 import { unverifiedCommerceClaim } from "@/lib/ecommerce/contracts";
 import { commercePrompt, executeCommerceAction } from "@/server/ecommerce/agent";
 import { getSchedulingOfferPolicy, guardSchedulingAction } from "@/server/ai/mission-policy";
@@ -462,6 +463,7 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
     if (contacts[0]?.blockedAt) return;
   }
   const organizationId = conversation.organizationId;
+  if (!(await isCompanyServiceActive(organizationId))) return;
 
   // Condiciones de silencio: handoff activo o IA apagada en la conversación.
   if (conversation.handoffAt || !conversation.aiEnabled) return;

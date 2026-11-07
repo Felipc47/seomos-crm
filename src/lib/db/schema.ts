@@ -88,6 +88,10 @@ export const organization = pgTable("organization", {
   /** Borrado suave: la empresa queda suspendida (sin acceso ni webhook) y sus
    * datos se conservan como respaldo 30 días antes de la purga definitiva. */
   deletedAt: timestamp("deleted_at"),
+  /** Suspensión reversible del servicio; independiente del borrado suave. */
+  suspendedAt: timestamp("suspended_at"),
+  suspensionReason: text("suspension_reason", { enum: ["maintenance", "payment", "custom"] }),
+  suspensionMessage: text("suspension_message"),
   /** Acceso a Mailing otorgado exclusivamente por el superadmin. */
   mailingEnabled: boolean("mailing_enabled").notNull().default(false),
 });

@@ -1,3 +1,5 @@
+import { isMailingEnabled } from "./access";
+import { activeCompanyCondition } from "@/server/company-service";
 import { and, asc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { getDb, getSql, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
@@ -20,8 +22,8 @@ export async function sweepMailing(now = new Date(), target?: { organizationId: 
         const db = getDb();
         // Enumeración de tenants solo para el scheduler; queries de dominio scoped por tenant.
         const orgs = await db.select({ id: schema.organization.id }).from(schema.organization).where(target
-            ? scoped(schema.organization.id, target.organizationId, isNull(schema.organization.deletedAt), eq(schema.organization.mailingEnabled, true))
-            : and(isNull(schema.organization.deletedAt), eq(schema.organization.mailingEnabled, true)));
+            ? scoped(schema.organization.id, target.organizationId, activeCompanyCondition(), eq(schema.organization.mailingEnabled, true))
+            : and(activeCompanyCondition(), eq(schema.organization.mailingEnabled, true)));
         let budget = 50;
         const deadline = Date.now() + 40000;
         for (const org of orgs) {
@@ -58,6 +60,7 @@ export async function sweepMailing(now = new Date(), target?: { organizationId: 
             for (const candidate of candidates) {
                 if (budget <= 0 || Date.now() >= deadline)
                     break;
+                if (!(await isMailingEnabled(org.id))) break;
                 if (processedEnrollments.has(candidate.enrollmentId))
                     continue;
                 const prepared = await db.transaction(async (tx) => {
@@ -104,6 +107,10 @@ export async function sweepMailing(now = new Date(), target?: { organizationId: 
                 if (!isMockEnabled())
                     await new Promise((resolve) => setTimeout(resolve, 600));
                 try {
+                    if (!(await isMailingEnabled(org.id))) {
+                        await db.update(schema.mailingSend).set({ status: "pending", leaseUntil: null }).where(scoped(schema.mailingSend.organizationId, org.id, eq(schema.mailingSend.id, prepared.id), eq(schema.mailingSend.status, "sending")));
+                        break;
+                    }
                     const sent = await sendMailingEmail(prepared.payload, prepared.id, org.id);
                     await db.update(schema.mailingSend).set({ status: "accepted", providerMessageId: sent.id, acceptedAt: now, leaseUntil: null, lastError: null, nextAttemptAt: null }).where(scoped(schema.mailingSend.organizationId, org.id, eq(schema.mailingSend.id, prepared.id), eq(schema.mailingSend.status, "sending")));
                     result.accepted++;

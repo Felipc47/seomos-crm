@@ -1,3 +1,4 @@
+import { isCompanyServiceActive } from "@/server/company-service";
 import { asc, count, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
@@ -353,6 +354,10 @@ async function dispatch(
       () => null
     );
     if (!campaign || campaign.status !== "running") return;
+    if (!(await isCompanyServiceActive(organizationId))) {
+      await pauseCampaign(organizationId, campaignId);
+      return;
+    }
 
     const rows = await db
       .select({
