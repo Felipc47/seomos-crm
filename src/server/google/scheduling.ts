@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { isGoogleConfigured } from "@/lib/env";
+import { renderMeetingDescription } from "@/lib/calendar-description";
 import { GoogleApiError, refreshAccessToken } from "@/lib/google/client";
 import {
   createCalendarEvent,
@@ -126,7 +127,7 @@ export async function scheduleMeeting(input: {
       event = await createCalendarEvent({
         accessToken,
         summary: title,
-        description: `Agendada desde Seomos CRM para ${contact.name} (${contact.phone}).`,
+        description: renderMeetingDescription(settings.defaultDescription, contact),
         startIso: start.toISOString(),
         endIso: end.toISOString(),
         attendees,

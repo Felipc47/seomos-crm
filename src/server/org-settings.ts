@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { DEFAULT_TIMEZONE, timezoneSchema } from "@/lib/timezone";
+import { DEFAULT_MEETING_DESCRIPTION, MAX_MEETING_DESCRIPTION_LENGTH } from "@/lib/calendar-description";
 
 /**
  * Settings de organización de la feature 004, guardados en
@@ -25,6 +26,8 @@ const calendarSettingsSchema = z.object({
   meetingReminderTemplateId: z.string().trim().min(1).nullable().default(null),
   /** Título por defecto de la reunión. */
   defaultTitle: z.string().trim().max(120).default("Sesión de diagnóstico"),
+  /** Descripción de la invitación; vacío omite el texto. */
+  defaultDescription: z.string().max(MAX_MEETING_DESCRIPTION_LENGTH).default(DEFAULT_MEETING_DESCRIPTION),
   /** Duración por defecto en minutos. */
   defaultDurationMin: z.number().int().min(15).max(240).default(45),
   /** Zona horaria IANA del negocio (para interpretar y proponer fechas). */

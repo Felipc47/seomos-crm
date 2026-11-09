@@ -89,6 +89,14 @@ describe("agendamiento independiente de Google", () => {
     expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ attendees: ["ana@example.test"] }));
     expect(mocks.saveMeeting).toHaveBeenCalledWith(expect.objectContaining({ source: "google", googleEventId: "google-event" }));
   });
+  it.each(["Hola {{nombre}},\nven preparado. Teléfono: {{telefono}}", ""])("usa la descripción configurada en Google, incluso vacía", async (defaultDescription) => {
+    mocks.connection.mockResolvedValue({ status: "connected", accountEmail: "owner@test.local", refreshToken: "mock-refresh" });
+    mocks.settings.mockResolvedValue({ defaultTitle: "Diagnóstico", defaultDescription, defaultDurationMin: 45, internalInvitees: [], timezone: "America/Bogota" });
+    await scheduleMeeting(input);
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
+      description: defaultDescription ? "Hola Ana,\nven preparado. Teléfono: 573001234567" : "",
+    }));
+  });
   it("si freeBusy rechaza la autorización no intenta crear un evento a ciegas", async () => {
     mocks.connection.mockResolvedValue({ status: "connected", accountEmail: "owner@test.local", refreshToken: "mock-refresh" });
     mocks.busy.mockRejectedValue(new GoogleApiError("Unauthorized", 401));

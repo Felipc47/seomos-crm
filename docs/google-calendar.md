@@ -60,3 +60,12 @@ no afirma que se creó un evento cuyo resultado no se pudo confirmar.
   Ajustes → Calendario.
 - **Google no envía las invitaciones** → verifica que la app OAuth esté
   "Publicada" (no en modo Prueba con el usuario fuera de la lista).
+
+## Descripción de las invitaciones
+
+En **Ajustes → Calendario → Descripción de la reunión**, el administrador puede
+editar el texto que recibirán los invitados de su empresa. Admite varias líneas,
+hasta 4000 caracteres, y las variables `{{nombre}}` y `{{telefono}}` del contacto.
+El texto se usa tanto al agendar manualmente como con el agente. Dejarlo vacío
+omite la descripción. Guardar no cambia el contenido de reuniones ya creadas.
+Las empresas que aún no han configurado este campo conservan la descripción anterior.
