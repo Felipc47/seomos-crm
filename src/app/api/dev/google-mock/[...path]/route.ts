@@ -18,6 +18,7 @@ export const dynamic = "force-dynamic";
 type MockEvent = {
   id: string;
   summary: string;
+  description: string;
   attendees: { email: string }[];
   start: unknown;
   end: unknown;
@@ -137,6 +138,7 @@ export async function POST(req: Request, ctx: Params) {
   if (path === "calendar/v3/calendars/primary/events") {
     const body = (await req.json().catch(() => null)) as {
       summary?: string;
+      description?: string;
       attendees?: { email: string }[];
       start?: { dateTime?: string };
       end?: { dateTime?: string };
@@ -146,6 +148,7 @@ export async function POST(req: Request, ctx: Params) {
     const event: MockEvent = {
       id,
       summary: body?.summary ?? "(sin título)",
+      description: body?.description ?? "",
       attendees: body?.attendees ?? [],
       start: body?.start ?? null,
       end: body?.end ?? null,

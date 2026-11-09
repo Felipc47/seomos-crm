@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { DEFAULT_MEETING_DESCRIPTION, MAX_MEETING_DESCRIPTION_LENGTH } from "@/lib/calendar-description";
 import { useToast } from "@/components/ui/toast";
 
 type CalendarState = {
@@ -25,6 +27,7 @@ type CalendarState = {
   settings: {
     internalInvitees: string[];
     defaultTitle: string;
+    defaultDescription: string;
     defaultDurationMin: number;
   };
 };
@@ -45,6 +48,7 @@ export function CalendarClient() {
   const [invitees, setInvitees] = useState<string[]>([]);
   const [newInvitee, setNewInvitee] = useState("");
   const [title, setTitle] = useState("Sesión de diagnóstico");
+  const [description, setDescription] = useState(DEFAULT_MEETING_DESCRIPTION);
   const [duration, setDuration] = useState(45);
   const [saving, setSaving] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -56,6 +60,7 @@ export function CalendarClient() {
     setState(data);
     setInvitees(data.settings.internalInvitees);
     setTitle(data.settings.defaultTitle);
+    setDescription(data.settings.defaultDescription);
     setDuration(data.settings.defaultDurationMin);
   }, []);
 
@@ -93,10 +98,12 @@ export function CalendarClient() {
         internalInvitees: invitees,
         defaultTitle: title.trim() || "Sesión de diagnóstico",
         defaultDurationMin: duration,
+        defaultDescription: description,
       }),
     }).catch(() => null);
     setSaving(false);
     if (res?.ok) toast("Ajustes de calendario guardados");
+    else toast("No se pudieron guardar los ajustes. Revisa los datos e intenta de nuevo.");
   }
 
   async function disconnect() {
@@ -246,6 +253,25 @@ export function CalendarClient() {
                   ))}
                 </select>
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="cal-description">Descripción de la reunión</Label>
+              <Textarea
+                id="cal-description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={5}
+                maxLength={MAX_MEETING_DESCRIPTION_LENGTH}
+                aria-describedby="cal-description-help"
+                disabled={saving}
+              />
+              <p id="cal-description-help" className="text-xs text-muted-foreground">
+                Se incluye en las nuevas invitaciones de Google Calendar. Puedes
+                usar {"{{nombre}}"} y {"{{telefono}}"} para agregar los datos del
+                contacto, o dejarla vacía para omitir la descripción. Máximo 4000
+                caracteres. Las reuniones existentes conservan su texto.
+              </p>
             </div>
 
             <Button disabled={saving} onClick={() => void saveSettings()}>

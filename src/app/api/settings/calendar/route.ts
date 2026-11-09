@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { isMeetingTemplate } from "@/lib/meeting";
+import { MAX_MEETING_DESCRIPTION_LENGTH } from "@/lib/calendar-description";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { isGoogleConfigured } from "@/lib/env";
@@ -42,6 +43,7 @@ const putSchema = z.object({
   meetingReminderTemplateId: z.string().trim().min(1).nullable().optional(),
   internalInvitees: z.array(z.string().trim().email()).max(10).optional(),
   defaultTitle: z.string().trim().min(1).max(120).optional(),
+  defaultDescription: z.string().max(MAX_MEETING_DESCRIPTION_LENGTH).optional(),
   defaultDurationMin: z.number().int().min(15).max(240).optional(),
   workStartMin: z.number().int().min(0).max(1439).optional(),
   workEndMin: z.number().int().min(0).max(1439).optional(),
