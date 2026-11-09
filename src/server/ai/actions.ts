@@ -64,8 +64,8 @@ export const AgentAction = z.discriminatedUnion("action", [
     email: z.string(),
     datetime: z.string().min(1),
     /** Cita textual del mensaje del cliente que confirma/propone la hora.
-     * El pipeline verifica que exista en el historial entrante: sin
-     * confirmación real del cliente NO se agenda (se ofrecen horarios). */
+     * El servidor valida la hora en el turno entrante o la aceptación de
+     * una propuesta concreta anterior; esta cita sola no autoriza agendar. */
     clientOk: z.string().optional(),
     title: z.string().optional(),
     reply: z.string().optional(),
