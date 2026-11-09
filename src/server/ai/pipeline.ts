@@ -21,8 +21,10 @@ import {
 } from "@/server/ai/repeat-guard";
 import {
   inboundMentionsTime,
-  quoteAppearsInInbound,
+  confirmsProposedMeeting,
+  type SchedulingMessage,
 } from "@/server/ai/schedule-confirm";
+import { schedulingLanguage, schedulingDate, type SchedulingLanguage } from "@/server/ai/schedule-language";
 import { refreshLeadProfile } from "@/server/ai/lead-profile";
 import {
   AGENT_TURN_CREDIT_COST,
@@ -179,20 +181,24 @@ async function fetchAvailabilityByDay(
 async function alternativesText(
   organizationId: string,
   settings: CalendarSettings,
-  max = 3
+  max = 3,
+  language: SchedulingLanguage = "es"
 ): Promise<string | null> {
   const days = await fetchAvailabilityByDay(organizationId, settings);
   const withRanges = days.filter((d) => d.ranges.length > 0).slice(0, max);
   if (withRanges.length === 0) return null;
   const tz = settings.timezone;
+  const locale = language === "en" ? "en-US" : "es-CO";
+  const dayLabel = (date: Date) => date.toLocaleDateString(locale, { timeZone: tz, weekday: "long", day: "numeric", month: "long" });
+  const hourLabel = (date: Date) => date.toLocaleTimeString(locale, { timeZone: tz, hour: "numeric", minute: "2-digit", hour12: true });
   return withRanges
     .map(
       (d) =>
-        `${formatDayInTz(d.day, tz)} de ${d.ranges
+        `${dayLabel(d.day)} ${language === "en" ? "from" : "de"} ${d.ranges
           .map(
-            (r) => `${formatHourInTz(r.start, tz)} a ${formatHourInTz(r.end, tz)}`
+            (r) => `${hourLabel(r.start)} ${language === "en" ? "to" : "a"} ${hourLabel(r.end)}`
           )
-          .join(" y de ")}`
+          .join(language === "en" ? " and from " : " y de ")}`
     )
     .join(" · ");
 }
@@ -709,16 +715,14 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
       return;
     }
     case "schedule_meeting": {
-      const inboundTexts = history
-        .filter((m) => m.direction === "in" && m.text)
-        .map((m) => m.text!);
       await executeScheduleMeeting(
         conversation,
         action,
         scheduling,
         calSettings,
-        inboundTexts,
-        knownEmail
+        history,
+        knownEmail,
+        schedulingLanguage(profile.responseLanguage, history)
       );
       return;
     }
@@ -838,9 +842,12 @@ async function executeScheduleMeeting(
   action: Extract<AgentActionType, { action: "schedule_meeting" }>,
   scheduling: SchedulingContext | undefined,
   calSettings: CalendarSettings | undefined,
-  inboundTexts: string[],
-  knownEmail: string | null
+  history: SchedulingMessage[],
+  knownEmail: string | null,
+  language: SchedulingLanguage
 ): Promise<void> {
+  const english = language === "en";
+  const dateLabel = (date: Date) => schedulingDate(date, calSettings?.timezone ?? "America/Bogota", language);
   // Correo con formato real: el modelo a veces copia el placeholder "..."
   // del ejemplo cuando aún no lo tiene — se pide en vez de tumbar el turno.
   // Red de seguridad: si el modelo manda un placeholder ("...") pero el
@@ -855,7 +862,7 @@ async function executeScheduleMeeting(
   if (!email) {
     await deliverReply(
       conversation,
-      "Para registrar la reunión necesito tu correo electrónico. ¿Me lo compartes?",
+      english ? "To book the meeting, I need your email address. Could you share it?" : "Para registrar la reunión necesito tu correo electrónico. ¿Me lo compartes?",
       { allowRepeat: true }
     );
     return;
@@ -867,8 +874,7 @@ async function executeScheduleMeeting(
     // pedir la fecha de nuevo en lugar de fallar.
     await deliverReply(
       conversation,
-      action.reply ??
-        "¿Me confirmas la fecha y hora exactas para la reunión? Por ejemplo: el próximo martes a las 10:00 a.m.",
+      english ? "Could you confirm the exact date and time for the meeting?" : "¿Me confirmas la fecha y hora exactas para la reunión? Por ejemplo: el próximo martes a las 10:00 a.m.",
       { allowRepeat: true }
     );
     return;
@@ -882,25 +888,27 @@ async function executeScheduleMeeting(
     return;
   }
 
-  // El CLIENTE debe haber confirmado la hora. Dos evidencias independientes:
-  // la cita textual del modelo (clientOk) o —para respuestas cortísimas como
-  // "11 am", que no llegan al mínimo de la cita— que la hora a agendar aparezca
-  // mencionada por el cliente. Sin ninguna → se ofrecen horarios y se espera.
-  const confirmedByQuote = quoteAppearsInInbound(action.clientOk, inboundTexts);
-  const confirmedByTime = inboundMentionsTime(
-    localMinutesOfDay(start, calSettings.timezone),
-    inboundTexts
-  );
-  if (!confirmedByQuote && !confirmedByTime) {
+  // Only the current customer turn is evidence. A historical time or yes
+  // must never authorize a new booking after rejection or a topic change.
+  const lastOutgoing = history.findLastIndex(message => message.direction === "out");
+  const inboundTexts = history.slice(lastOutgoing + 1).map(message => message.text ?? "");
+  const rejected = inboundTexts.some(text => /\b(?:not available|doesn['’]?t work|can['’]?t|cannot|no puedo|no me sirve|no me funciona)\b|^\s*(?:no|not)\b/i.test(text));
+  const confirmedByTime = inboundMentionsTime(localMinutesOfDay(start, calSettings.timezone), inboundTexts);
+  const confirmedByContext = confirmsProposedMeeting(start, calSettings.timezone, history);
+  if (rejected || (!confirmedByTime && !confirmedByContext)) {
     const opciones = await alternativesText(
       conversation.organizationId,
-      calSettings
+      calSettings,
+      3,
+      language
     );
     await deliverReply(
       conversation,
       opciones
-        ? `Antes de agendar, confírmame qué horario te queda mejor. Horarios propuestos: ${opciones}. ¿Cuál prefieres?`
-        : "Antes de agendar, confírmame qué día y hora te quedan mejor y con gusto la programo.",
+        ? english
+          ? `Before booking, please confirm which date and time works best for you. Suggested times: ${opciones}. Which do you prefer?`
+          : `Antes de agendar, confírmame qué horario te queda mejor. Horarios propuestos: ${opciones}. ¿Cuál prefieres?`
+        : english ? "Before booking, please confirm which day and time works best for you." : "Antes de agendar, confírmame qué día y hora te quedan mejor y con gusto la programo.",
       { allowRepeat: true }
     );
     return;
@@ -914,10 +922,10 @@ async function executeScheduleMeeting(
     workStartMin: calSettings.workStartMin,
   });
   if (start.getTime() < minStart.getTime()) {
-    const minLabel = scheduling?.minStartLabel ?? "dentro de dos días hábiles";
+    const minLabel = dateLabel(minStart);
     await deliverReply(
       conversation,
-      `Para darte una buena atención, la primera disponibilidad de nuestro equipo es a partir del ${minLabel}. ¿Te funciona ese día u otro posterior? Con gusto lo agendo.`,
+      english ? `Our team's first availability is ${minLabel}. Does that day or a later date work for you?` : `Para darte una buena atención, la primera disponibilidad de nuestro equipo es a partir del ${minLabel}. ¿Te funciona ese día u otro posterior? Con gusto lo agendo.`,
       { allowRepeat: true }
     );
     return;
@@ -934,7 +942,9 @@ async function executeScheduleMeeting(
   ) {
     await deliverReply(
       conversation,
-      `Agendamos reuniones ${scheduling?.workHoursLabel ?? "de lunes a viernes en horario laboral"}. ¿Qué franja dentro de ese horario te queda bien?`,
+      english
+        ? `We schedule meetings Monday to Friday, from ${minutesLabel(calSettings.workStartMin).replace("a. m.", "AM").replace("p. m.", "PM")} to ${minutesLabel(calSettings.workEndMin).replace("a. m.", "AM").replace("p. m.", "PM")} (${tz}), in ${calSettings.slotMinutes}-minute slots. Which time works for you?`
+        : `Agendamos reuniones ${scheduling?.workHoursLabel ?? "de lunes a viernes en horario laboral"}. ¿Qué franja dentro de ese horario te queda bien?`,
       { allowRepeat: true }
     );
     return;
@@ -961,15 +971,15 @@ async function executeScheduleMeeting(
     }
 
     // Siempre en la zona del negocio (el contenedor corre en UTC).
-    const when = formatInTz(start, calSettings.timezone);
+    const when = dateLabel(start);
     const meetPart = event.meetLink
-      ? ` Aquí tienes el enlace de Google Meet: ${event.meetLink}`
+      ? english ? ` Here is your Google Meet link: ${event.meetLink}` : ` Aquí tienes el enlace de Google Meet: ${event.meetLink}`
       : "";
     await deliverReply(
       conversation,
       event.calendarSynced
-        ? action.reply ?? `¡Listo! Agendé la reunión para el ${when}. Te llegará la invitación al correo ${email}.${meetPart}`
-        : `¡Listo! Registré la reunión para el ${when}. La confirmación queda por este chat.`
+        ? english ? `You're booked for ${when}. The invitation will be sent to ${email}.${meetPart}` : `¡Listo! Agendé la reunión para el ${when}. Te llegará la invitación al correo ${email}.${meetPart}`
+        : english ? `You're booked for ${when}. Your meeting is registered in our CRM and confirmed here in this chat.` : `¡Listo! Registré la reunión para el ${when}. La confirmación queda por este chat.`
     );
   } catch (err) {
     // Choque de agenda: no es un error del sistema — se negocia otra hora
@@ -977,16 +987,18 @@ async function executeScheduleMeeting(
     if (err instanceof ScheduleError && err.code === "slot_taken") {
       // Incluye la hora pedida (cada intento produce un texto distinto) y un
       // panorama por días — no tres franjas seguidas del mismo día.
-      const pedida = formatInTz(start, calSettings.timezone);
+      const pedida = dateLabel(start);
       const opciones = await alternativesText(
         conversation.organizationId,
-        calSettings
+        calSettings,
+        3,
+        language
       );
       await deliverReply(
         conversation,
         opciones
-          ? `Lo siento, el ${pedida} ya está ocupado en nuestra agenda. Disponibilidad real: ${opciones}. ¿Cuál te funciona mejor?`
-          : `Lo siento, el ${pedida} ya está ocupado en nuestra agenda. ¿Me propones otro horario y lo intento de nuevo?`,
+          ? english ? `Sorry, ${pedida} is already booked. Available times: ${opciones}. Which works best for you?` : `Lo siento, el ${pedida} ya está ocupado en nuestra agenda. Disponibilidad real: ${opciones}. ¿Cuál te funciona mejor?`
+          : english ? `Sorry, ${pedida} is already booked. Could you suggest another time?` : `Lo siento, el ${pedida} ya está ocupado en nuestra agenda. ¿Me propones otro horario y lo intento de nuevo?`,
         { allowRepeat: true }
       );
       return;
@@ -996,7 +1008,7 @@ async function executeScheduleMeeting(
     console.error(`[agente] schedule_meeting falló (${detail}):`, err);
     await deliverReply(
       conversation,
-      "Tuve un inconveniente para agendar en este momento. Un compañero del equipo te confirmará la reunión por aquí muy pronto."
+      english ? "I couldn't book the meeting right now. A teammate will help confirm it here in this chat." : "Tuve un inconveniente para agendar en este momento. Un compañero del equipo te confirmará la reunión por aquí muy pronto."
     );
     await applyHandoff(conversation.id, conversation.organizationId, "modelo");
   }

@@ -296,6 +296,19 @@ export function aiMockCompletion(messages: InMessage[]): string {
   // en ese caso el modelo no debe pedirlo, solo usarlo.
   const knownEmail = /YA TIENES el correo de este cliente: ([\w.+-]+@[\w-]+\.[\w.-]*\w)/i
     .exec(system)?.[1];
+  // 040: scripted scheduling conversation. Runs only behind the dev mock
+  // gate; the pipeline, WhatsApp delivery and Calendar still run normally.
+  const contextFixture = /SCHEDULING_CONTEXT_FIXTURE=(\{[^\n]+\})/.exec(system)?.[1];
+  if (contextFixture && system.includes('"action":"schedule_meeting"')) {
+    const fixture = JSON.parse(contextFixture) as {
+      initial: string; proposal: string; startIso: string; confirmAgain?: string;
+      invalidJson?: boolean; email?: string;
+    };
+    if (lastUser === fixture.initial) return JSON.stringify({ action: "reply", text: fixture.proposal });
+    if (fixture.confirmAgain && /^(friday|viernes)$/i.test(lastUser)) return JSON.stringify({ action: "reply", text: fixture.confirmAgain });
+    const result = JSON.stringify({ action: "schedule_meeting", email: fixture.email ?? knownEmail ?? "...", datetime: fixture.startIso, clientOk: lastUser });
+    return fixture.invalidJson ? "provider response without JSON" : `\`\`\`json\n${result}\n\`\`\``;
+  }
   const emailMatch =
     lastUser.match(/[^\s@]+@[^\s@]+\.[^\s@]+/) ??
     allUser.match(/[^\s@]+@[^\s@]+\.[^\s@]+/) ??
