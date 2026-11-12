@@ -2,7 +2,7 @@
 
 **Feature Branch**: `codex/google-sheets-contacts`
 **Created**: 2026-11-12
-**Status**: Especificada
+**Status**: Implementada y verificada en producción
 **Input**: Añadir sincronización periódica de contactos desde Sheets y conectar la hoja de leads de Meta a Lion Data conservando integraciones y funciones existentes.
 
 ## User Scenarios & Testing

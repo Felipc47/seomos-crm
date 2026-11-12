@@ -6,5 +6,5 @@
 - [x] T005 Interfaz en Ajustes → Integraciones conservando formularios.
 - [x] T006 Self-test real Playwright feliz/infeliz, aislamiento y no duplicados.
 - [x] T007 Typecheck, lint, build, tests; revisión del diff.
-- [ ] T008 Publicar y verificar health/cron sin alterar otros módulos.
-- [ ] T009 Conectar Lion Data, importar ambas pestañas y comprobar segundo ciclo.
+- [x] T008 Publicar y verificar health/cron sin alterar otros módulos.
+- [x] T009 Conectar Lion Data, importar ambas pestañas y comprobar segundo ciclo.
