@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { and, asc, eq, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, lte, or, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
@@ -7,6 +7,7 @@ import { fetchSheetCsv } from "@/lib/google/sheets";
 import { mergeSheetContact, parseSheetContacts, parseSheetsUrl, sheetsUrl, SheetsError, type SheetContact, type SheetSnapshot, type SyncStats } from "@/lib/sheets-contacts";
 import { activeCompanyCondition, isCompanyServiceActive } from "@/server/company-service";
 
+import { drainSheetFlows } from "./flow";
 import { publish } from "@/server/events/bus";
 
 type Source = typeof schema.sheetsSource.$inferSelect;
@@ -14,28 +15,47 @@ const hash = (value: string) => createHash("sha256").update(value).digest("hex")
 const blankStats = (): SyncStats => ({ created: 0, updated: 0, unchanged: 0, skipped: 0, issues: [] });
 
 export function sourceDto(source: Source) {
-  return { id: source.id, name: source.name, url: sheetsUrl(source), intervalMinutes: source.intervalMinutes, enabled: source.enabled,
+  return { id: source.id, serviceId: source.serviceId, name: source.name, url: sheetsUrl(source), intervalMinutes: source.intervalMinutes, enabled: source.enabled,
     lastSyncAt: source.lastSyncAt?.toISOString() ?? null, nextSyncAt: source.nextSyncAt.toISOString(),
     lastStatus: source.lastStatus === "running" && source.claimedAt && source.claimedAt.getTime() < Date.now() - 600000 ? "pending" : source.lastStatus, lastError: source.lastError, lastStats: source.lastStats };
 }
 export async function listSources(organizationId: string) {
-  return (await getDb().select().from(schema.sheetsSource).where(scoped(schema.sheetsSource.organizationId, organizationId)).orderBy(asc(schema.sheetsSource.createdAt))).map(sourceDto);
+  const sources = await getDb().select().from(schema.sheetsSource).where(scoped(schema.sheetsSource.organizationId, organizationId)).orderBy(asc(schema.sheetsSource.createdAt));
+  return Promise.all(sources.map(async source => {
+    const [flows] = await getDb().select({ pending: sql<number>`count(*) filter (where flow_state = 'pending')::int`, done: sql<number>`count(*) filter (where flow_state = 'done')::int`, failed: sql<number>`count(*) filter (where flow_state = 'failed')::int` }).from(schema.sheetsRow).where(scoped(schema.sheetsRow.organizationId, organizationId, eq(schema.sheetsRow.sourceId, source.id)));
+    const flowIssues = await getDb().select({ id: schema.sheetsRow.id, contactId: schema.sheetsRow.contactId, result: schema.sheetsRow.flowResult }).from(schema.sheetsRow).where(scoped(schema.sheetsRow.organizationId, organizationId, eq(schema.sheetsRow.sourceId, source.id), eq(schema.sheetsRow.flowState, "failed"))).orderBy(desc(schema.sheetsRow.flowCompletedAt)).limit(5);
+    return { ...sourceDto(source), flows, flowIssues };
+  }));
 }
 export async function getSource(organizationId: string, id: string) {
   return (await getDb().select().from(schema.sheetsSource).where(scoped(schema.sheetsSource.organizationId, organizationId, eq(schema.sheetsSource.id, id))).limit(1))[0] ?? null;
 }
-export async function createSource(organizationId: string, input: { name: string; url: string; intervalMinutes: number }) {
+export async function createSource(organizationId: string, input: { name: string; url: string; intervalMinutes: number; serviceId?: string | null }) {
+  await validateService(organizationId, input.serviceId);
   const target = parseSheetsUrl(input.url);
   parseSheetContacts(await fetchSheetCsv(target)); // Validate access and shape before saving.
-  const [source] = await getDb().insert(schema.sheetsSource).values({ id: newId("sheetsSource"), organizationId, name: input.name, ...target, intervalMinutes: input.intervalMinutes })
+  const [source] = await getDb().insert(schema.sheetsSource).values({ id: newId("sheetsSource"), organizationId, name: input.name, serviceId: input.serviceId, ...target, intervalMinutes: input.intervalMinutes })
     .onConflictDoNothing({ target: [schema.sheetsSource.organizationId, schema.sheetsSource.spreadsheetId, schema.sheetsSource.sheetGid] }).returning();
   if (!source) throw new SheetsError("Esta pestaña ya está conectada a la empresa.");
   return sourceDto(source);
 }
-export async function updateSource(organizationId: string, id: string, patch: { name?: string; intervalMinutes?: number; enabled?: boolean }) {
-  const [source] = await getDb().update(schema.sheetsSource).set({ ...patch, updatedAt: new Date(), ...(patch.enabled === true || patch.intervalMinutes ? { nextSyncAt: new Date() } : {}) })
-    .where(scoped(schema.sheetsSource.organizationId, organizationId, eq(schema.sheetsSource.id, id))).returning();
-  return source ? sourceDto(source) : null;
+async function validateService(organizationId: string, serviceId?: string | null) {
+  if (!serviceId) return;
+  const [service] = await getDb().select({ id: schema.service.id }).from(schema.service).where(scoped(schema.service.organizationId, organizationId, eq(schema.service.id, serviceId))).limit(1);
+  if (!service) throw new SheetsError("El servicio no está disponible en esta empresa.");
+}
+export async function updateSource(organizationId: string, id: string, patch: { name?: string; intervalMinutes?: number; enabled?: boolean; serviceId?: string | null }) {
+  await validateService(organizationId, patch.serviceId);
+  return getDb().transaction(async tx => {
+    const [prior] = await tx.select().from(schema.sheetsSource).where(scoped(schema.sheetsSource.organizationId, organizationId, eq(schema.sheetsSource.id, id))).for("update");
+    if (!prior) return null;
+    if (patch.serviceId !== undefined && patch.serviceId !== prior.serviceId) {
+      await tx.update(schema.sheetsRow).set({ flowState: "none", flowResult: "Cancelado por cambio de servicio." }).where(scoped(schema.sheetsRow.organizationId, organizationId, eq(schema.sheetsRow.sourceId, id), eq(schema.sheetsRow.flowState, "pending")));
+    }
+    const [source] = await tx.update(schema.sheetsSource).set({ ...patch, updatedAt: new Date(), ...(patch.enabled === true || patch.intervalMinutes ? { nextSyncAt: new Date() } : {}) })
+      .where(scoped(schema.sheetsSource.organizationId, organizationId, eq(schema.sheetsSource.id, id))).returning();
+    return source ? sourceDto(source) : null;
+  });
 }
 
 async function importRow(source: Source, token: string, row: SheetContact) {
@@ -45,7 +65,7 @@ async function importRow(source: Source, token: string, row: SheetContact) {
   const fingerprint = hash(JSON.stringify(snapshot));
   return db.transaction(async tx => {
     // Fence every transaction: expired workers and paused/deleted tenants cannot continue.
-    const [currentSource] = await tx.select({ id: schema.sheetsSource.id }).from(schema.sheetsSource)
+    const [currentSource] = await tx.select({ id: schema.sheetsSource.id, serviceId: schema.sheetsSource.serviceId }).from(schema.sheetsSource)
       .innerJoin(schema.organization, eq(schema.organization.id, schema.sheetsSource.organizationId))
       .where(scoped(schema.sheetsSource.organizationId, org, eq(schema.sheetsSource.id, source.id), eq(schema.sheetsSource.claimToken, token), source.enabled ? eq(schema.sheetsSource.enabled, true) : undefined, activeCompanyCondition()))
       .for("update", { of: schema.sheetsSource });
@@ -69,11 +89,11 @@ async function importRow(source: Source, token: string, row: SheetContact) {
     if (merged.notes.length > 4000) return { kind: "skipped" as const, reason: "El contacto alcanzó el límite de notas de sincronización" };
     const changed = merged.name !== contact.name || merged.email !== contact.email || merged.notes !== (contact.notes ?? "");
     if (changed) await tx.update(schema.contact).set({ ...merged, updatedAt: new Date() }).where(scoped(schema.contact.organizationId, org, eq(schema.contact.id, contact.id)));
-    if (inserted) {
+    if (inserted || (!prior && currentSource.serviceId)) {
       const [stage] = await tx.select({ id: schema.pipelineStage.id }).from(schema.pipelineStage).where(scoped(schema.pipelineStage.organizationId, org, eq(schema.pipelineStage.kind, "open"))).orderBy(asc(schema.pipelineStage.position)).limit(1);
-      if (stage) await tx.insert(schema.lead).values({ id: newId("lead"), organizationId: org, contactId: contact.id, stageId: stage.id, lastActivityAt: new Date() }).onConflictDoNothing({ target: [schema.lead.contactId] });
+      if (stage) await tx.insert(schema.lead).values({ id: newId("lead"), organizationId: org, contactId: contact.id, stageId: stage.id, serviceId: currentSource.serviceId, lastActivityAt: new Date() }).onConflictDoNothing({ target: [schema.lead.contactId] });
     }
-    await tx.insert(schema.sheetsRow).values({ id: newId("sheetsRow"), organizationId: org, sourceId: source.id, externalKey: row.externalKey, contactId: contact.id, fingerprint, snapshot })
+    await tx.insert(schema.sheetsRow).values({ id: newId("sheetsRow"), organizationId: org, sourceId: source.id, externalKey: row.externalKey, contactId: contact.id, fingerprint, snapshot, flowServiceId: currentSource.serviceId, flowState: currentSource.serviceId ? "pending" : "none" })
       .onConflictDoUpdate({ target: [schema.sheetsRow.organizationId, schema.sheetsRow.sourceId, schema.sheetsRow.externalKey], set: { fingerprint, snapshot, updatedAt: new Date() } });
     return { kind: inserted ? "created" as const : changed ? "updated" as const : "unchanged" as const };
   });
@@ -102,6 +122,8 @@ export async function syncSource(organizationId: string, id: string, manual = fa
   } catch (err) {
     error = err instanceof SheetsError ? err.message : "No se pudo completar la sincronización. Se reintentará en el próximo ciclo.";
   }
+  try { await drainSheetFlows(organizationId, id, token, started + 240000, manual && !source.enabled); }
+  catch { error ??= "Los flujos pendientes se retomarán en la próxima revisión."; }
   await getDb().update(schema.sheetsSource).set({ claimedAt: null, claimToken: null, lastSyncAt: new Date(),
     nextSyncAt: sql`now() + (${schema.sheetsSource.intervalMinutes} * interval '1 minute')`,
     lastStatus: error ? "failed" : "success", lastError: error, lastStats: stats, updatedAt: new Date() })

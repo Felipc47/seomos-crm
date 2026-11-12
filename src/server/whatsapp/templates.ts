@@ -1,3 +1,4 @@
+import { reserveTemplateDispatch, finishTemplateDispatch } from "./template-dispatch";
 import { and, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
@@ -961,6 +962,7 @@ export async function sendTemplate(input: {
   templateId: string;
   variable?: string;
   timeoutMs?: number;
+  automaticGreeting?: boolean;
 }): Promise<{ messageId: string }> {
   const db = getDb();
 
@@ -1078,49 +1080,57 @@ export async function sendTemplate(input: {
     });
   }
 
-  const waMessageId = await callGraphSend(creds, {
-    messaging_product: "whatsapp",
-    to: normalizeRecipient(row.contact.phone),
-    type: "template",
-    template: {
-      name: template.name,
-      language: { code: template.language },
-      ...(components.length > 0 ? { components } : {}),
-    },
-  }, input.timeoutMs);
-
-  const inserted = await db
-    .insert(schema.message)
-    .values({
-      id: newId("message"),
-      organizationId: input.organizationId,
-      conversationId: input.conversationId,
-      waMessageId,
-      direction: "out",
+  const dispatchId = await reserveTemplateDispatch({ organizationId: input.organizationId, contactId: row.contact.id, templateId: template.id, automaticGreeting: input.automaticGreeting ?? false });
+  try {
+    const waMessageId = await callGraphSend(creds, {
+      messaging_product: "whatsapp",
+      to: normalizeRecipient(row.contact.phone),
       type: "template",
-      text: renderBody(template.body, bodyValues ?? input.variable?.trim()),
-      // El hilo muestra el encabezado como adjunto descargable bajo demanda.
-      mediaId: headerMediaId,
-      mediaMime: template.headerKind ? template.headerMime : null,
-      mediaFilename:
-        template.headerKind === "document" ? template.headerFilename : null,
-      status: "pending",
-    })
-    .returning();
-  const message = inserted[0]!;
+      template: {
+        name: template.name,
+        language: { code: template.language },
+        ...(components.length > 0 ? { components } : {}),
+      },
+    }, input.timeoutMs);
 
-  await db
-    .update(schema.conversation)
-    .set({ lastMessageAt: new Date(), updatedAt: new Date() })
-    .where(eq(schema.conversation.id, input.conversationId));
+    const inserted = await db
+      .insert(schema.message)
+      .values({
+        id: newId("message"),
+        organizationId: input.organizationId,
+        conversationId: input.conversationId,
+        waMessageId,
+        direction: "out",
+        type: "template",
+        text: renderBody(template.body, bodyValues ?? input.variable?.trim()),
+        // El hilo muestra el encabezado como adjunto descargable bajo demanda.
+        mediaId: headerMediaId,
+        mediaMime: template.headerKind ? template.headerMime : null,
+        mediaFilename:
+          template.headerKind === "document" ? template.headerFilename : null,
+        status: "pending",
+      })
+      .returning();
+    const message = inserted[0]!;
 
-  publish(input.organizationId, {
-    type: "message.new",
-    data: {
-      conversationId: input.conversationId,
-      message: serializeMessage(message),
-    },
-  });
+    await db
+      .update(schema.conversation)
+      .set({ lastMessageAt: new Date(), updatedAt: new Date() })
+      .where(eq(schema.conversation.id, input.conversationId));
 
-  return { messageId: message.id };
+    publish(input.organizationId, {
+      type: "message.new",
+      data: {
+        conversationId: input.conversationId,
+        message: serializeMessage(message),
+      },
+    });
+
+    await finishTemplateDispatch(input.organizationId, dispatchId, message.id);
+    return { messageId: message.id };
+  } catch (error) {
+    // The provider may have accepted a timed-out request. Keep the reservation.
+    await finishTemplateDispatch(input.organizationId, dispatchId, null).catch(() => {});
+    throw error;
+  }
 }
