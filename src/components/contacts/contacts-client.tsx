@@ -1,5 +1,7 @@
 "use client";
 
+import { useEvents } from "@/components/use-events";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
@@ -78,6 +80,8 @@ export function ContactsClient() {
     const data = (await res.json()) as { contacts: ContactDto[] };
     setContacts(data.contacts);
   }, [query, showArchived]);
+
+  useEvents({ onContactsUpdated: () => void refetch(), onReconnect: () => void refetch() });
 
   useEffect(() => {
     const t = setTimeout(() => void refetch(), 250);

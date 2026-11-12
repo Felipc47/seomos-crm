@@ -32,7 +32,7 @@ function detectDelimiter(text: string): string {
 }
 
 /** Parsea CSV a filas; ignora filas totalmente vacías. */
-export function parseCsv(text: string): string[][] {
+export function parseCsv(text: string, options: { preserveEmptyRows?: boolean; strict?: boolean } = {}): string[][] {
   const delimiter = detectDelimiter(text);
   const rows: string[][] = [];
   let row: string[] = [];
@@ -61,13 +61,14 @@ export function parseCsv(text: string): string[][] {
       if (ch === "\r" && text[i + 1] === "\n") i++;
       row.push(field);
       field = "";
-      if (row.some((f) => f.trim() !== "")) rows.push(row);
+      if (options.preserveEmptyRows || row.some((f) => f.trim() !== "")) rows.push(row);
       row = [];
     } else {
       field += ch;
     }
   }
+  if (options.strict && inQuotes) throw new Error("CSV inválido: comillas sin cerrar");
   row.push(field);
-  if (row.some((f) => f.trim() !== "")) rows.push(row);
+  if (options.preserveEmptyRows || row.some((f) => f.trim() !== "")) rows.push(row);
   return rows;
 }

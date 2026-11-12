@@ -1,0 +1,2 @@
+# Verificación
+Usar base dedicada seomos_sheets_042 en PostgreSQL local :5433 y puerto app 3112. Mocks de WhatsApp/IA activados; export de Sheets servido por mock local exclusivamente si isMockEnabled. pnpm typecheck, pnpm lint, pnpm build, pnpm test. Ejecutar tests/e2e/sheets-contacts.mjs con arranque tests/e2e/sheets-contacts-start.mjs. Probar UI, repetición, cambios manuales, eliminación de filas, error de acceso, pausa/intervalo/concurrencia, permisos y aislamiento. Producción: health + configuración Lion Data + dos ciclos de cron + controles de integraciones previas.

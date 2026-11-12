@@ -1,4 +1,5 @@
 export type EventHandlers = {
+  onContactsUpdated?: (data: { source: "sheets" }) => void;
   onMessageNew?: (data: { conversationId: string; message: unknown }) => void;
   onMessageStatus?: (data: {
     conversationId: string;
@@ -23,6 +24,7 @@ export type EventHandlers = {
 };
 
 const handlersByEvent = {
+  "contacts.updated": "onContactsUpdated",
   "message.new": "onMessageNew",
   "message.status": "onMessageStatus",
   "conversation.updated": "onConversationUpdated",

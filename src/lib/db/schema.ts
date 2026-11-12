@@ -1131,3 +1131,42 @@ export const smsEvent = pgTable("sms_event", {
   eventKey: text("event_key").notNull(), payload: jsonb("payload").$type<import("@/lib/brevo/events").SmsWebhookEvent>().notNull(),
   processedAt: timestamp("processed_at"), createdAt: timestamp("created_at").notNull().defaultNow(),
 }, t => [uniqueIndex("sms_event_org_key_uq").on(t.organizationId, t.eventKey), index("sms_event_org_pending_idx").on(t.organizationId,t.processedAt)]);
+
+/** Lectura periódica de contactos desde una pestaña Google Sheets (042). */
+export const sheetsSource = pgTable("sheets_source", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  spreadsheetId: text("spreadsheet_id").notNull(),
+  sheetGid: text("sheet_gid").notNull(),
+  intervalMinutes: integer("interval_minutes").notNull().default(5),
+  enabled: boolean("enabled").notNull().default(true),
+  nextSyncAt: timestamp("next_sync_at", { withTimezone: true }).notNull().defaultNow(),
+  lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+  lastStatus: text("last_status", { enum: ["pending", "running", "success", "failed"] }).notNull().default("pending"),
+  lastError: text("last_error"),
+  lastStats: jsonb("last_stats").$type<{ created: number; updated: number; unchanged: number; skipped: number; issues: { row: number; reason: string }[] }>(),
+  claimedAt: timestamp("claimed_at", { withTimezone: true }),
+  claimToken: text("claim_token"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("sheets_source_org_sheet_uq").on(t.organizationId, t.spreadsheetId, t.sheetGid),
+  index("sheets_source_org_due_idx").on(t.organizationId, t.enabled, t.nextSyncAt),
+  check("sheets_source_interval_check", sql`${t.intervalMinutes} between 1 and 1440`),
+]);
+
+export const sheetsRow = pgTable("sheets_row", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  sourceId: text("source_id").notNull().references(() => sheetsSource.id, { onDelete: "cascade" }),
+  externalKey: text("external_key").notNull(),
+  contactId: text("contact_id").references(() => contact.id, { onDelete: "set null" }),
+  fingerprint: text("fingerprint").notNull(),
+  snapshot: jsonb("snapshot").$type<{ phone: string; name: string; email: string | null; noteBlock: string }>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("sheets_row_org_key_uq").on(t.organizationId, t.sourceId, t.externalKey),
+  index("sheets_row_org_contact_idx").on(t.organizationId, t.contactId),
+]);
