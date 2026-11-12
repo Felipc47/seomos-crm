@@ -1,3 +1,9 @@
+<!-- SYNC IMPACT REPORT — 2026-11-12
+Versión: 2.2.0 → 2.3.0 (MINOR: Google Sheets opcional para lectura de contactos).
+Autorización: solicitud explícita del dueño de sincronizar Sheets y conectar Lion Data.
+II ampliado mediante adaptador dedicado; I, III–IX preservados.
+AGENTS.md/CLAUDE.md sincronizados; plantillas revisadas, sin restricciones que actualizar.
+-->
 <!-- SYNC IMPACT REPORT — 2026-10-26
 2.1.0 -> 2.2.0 MINOR. El dueño solicita activar Brevo para SMS y confirma
 SEOMOS LLC como remitente. Brevo opcional exclusivamente SMS con adaptador,
@@ -93,9 +99,14 @@ dependencias externas en runtime es CERRADA:
      consentimiento verificable por canal y finalidad. Adaptador `src/lib/brevo/`,
      clave cifrada por organización. Resend conserva email. Conectar la API no
      habilita envíos. Sin configuración/aprobación o ante fallos, el CRM continúa.
+  7. **Google Sheets**, opcional (enmienda 2.3.0, solicitada por el dueño el
+     2026-11-12), exclusivamente lectura periódica de contactos. Adaptador
+     `src/lib/google/sheets.ts`, conexiones aisladas por empresa y pestaña.
+     No modifica permisos, no escribe en hojas ni reemplaza Calendar/Meta.
+     Fallos aislados, sin borrados de contactos ni envíos automáticos.
 - **PROHIBIDO en v1**: almacenamiento de objetos externo (S3/R2), proveedores de
   email distintos de Resend, Stripe u otro billing, y otros servicios de Google
-  distintos de Calendar. Cualquier feature que los requiera queda fuera del
+  distintos de Calendar y Sheets. Cualquier feature que los requiera queda fuera del
   alcance de v1.
 - El instalador solo necesita: un VPS con Coolify o Docker, un dominio, credenciales
   de Meta y (opcional) un token de OpenRouter. Nada más.
@@ -285,4 +296,12 @@ práctica, convención o preferencia; ante un conflicto, gana la constitución.
 - **Propagación**: al enmendar la constitución se revisan y, si procede, se actualizan
   las plantillas dependientes (plan, spec, tasks).
 
-**Version**: 2.2.0 | **Ratified**: 2026-07-09 | **Last Amended**: 2026-10-26
+**Version**: 2.3.0 | **Ratified**: 2026-07-09 | **Last Amended**: 2026-11-12
+
+
+## Excepción Google Sheets — autorizada 2026-11-12 (042)
+La solicitud explícita del dueño autoriza Google Sheets opcional, exclusivamente
+lectura periódica de contactos mediante un adaptador dedicado. Sin credenciales
+adicionales para hojas accesibles por enlace. No modifica permisos de origen,
+Calendar, Meta ni otras integraciones. No permite escribir ni eliminar datos en
+Sheets. Fallos aislados; datos e integraciones existentes preservados.

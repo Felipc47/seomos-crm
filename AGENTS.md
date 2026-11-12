@@ -57,7 +57,7 @@ Ver [.specify/memory/constitution.md](.specify/memory/constitution.md).
   y consentimiento independiente. Conectar la API no habilita envíos.
   PROHIBIDO en v1 introducir
   S3/R2, otros proveedores de email,
-  Stripe u otros servicios de Google distintos de Calendar. Auth y BD
+  Stripe u otros servicios de Google distintos de Calendar y Sheets. Auth y BD
   self-hosted.
 - **Ecommerce (037, enmienda 2.1.0)**: WooCommerce y Shopify opcionales tras
   `src/lib/ecommerce/`, conexión cifrada por empresa, catálogo/stock/pedidos y
@@ -145,3 +145,11 @@ Módulo exclusivo de email, independiente de WhatsApp. Suscriptores/listas propi
 sin teléfono, consentimiento y bajas por canal/empresa, remitente verificado por
 DNS con Resend. Secuencias por días desde inscripción y outbox persistente.
 Plan activo: `specs/028-mailing-automation/plan.md`.
+
+
+## Excepción Google Sheets — autorizada 2026-11-12 (042)
+La solicitud explícita del dueño autoriza Google Sheets opcional, exclusivamente
+lectura periódica de contactos mediante un adaptador dedicado. Sin credenciales
+adicionales para hojas accesibles por enlace. No modifica permisos de origen,
+Calendar, Meta ni otras integraciones. No permite escribir ni eliminar datos en
+Sheets. Fallos aislados; datos e integraciones existentes preservados.

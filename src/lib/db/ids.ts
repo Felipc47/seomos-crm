@@ -4,6 +4,8 @@ const alphabet = "0123456789abcdefghijklmnopqrstuvwxyz";
 const nano = customAlphabet(alphabet, 20);
 
 const prefixes = {
+  sheetsSource: "gss",
+  sheetsRow: "gsr",
   smsConnection: "smc",
   smsContact: "sct",
   smsMessage: "smsg",

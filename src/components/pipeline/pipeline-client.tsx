@@ -1,5 +1,7 @@
 "use client";
 
+import { useEvents } from "@/components/use-events";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
@@ -107,6 +109,8 @@ export function PipelineClient() {
     setStages(data.stages);
     setLeads(data.leads);
   }, []);
+
+  useEvents({ onContactsUpdated: () => void refetch(), onReconnect: () => void refetch() });
 
   useEffect(() => {
     void refetch();

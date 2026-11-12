@@ -7,6 +7,7 @@ import { EventEmitter } from "node:events";
  */
 
 export type SseEvent =
+  | { type: "contacts.updated"; data: { source: "sheets" } }
   | { type: "message.new"; data: { conversationId: string; message: unknown } }
   | {
       type: "message.status";
