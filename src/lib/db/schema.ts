@@ -1134,6 +1134,7 @@ export const smsEvent = pgTable("sms_event", {
 
 /** Lectura periódica de contactos desde una pestaña Google Sheets (042). */
 export const sheetsSource = pgTable("sheets_source", {
+  serviceId: text("service_id").references(() => service.id, { onDelete: "set null" }),
   id: text("id").primaryKey(),
   organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
@@ -1157,6 +1158,10 @@ export const sheetsSource = pgTable("sheets_source", {
 ]);
 
 export const sheetsRow = pgTable("sheets_row", {
+  flowServiceId: text("flow_service_id").references(() => service.id, { onDelete: "set null" }),
+  flowState: text("flow_state", { enum: ["none", "pending", "done", "failed"] }).notNull().default("none"),
+  flowResult: text("flow_result"),
+  flowCompletedAt: timestamp("flow_completed_at", { withTimezone: true }),
   id: text("id").primaryKey(),
   organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
   sourceId: text("source_id").notNull().references(() => sheetsSource.id, { onDelete: "cascade" }),
@@ -1169,4 +1174,21 @@ export const sheetsRow = pgTable("sheets_row", {
 }, (t) => [
   uniqueIndex("sheets_row_org_key_uq").on(t.organizationId, t.sourceId, t.externalKey),
   index("sheets_row_org_contact_idx").on(t.organizationId, t.contactId),
+  index("sheets_row_pending_idx").on(t.organizationId, t.sourceId, t.flowState),
+]);
+
+/** Durable reservation before any template provider call. Never automatically retry an uncertain greeting. */
+export const templateDispatch = pgTable("template_dispatch", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  contactId: text("contact_id").notNull().references(() => contact.id, { onDelete: "cascade" }),
+  templateId: text("template_id").references(() => template.id, { onDelete: "set null" }),
+  messageId: text("message_id").references(() => message.id, { onDelete: "set null" }),
+  automaticGreeting: boolean("automatic_greeting").notNull().default(false),
+  status: text("status", { enum: ["sending", "sent", "uncertain"] }).notNull().default("sending"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [
+  index("template_dispatch_org_contact_idx").on(t.organizationId, t.contactId),
+  uniqueIndex("template_dispatch_greeting_uq").on(t.organizationId, t.contactId).where(sql`${t.automaticGreeting} = true`),
 ]);

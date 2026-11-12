@@ -15,4 +15,10 @@
 Adaptador verificado sin modificar permisos: Integration Assessment gid0, 2 filas válidas; Ecommerce Assessment gid1952065539, 1 válida; ninguna inválida. Campaña/formulario/respuestas caben en los límites existentes de notas.
 
 ## Producción
-Pendiente publicar y verificar dos ciclos. Leer la hoja o compilar no significa conexión activa.
+Desplegado merge a53b539c7e75617e2b71451b0ec163e191412601; árbol idéntico al candidato probado.
+Health HTTPS 200; API de conexiones sin sesión 401; mock y cron sin autorización 404.
+Primera importación real 11:36:43 America/Bogota: dos contactos nuevos y uno actualizado; tres contactos/oportunidades en total, sin filas inválidas.
+Configuraciones/credenciales comparadas: 17 grupos idénticos; datos de configuración de cuatro empresas sin cambios. Conteos de otras empresas conservados.
+Segundo ciclo automático natural observado 11:42:13–11:42:17 America/Bogota: dos fuentes completadas, cero fallos, cero contactos nuevos/actualizados y tres sin cambios. Sin adelantar reloj ni fechas y sin una segunda ejecución manual. Se mantienen tres contactos, tres oportunidades y una conversación.
+El cron previo de seguimiento tuvo un fallo transitorio durante el cambio de contenedores; se recuperó por sí solo a las 11:40 y quedó con cero fallos consecutivos. Mailing y reuniones siguen activos. No se alteraron sus configuraciones.
+Resultado: objetivo completo; ambas pestañas activas con intervalo de cinco minutos, no duplicación comprobada y resto de integraciones preservadas. Ver deployment.md para el registro operativo resumido.

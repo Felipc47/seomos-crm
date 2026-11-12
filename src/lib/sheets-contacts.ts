@@ -5,11 +5,13 @@ export const sheetsInput = z.object({
   name: z.string().trim().min(1).max(80),
   url: z.string().trim().max(500),
   intervalMinutes: z.number().int().min(1).max(1440).default(5),
+  serviceId: z.string().min(1).max(100).nullable().optional(),
 });
 export const sheetsPatch = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   intervalMinutes: z.number().int().min(1).max(1440).optional(),
   enabled: z.boolean().optional(),
+  serviceId: z.string().min(1).max(100).nullable().optional(),
 }).strict();
 
 export class SheetsError extends Error {}

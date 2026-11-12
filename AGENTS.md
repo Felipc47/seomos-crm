@@ -153,3 +153,7 @@ lectura periódica de contactos mediante un adaptador dedicado. Sin credenciales
 adicionales para hojas accesibles por enlace. No modifica permisos de origen,
 Calendar, Meta ni otras integraciones. No permite escribir ni eliminar datos en
 Sheets. Fallos aislados; datos e integraciones existentes preservados.
+
+Ampliación 043 autorizada: servicio opcional por fuente para correo interno y
+saludo de WhatsApp en filas nuevas, usando las integraciones existentes y un
+registro compartido de intentos. Sin reactivar filas históricas ni alterar bajas.

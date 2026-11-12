@@ -1,6 +1,6 @@
 <!-- SYNC IMPACT REPORT — 2026-11-12
-Versión: 2.2.0 → 2.3.0 (MINOR: Google Sheets opcional para lectura de contactos).
-Autorización: solicitud explícita del dueño de sincronizar Sheets y conectar Lion Data.
+Versión: 2.3.0 → 2.4.0 (MINOR: flujo opcional por servicio para nuevos leads de Sheets).
+Autorización: solicitud explícita del dueño de activar correo y plantilla por servicio, con deduplicación compartida.
 II ampliado mediante adaptador dedicado; I, III–IX preservados.
 AGENTS.md/CLAUDE.md sincronizados; plantillas revisadas, sin restricciones que actualizar.
 -->
@@ -103,7 +103,10 @@ dependencias externas en runtime es CERRADA:
      2026-11-12), exclusivamente lectura periódica de contactos. Adaptador
      `src/lib/google/sheets.ts`, conexiones aisladas por empresa y pestaña.
      No modifica permisos, no escribe en hojas ni reemplaza Calendar/Meta.
-     Fallos aislados, sin borrados de contactos ni envíos automáticos.
+     Fallos aislados, sin borrados de contactos. Por defecto no envía mensajes;
+     un servicio seleccionado explícitamente habilita correo interno y saludo
+     de WhatsApp para filas nuevas (043, enmienda 2.4.0), con deduplicación
+     compartida, respeto de bajas y sin activar filas históricas.
 - **PROHIBIDO en v1**: almacenamiento de objetos externo (S3/R2), proveedores de
   email distintos de Resend, Stripe u otro billing, y otros servicios de Google
   distintos de Calendar y Sheets. Cualquier feature que los requiera queda fuera del
@@ -296,7 +299,7 @@ práctica, convención o preferencia; ante un conflicto, gana la constitución.
 - **Propagación**: al enmendar la constitución se revisan y, si procede, se actualizan
   las plantillas dependientes (plan, spec, tasks).
 
-**Version**: 2.3.0 | **Ratified**: 2026-07-09 | **Last Amended**: 2026-11-12
+**Version**: 2.4.0 | **Ratified**: 2026-07-09 | **Last Amended**: 2026-11-12
 
 
 ## Excepción Google Sheets — autorizada 2026-11-12 (042)

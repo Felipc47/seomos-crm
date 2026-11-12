@@ -2,7 +2,7 @@
 
 **Feature Branch**: `codex/google-sheets-contacts`
 **Created**: 2026-11-12
-**Status**: Especificada
+**Status**: Implementada y verificada en producción
 **Input**: Añadir sincronización periódica de contactos desde Sheets y conectar la hoja de leads de Meta a Lion Data conservando integraciones y funciones existentes.
 
 ## User Scenarios & Testing
@@ -46,3 +46,6 @@ Fila sincronizada: origen estable, contacto vinculado, huella y últimos valores
 
 ## Assumptions / Edge cases
 La hoja indicada permite exportación CSV por su configuración actual (verificado 2026-11-12, HTTP 200). No se cambia ese permiso. Hojas privadas requieren habilitar acceso de lectura por enlace antes de conectar; OAuth privado queda fuera de este alcance. Cada pestaña es una conexión. Se importan registros históricos sin iniciar comunicaciones. Máximo 10000 filas, 64 columnas, 5 MB por pestaña; límites visibles. Filas sin teléfono no se importan porque el CRM exige teléfono. Un contacto eliminado deliberadamente no se recrea por repetir una fila ya vinculada. Campos cambiados manualmente tienen prioridad. Hasta 3000 caracteres de información por fila y 4000 caracteres totales en notas para conservar la edición habitual del CRM. Contactos y pipeline se refrescan mediante eventos aislados por empresa.
+
+## Extensión 043
+El flujo optativo por servicio de `../043-sheets-service-flow/spec.md` amplía FR-005: solo las filas nuevas con servicio seleccionado pueden notificar y saludar; el comportamiento de importación sin servicio se conserva.

@@ -396,6 +396,7 @@ async function maybeSendGreeting(
   if (!claimed[0]) return;
 
   await sendTemplate({
+          automaticGreeting: true,
     organizationId: integration.organizationId,
     conversationId: result.conversationId,
     templateId,

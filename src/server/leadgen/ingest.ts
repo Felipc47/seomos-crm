@@ -203,6 +203,7 @@ export async function processLeadgenValue(value: WebhookValue): Promise<void> {
       try {
         const firstName = (name ?? "").split(/\s+/)[0] || "Hola";
         await sendTemplate({
+          automaticGreeting: true,
           organizationId,
           conversationId: conversation.id,
           templateId: greetingTemplateId,
