@@ -104,6 +104,14 @@ export function aiMockCompletion(messages: InMessage[]): string {
     [...messages].reverse().find((m) => m.role === "user")?.content ?? ""
   );
 
+  if (system.includes("agente SMS de este negocio")) {
+    if (lastUser.includes("SMS_AGENT_BAD_JSON")) return "Respuesta sin JSON";
+    if (lastUser.includes("SMS_AGENT_HANDOFF")) return JSON.stringify({ action: "handoff" });
+    if (lastUser.includes("SMS_AGENT_NONE")) return JSON.stringify({ action: "none" });
+    if (lastUser.includes("SMS_AGENT_LONG")) return JSON.stringify({ action: "reply", text: "Esta respuesta es deliberadamente demasiado larga para un solo segmento SMS y el servidor debe pedir una versión más corta antes de enviar nada." });
+    return JSON.stringify({ action: "reply", text: "Respuesta automatica de prueba." });
+  }
+
   // 037: acciones de comercio contra el ecommerce mock, nunca proveedor real.
   if (!system.includes("analista de CRM")) {
     if(lastUser.includes("ECOM_FIND")) return JSON.stringify({action:"commerce_search",query:"camiseta"});

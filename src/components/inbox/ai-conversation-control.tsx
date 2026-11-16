@@ -37,11 +37,13 @@ export function AiConversationHeaderControl({
   active,
   availability,
   busy,
+  shortLabel = false,
   onCheckedChange,
 }: {
   active: boolean;
   availability: AgentAvailability | null;
   busy: boolean;
+  shortLabel?: boolean;
   onCheckedChange: (checked: boolean) => void;
 }) {
   const loading = availability === null;
@@ -77,6 +79,7 @@ export function AiConversationHeaderControl({
         )}
         strokeWidth={2}
       />
+      {shortLabel && <span className={cn("text-xs font-bold xl:hidden", active && ready ? "text-[var(--success-fg)]" : "text-mute")}>IA</span>}
       <span
         className={cn(
           "hidden whitespace-nowrap text-xs font-bold xl:inline",

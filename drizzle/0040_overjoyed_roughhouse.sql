@@ -1,0 +1,1 @@
+ALTER TABLE "sms_contact" ADD COLUMN "ai_last_inbound_id" text;
