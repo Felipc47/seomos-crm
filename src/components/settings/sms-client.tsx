@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
+import { CheckCircle2, ChevronDown, Copy, KeyRound, MessageSquareText, RefreshCw } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +17,7 @@ export function SmsClient() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
   useEffect(() => {
     let active = true;
     void fetch("/api/settings/sms").then(async r => {
@@ -53,23 +56,113 @@ export function SmsClient() {
     } catch { setError("No se pudo configurar SMS. Revisa el estado antes de reintentar."); }
     finally { setBusy(false); }
   }
+  async function copyKeyLast4() {
+    if (!connection) return;
+    try {
+      await navigator.clipboard.writeText(connection.keyLast4);
+      setCopyState("copied");
+    } catch {
+      setCopyState("error");
+    }
+    window.setTimeout(() => setCopyState("idle"), 3000);
+  }
+
   return <section className="space-y-6" aria-label="Conexión de SMS">
-    <div><h3 className="text-xl font-semibold">SMS con Brevo</h3><p className="mt-2 text-sm text-mute">Conecta la cuenta de tu empresa y consulta su saldo de SMS.</p></div>
-    <div className="space-y-2 rounded-xl border bg-surface p-5" aria-label="Estado de Brevo">
-      <p className="font-semibold">{loading ? "Cargando conexión…" : connection ? "Cuenta API conectada" : "Sin cuenta de Brevo conectada"}</p>
-      {connection && <><p className="text-sm">{connection.companyName} · {connection.email}</p><p className="text-sm">Saldo informado por Brevo: {connection.smsCredits === null ? "No disponible" : `${connection.smsCredits} créditos SMS`}</p><p className="text-xs text-mute">Clave terminada en {connection.keyLast4}. Última comprobación: {new Date(connection.verifiedAt).toLocaleString("es-CO")}</p></>}
-      <p className="text-sm font-semibold">{connection?.deliveryEnabled ? `Remitente configurado: ${connection.sender}` : "Envíos SMS pendientes de habilitación"}</p>
-      {connection?.webhookReady && <p className="text-sm">Webhook de respuestas registrado</p>}
-      <p className="text-sm text-mute">Conectar la API no habilita los envíos. Falta registrar y aprobar el remitente para el país de destino, disponer de créditos y configurar el consentimiento y las bajas SMS. La bandeja SMS permite enviar avisos individuales y recibir respuestas cuando Brevo entregue los eventos del número habilitado.</p>
+    <div className="flex items-start gap-3">
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-soft text-brand">
+        <MessageSquareText className="h-6 w-6" aria-hidden="true" />
+      </span>
+      <div>
+        <h3 className="text-2xl font-bold tracking-tight">SMS con Brevo</h3>
+        <p className="mt-1 text-sm text-mute">Consulta la conexión de tu empresa y prepara los envíos desde un solo lugar.</p>
+      </div>
     </div>
-    <form className="space-y-4 rounded-xl border bg-surface p-5" onSubmit={e => { e.preventDefault(); void run("save"); }}>
+
+    <div className="overflow-hidden rounded-2xl border bg-surface shadow-sm" aria-label="Estado de Brevo">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b bg-brand-tint/40 p-5 sm:p-6">
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface text-brand shadow-sm">
+            {connection ? <CheckCircle2 className="h-5 w-5" aria-hidden="true" /> : <KeyRound className="h-5 w-5" aria-hidden="true" />}
+          </span>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-brand">Conexión</p>
+            <p className="mt-1 text-lg font-bold">{loading ? "Cargando conexión…" : connection ? "Cuenta API conectada" : "Sin cuenta de Brevo conectada"}</p>
+            {connection && <p className="mt-1 break-all text-sm text-mute">{connection.companyName} · {connection.email}</p>}
+          </div>
+        </div>
+        {!loading && <Badge variant={connection ? "success" : "warning"}>{connection ? "Conectada" : "Pendiente"}</Badge>}
+      </div>
+
+      {connection ? <>
+        <div className="grid gap-3 p-5 sm:grid-cols-3 sm:p-6">
+          <div className="rounded-xl border bg-surface-2/50 p-4">
+            <div className="flex items-center justify-between gap-2">
+              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-mute"><KeyRound className="h-3.5 w-3.5" aria-hidden="true" /> Clave conectada</p>
+              <div className="flex items-center gap-1.5">
+                {copyState !== "idle" && <span aria-live="polite" className={`text-xs font-semibold ${copyState === "copied" ? "text-success" : "text-destructive"}`}>{copyState === "copied" ? "Copiado" : "No se pudo copiar"}</span>}
+                <button type="button" onClick={() => void copyKeyLast4()} className="rounded-md p-1.5 text-mute transition-colors hover:bg-surface hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Copiar últimos 4 caracteres de la clave" title="Copiar últimos 4 caracteres">
+                  <Copy className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+            <p className="mt-2 font-mono text-xl font-bold tracking-wide" aria-label={`Clave conectada terminada en ${connection.keyLast4}`}>•••• {connection.keyLast4}</p>
+            <p className="mt-1 text-xs text-mute">Solo se muestran los últimos 4 caracteres</p>
+          </div>
+          <div className="rounded-xl border bg-surface-2/50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-mute">Saldo SMS</p>
+            <p className="mt-3 text-lg font-bold">{connection.smsCredits === null ? "No disponible" : `${connection.smsCredits} créditos`}</p>
+            <p className="mt-1 text-xs text-mute">Informado por Brevo</p>
+          </div>
+          <div className="rounded-xl border bg-surface-2/50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-mute">Última comprobación</p>
+            <p className="mt-3 text-sm font-bold">{new Date(connection.verifiedAt).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}</p>
+            <p className="mt-1 text-xs text-mute">Cuenta y permisos de lectura</p>
+          </div>
+        </div>
+
+        <div className="mx-5 mb-5 rounded-xl border bg-surface-2/50 p-4 sm:mx-6 sm:mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-semibold">{connection.deliveryEnabled ? `Remitente configurado: ${connection.sender}` : "Envíos SMS pendientes de habilitación"}</p>
+            <Badge variant={connection.deliveryEnabled ? "success" : "warning"}>{connection.deliveryEnabled ? "Remitente configurado" : "Falta el remitente"}</Badge>
+          </div>
+          <p className="mt-2 text-sm text-mute">{connection.deliveryEnabled ? "Verifica el saldo y el consentimiento del destinatario antes de enviar." : "La API ya está conectada. Configura un número aprobado por Brevo para habilitar los envíos."}</p>
+          {connection.webhookReady && <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-success"><CheckCircle2 className="h-4 w-4" aria-hidden="true" /> Webhook de respuestas registrado</p>}
+          <details className="group mt-3 border-t pt-3">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold text-brand [&::-webkit-details-marker]:hidden">
+              Ver requisitos para enviar SMS <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" aria-hidden="true" />
+            </summary>
+            <ol className="mt-3 list-inside list-decimal space-y-1.5 text-sm text-mute">
+              <li>Registrar y aprobar el remitente para el país de destino.</li>
+              <li>Disponer de créditos SMS en Brevo.</li>
+              <li>Guardar el consentimiento del contacto y respetar sus bajas SMS.</li>
+            </ol>
+          </details>
+        </div>
+        <div className="flex flex-wrap gap-3 border-t p-5 sm:px-6">
+          <Button disabled={busy} variant="secondary" onClick={() => void run("test")}><RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />Actualizar cuenta y saldo</Button>
+          <Button disabled={busy} variant="ghost" onClick={() => void run("disconnect")}>Desconectar Brevo</Button>
+        </div>
+      </> : <p className="p-5 text-sm text-mute sm:p-6">Conecta una clave API para consultar la cuenta y preparar el canal SMS.</p>}
+    </div>
+
+    <form className="space-y-4 rounded-2xl border bg-surface p-5 shadow-sm sm:p-6" onSubmit={e => { e.preventDefault(); void run("save"); }}>
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand"><KeyRound className="h-5 w-5" aria-hidden="true" /></span>
+        <div>
+          <h4 className="font-bold">{connection ? "Administrar clave API" : "Conectar Brevo"}</h4>
+          <p className="text-sm text-mute">{connection ? "La clave actual sigue activa hasta que verifiques otra." : "Verifica tu clave para conectar la cuenta de esta empresa."}</p>
+        </div>
+      </div>
       <fieldset disabled={loading || busy} className="space-y-4">
-        <div className="space-y-2"><Label htmlFor="brevo-key">{connection ? "Nueva clave API de Brevo" : "Clave API de Brevo"}</Label><Input id="brevo-key" type="password" autoComplete="new-password" minLength={20} maxLength={500} required value={key} onChange={e => setKey(e.target.value)} /></div>
-        <p className="text-xs text-mute">La clave se guarda cifrada por empresa. La verificación usa el permiso Account → Read; no consulta contactos ni envía mensajes. Para operar SMS requiere además Transactional SMS → Read/write y Webhooks → Read/write.</p>
-        <Button type="submit">{busy ? "Verificando…" : "Verificar y conectar Brevo"}</Button>
+        {connection && <p className="rounded-lg border bg-surface-2/50 px-3 py-2 text-sm">Clave actual: <span className="font-mono font-bold">•••• {connection.keyLast4}</span> <span className="text-mute">· El campo nuevo queda vacío por seguridad.</span></p>}
+        <div className="space-y-2">
+          <Label htmlFor="brevo-key">{connection ? "Nueva clave API de Brevo" : "Clave API de Brevo"}</Label>
+          <Input id="brevo-key" type="password" autoComplete="new-password" minLength={20} maxLength={500} required value={key} onChange={e => setKey(e.target.value)} placeholder={connection ? "Pega una clave nueva para reemplazar la actual" : "Pega tu clave API de Brevo"} />
+        </div>
+        <p className="text-xs text-mute">Se guarda cifrada por empresa. Para verificarla se necesita Account → Read; para operar SMS, Transactional SMS → Read/write y Webhooks → Read/write.</p>
+        <Button type="submit">{busy ? "Verificando…" : connection ? "Verificar y reemplazar clave" : "Verificar y conectar Brevo"}</Button>
       </fieldset>
     </form>
-    {connection && <div className="flex flex-wrap gap-3"><Button disabled={busy} variant="secondary" onClick={() => void run("test")}>Actualizar cuenta y saldo</Button><Button disabled={busy} variant="ghost" onClick={() => void run("disconnect")}>Desconectar Brevo</Button></div>}
     {connection && <div className="space-y-4 rounded-xl border bg-surface p-5">
       <h4 className="font-semibold">Número y respuestas</h4>
       <p className="text-sm text-mute">Usa un número de Estados Unidos cuya aprobación haya confirmado Brevo. Guardar estos datos no tramita ni concede una aprobación.</p>
