@@ -56,7 +56,20 @@ export async function smsSnapshot(org: string, contactId?: string) {
   // A process restart may leave an attempt in-flight. Never automatically resend it.
   await getDb().update(messages).set({ status: "uncertain", errorCode: "interrupted" })
     .where(scoped(messages.organizationId,org,eq(messages.status,"sending"),sql`${messages.createdAt} < now() - interval '90 seconds'`));
-  const people = await getDb().select().from(contacts).where(scoped(contacts.organizationId,org)).orderBy(desc(contacts.createdAt)).limit(200);
+  const lastMessageAt = sql<Date | null>`(
+    select m.created_at from sms_message m
+    where m.organization_id = ${org} and m.contact_id = sms_contact.id
+    order by m.created_at desc, m.id desc limit 1
+  )`;
+  const lastMessagePreview = sql<string | null>`(
+    select m.content from sms_message m
+    where m.organization_id = ${org} and m.contact_id = sms_contact.id
+    order by m.created_at desc, m.id desc limit 1
+  )`;
+  const people = (await getDb().select({ contact: contacts, lastMessageAt, lastMessagePreview })
+    .from(contacts).where(scoped(contacts.organizationId,org))
+    .orderBy(desc(sql`coalesce(${lastMessageAt}, ${contacts.createdAt})`)).limit(200))
+    .map(({ contact, lastMessageAt: at, lastMessagePreview: preview }) => ({ ...contact, lastMessageAt: at, lastMessagePreview: preview }));
   const history = contactId ? await getDb().select().from(messages).where(scoped(messages.organizationId,org,eq(messages.contactId,contactId)))
     .orderBy(desc(messages.createdAt),desc(messages.id)).limit(200) : [];
   const c = await connection(org);
