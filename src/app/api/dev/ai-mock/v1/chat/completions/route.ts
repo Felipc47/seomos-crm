@@ -50,6 +50,10 @@ export async function POST(req: Request) {
     );
   }
 
+  // SMS QA: deja que un operador responda mientras el modelo prepara su texto.
+  if (JSON.stringify(messages).includes("SMS_AGENT_DELAY_MANUAL")) {
+    await new Promise(resolve => setTimeout(resolve, 900));
+  }
   const content = aiMockCompletion(messages);
   return Response.json({
     id: "aimock",

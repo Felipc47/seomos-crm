@@ -5,6 +5,7 @@ export type SmsInboxContact = {
   name: string;
   phone: string;
   optedOutAt: string | null;
+  aiEnabled: boolean;
   createdAt: string;
   lastMessageAt: string | null;
   lastMessagePreview: string | null;
@@ -13,6 +14,7 @@ export type SmsInboxContact = {
 export type SmsInboxMessage = {
   id: string;
   direction: "in" | "out";
+  source: "manual" | "agent";
   content: string;
   status: SmsStatus;
   createdAt: string;
