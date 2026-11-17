@@ -34,6 +34,8 @@ try {
   }
   const company = await post("/api/admin/companies", { companyName: `Lead SMS QA ${stamp}`, adminName: "Admin QA", adminEmail: `admin-${stamp}@example.test`, adminPassword: password });
   org = company.company.id;
+  const otherEmail = `other-${stamp}@example.test`;
+  await post("/api/admin/companies", { companyName: `Other QA ${stamp}`, adminName: "Other Admin", adminEmail: otherEmail, adminPassword: password });
   await post("/api/auth/sign-out"); await post("/api/auth/sign-in/email", { email: `admin-${stamp}@example.test`, password });
   await put("/api/settings/whatsapp", { wabaId: `waba_${stamp}`, phoneNumberId: `phone_${stamp}`, token: "EAAtest-valido" });
   const service = (await post("/api/services", { name: "Consulta QA" })).service;
@@ -101,10 +103,7 @@ try {
   check(blockedSend.status() === 409 && (await get("/api/dev/brevo-mock/control")).sends.length === before + 1,
     "CRM opt-out blocks SMS before the provider");
   const other = await request.newContext({ baseURL, extraHTTPHeaders: { Origin: baseURL } });
-  await post("/api/auth/sign-out");
-  await post("/api/auth/sign-in/email", { email: rootEmail, password });
-  await post("/api/admin/companies", { companyName: `Other QA ${stamp}`, adminName: "Other Admin", adminEmail: `other-${stamp}@example.test`, adminPassword: password });
-  await json(await other.post("/api/auth/sign-in/email", { data: { email: `other-${stamp}@example.test`, password } }));
+  await json(await other.post("/api/auth/sign-in/email", { data: { email: otherEmail, password } }));
   check((await other.put("/api/settings/sms/lead-sources", { data: { sourceType: "sheet", sourceKey: source.id, consentEvidence: evidence } })).status() === 422,
     "another tenant cannot attest this Sheets source");
   await other.dispose();
