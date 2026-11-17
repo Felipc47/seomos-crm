@@ -106,7 +106,7 @@ export function SmsConversationPanel({ contact, messages, connection, agentAvail
 
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto bg-chat px-4 py-5 md:px-7" role="log" aria-label="Historial SMS" aria-live="polite">
       {messages.length ? messages.map((message) => <article key={message.id} className={`max-w-[88%] rounded-2xl border px-4 py-3 shadow-sm ${message.direction === "out" ? "ml-auto border-orange-400/20 bg-surface" : "mr-auto border-border bg-surface-2"}`}>
-        <p className="mb-1 text-[10px] font-bold uppercase tracking-[.08em] text-mute">{message.direction === "out" ? (message.source === "agent" ? "Agente IA" : "Tu empresa") : contact.name}</p>
+        <p className="mb-1 text-[10px] font-bold uppercase tracking-[.08em] text-mute">{message.direction === "out" ? (message.source === "agent" ? "Agente IA" : message.source === "automation" ? "Bienvenida automática" : "Tu empresa") : contact.name}</p>
         <p className="whitespace-pre-wrap break-words text-[13px] leading-6">{message.content}</p>
         <p className="mt-2 text-[10px] text-text-3">{SMS_STATUS_LABEL[message.status]} · {new Date(message.createdAt).toLocaleString("es-CO")}</p>
       </article>) : <div className="m-auto text-center"><ChannelPill channel="sms" /><p className="mt-3 text-sm font-semibold">Inicia la conversación por SMS</p><p className="mt-1 text-xs text-mute">Envía un aviso solicitado a este contacto.</p></div>}

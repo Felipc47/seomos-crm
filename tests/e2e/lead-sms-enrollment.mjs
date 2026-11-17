@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { chromium, request } from "playwright";
 import postgres from "postgres";
-import { randomUUID } from "node:crypto";
+import { createDecipheriv, randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 const baseURL = "http://127.0.0.1:3114", stamp = Date.now(), password = "LeadSms044!";
 const sql = postgres("postgresql://postgres@127.0.0.1:5433/seomos_leadsms_044");
@@ -37,6 +37,7 @@ try {
   const otherEmail = `other-${stamp}@example.test`;
   await post("/api/admin/companies", { companyName: `Other QA ${stamp}`, adminName: "Other Admin", adminEmail: otherEmail, adminPassword: password });
   await post("/api/auth/sign-out"); await post("/api/auth/sign-in/email", { email: `admin-${stamp}@example.test`, password });
+  await post("/api/dev/brevo-mock/control", { reset: true });
   await put("/api/settings/whatsapp", { wabaId: `waba_${stamp}`, phoneNumberId: `phone_${stamp}`, token: "EAAtest-valido" });
   const service = (await post("/api/services", { name: "Consulta QA" })).service;
   const formId = `form_${stamp}`;
@@ -72,18 +73,18 @@ try {
   check(!(await sms(1)), "activating a source does not retroactively enroll historical leads");
   await meta(2, formId);
   const s2 = await wait(() => sms(2));
-  check(!!s2 && s2.consentEvidence.includes(formId) && !!(await crm(2)) && (await wa(2)).length === 1,
+  check(!!s2 && s2.aiEnabled && s2.consentEvidence.includes(formId) && !!(await crm(2)) && (await wa(2)).length === 1,
     "new Meta lead appears in CRM and SMS with evidence and WhatsApp greeting");
   add(3); await mock(); await sync();
   const s3 = await sms(3);
-  check(!!s3 && s3.consentEvidence.includes(source.id) && !!(await crm(3)) && (await wa(3)).length === 1,
+  check(!!s3 && s3.aiEnabled && s3.consentEvidence.includes(source.id) && !!(await crm(3)) && (await wa(3)).length === 1,
     "new Sheets lead appears in CRM and SMS with evidence and WhatsApp greeting");
   await sync(); await meta(3, formId);
   check((await sql`select count(*)::int as n from sms_contact where organization_id=${org} and phone=${`+${phone(3)}`}`)[0].n === 1,
     "repeated Sheets and cross-source Meta events keep one SMS contact");
   await post(`/api/sms/contacts/${s3.id}/opt-out`);
   await meta(3, formId); await sync();
-  check(!!(await sms(3)).optedOutAt, "later source events never lift an SMS opt-out");
+  check(!!(await sms(3)).optedOutAt && !(await sms(3)).aiEnabled, "later source events never lift an SMS opt-out or its AI pause");
   const blocked = (await post("/api/contacts", { name: "Persona 4", phone: phone(4) })).contact;
   await sql`update contact set blocked_at=now() where id=${blocked.id} and organization_id=${org}`;
   add(4); await mock(); await sync();
@@ -102,8 +103,67 @@ try {
   const blockedSend = await api.post("/api/sms/send", { data: { contactId: s2.id, content: "Do not send", operationId: randomUUID() } });
   check(blockedSend.status() === 409 && (await get("/api/dev/brevo-mock/control")).sends.length === before + 1,
     "CRM opt-out blocks SMS before the provider");
+  await page.goto("/agent");
+  await page.getByLabel("Canal favorito para nuevos leads").selectOption("sms");
+  await page.getByRole("button", { name: "Guardar comportamiento" }).click();
+  await wait(async () => (await get("/api/agent/profile")).profile.preferredContactChannel === "sms");
+  check(true, "Agent UI saves SMS as this company's preferred channel");
+  add(5); await mock(); await sync();
+  const sends5 = (await get("/api/dev/brevo-mock/control")).sends.filter(m => m.recipient === `+${phone(5)}`);
+  check((await sms(5)).aiEnabled && sends5.length === 1 && sends5[0].content.includes("Hello Persona") && sends5[0].content.includes("STOP") && (await wa(5)).length === 0,
+    "first Sheets service sends its approved greeting by SMS only with brand and STOP");
+  const [auto5] = await sql`select source,status from sms_message where organization_id=${org} and contact_id=${(await sms(5)).id} and direction='out'`;
+  check(auto5.source === "automation" && auto5.status === "accepted", "SMS inbox records automatic source and provider acceptance");
+  const service2 = (await post("/api/services", { name: "Ecommerce QA" })).service;
+  const template2 = (await post("/api/templates", { name: `ecommerce_${stamp}`, language: "en_US", category: "MARKETING",
+    body: "Hi {{1}}, let's review your ecommerce inventory.", variables: [{ source: "first_name" }] })).template;
+  await post("/api/dev/wa-mock/template-status", { wabaId: `waba_${stamp}`, name: template2.name, language: "en_US", event: "APPROVED" });
+  await wait(async () => (await get("/api/templates")).templates.find(t => t.id === template2.id && t.status === "approved"));
+  await patch(`/api/services/${service2.id}`, { greetingTemplateId: template2.id });
+  await post("/api/dev/sheets-mock", { gid: "1", csv: header + `l:${stamp}_6,Persona 6,p:+${phone(6)},lead6@example.test,${formId}` });
+  const source2 = (await post("/api/settings/sheets", { name: "Ecommerce Meta QA", url: "https://docs.google.com/spreadsheets/d/123456789012345678901234567890/edit#gid=1", serviceId: service2.id })).source;
+  await put("/api/settings/sms/lead-sources", { sourceType: "sheet", sourceKey: source2.id, consentEvidence: evidence });
+  await post(`/api/settings/sheets/${source2.id}/sync`);
+  const sends6 = (await get("/api/dev/brevo-mock/control")).sends.filter(m => m.recipient === `+${phone(6)}`);
+  check(sends6.length === 1 && sends6[0].content.includes("ecommerce inventory") && !sends6[0].content.includes("how can we help") && (await wa(6)).length === 0,
+    "second Sheets source selects its own service template and sends SMS only");
+  await sync(); await post(`/api/settings/sheets/${source2.id}/sync`);
+  check((await get("/api/dev/brevo-mock/control")).sends.filter(m => [`+${phone(5)}`, `+${phone(6)}`].includes(m.recipient)).length === 2,
+    "repeated syncs do not duplicate SMS greetings");
+  await put("/api/agent/profile", { enabled: true });
+  await sql`insert into ai_credit_account (organization_id,balance,total_granted,total_used)
+    values (${org},20,20,0) on conflict (organization_id)
+    do update set balance=20,total_granted=20,total_used=0`;
+  const [welcome] = await sql`select m.provider_message_id from sms_message m join sms_contact c on c.id=m.contact_id
+    where c.organization_id=${org} and c.phone=${`+${phone(5)}`} and m.source='automation' limit 1`;
+  const [smsConnection] = await sql`select webhook_secret from sms_connection where organization_id=${org}`;
+  const secret = smsConnection.webhook_secret;
+  const decipher = createDecipheriv("aes-256-gcm", Buffer.alloc(32), Buffer.from(secret.iv, "base64"));
+  decipher.setAuthTag(Buffer.from(secret.tag, "base64"));
+  const token = Buffer.concat([decipher.update(Buffer.from(secret.cipher, "base64")), decipher.final()]).toString();
+  await json(await api.post(`/api/webhooks/brevo/${org}`, { headers: { authorization: `Bearer ${token}` },
+    data: { msg_status: "replied", to: phone(5), messageId: Number(welcome.provider_message_id),
+      reply: "SMS_AGENT_REPLY", ts_event: Math.floor(Date.now() / 1000) } }));
+  await wait(async () => (await sql`select m.id from sms_message m join sms_contact c on c.id=m.contact_id
+    where c.organization_id=${org} and c.phone=${`+${phone(5)}`} and m.source='agent' limit 1`)[0]);
+  check((await get("/api/dev/brevo-mock/control")).sends.filter(m => m.recipient === `+${phone(5)}`).length === 2,
+    "new consented lead receives an AI SMS reply by default when the company agent is on");
+  await meta(7, formId);
+  await wait(() => sms(7));
+  await wait(async () => (await get("/api/dev/brevo-mock/control")).sends.some(m => m.recipient === `+${phone(7)}`));
+  check((await wa(7)).length === 0, "direct Meta lead also honors the company's SMS-only preferred welcome");
+  await post("/api/dev/brevo-mock/control", { next: "timeout" });
+  add(8); await mock(); await sync();
+  const [failed8] = await sql`select r.flow_state,m.status from sheets_row r join sms_contact c on c.id=r.contact_id or (c.organization_id=r.organization_id and c.phone=${`+${phone(8)}`}) left join sms_message m on m.contact_id=c.id and m.source='automation' where r.organization_id=${org} and r.external_key=${`l:${stamp}_8`} limit 1`;
+  check(failed8.flow_state === "failed" && failed8.status === "uncertain" && (await wa(8)).length === 0,
+    "provider timeout keeps an uncertain SMS result and never falls back to WhatsApp");
+  const count8 = (await sql`select count(*)::int as n from sms_message m join sms_contact c on c.id=m.contact_id where c.organization_id=${org} and c.phone=${`+${phone(8)}`}`)[0].n;
+  await sync();
+  check((await sql`select count(*)::int as n from sms_message m join sms_contact c on c.id=m.contact_id where c.organization_id=${org} and c.phone=${`+${phone(8)}`}`)[0].n === count8,
+    "failed automatic SMS is not blindly retried by another sync");
   const other = await request.newContext({ baseURL, extraHTTPHeaders: { Origin: baseURL } });
   await json(await other.post("/api/auth/sign-in/email", { data: { email: otherEmail, password } }));
+  check((await json(await other.get("/api/agent/profile"))).profile.preferredContactChannel === "whatsapp", "other companies keep WhatsApp as the default");
   check((await other.put("/api/settings/sms/lead-sources", { data: { sourceType: "sheet", sourceKey: source.id, consentEvidence: evidence } })).status() === 422,
     "another tenant cannot attest this Sheets source");
   await other.dispose();

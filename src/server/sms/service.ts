@@ -115,7 +115,7 @@ export async function optOutSms(org: string, id: string) {
   if (!row) throw new SmsError("not_found", "Contacto SMS no encontrado.",404);
   return row;
 }
-export async function sendSms(org: string, input: z.infer<typeof smsSendInput>, options: { source?: "manual" | "agent"; expectedLatestInboundId?: string } = {}) {
+export async function sendSms(org: string, input: z.infer<typeof smsSendInput>, options: { source?: "manual" | "agent" | "automation"; expectedLatestInboundId?: string } = {}) {
   if (!(await isCompanyServiceActive(org))) throw new SmsError("service_suspended", "El servicio de esta empresa está en pausa", 403);
   const findExisting = async () => (await getDb().select().from(messages)
     .where(scoped(messages.organizationId,org,eq(messages.operationId,input.operationId))).limit(1))[0];

@@ -5,6 +5,6 @@
 - [x] Añadir tabla, migración, API y UI de fuentes autorizadas.
 - [x] Añadir inscripción idempotente en Meta y Sheets y preservar bajas/bloqueos.
 - [x] E2E con mocks: 13 comprobaciones aprobadas en base 043.
-- [ ] Repetir E2E y gate técnico sobre la integración con la rama productiva SMS.
+- [x] Repetir E2E integrado (23 comprobaciones) y gate técnico sobre la rama productiva SMS.
 - [ ] Revisar release e implementar en producción.
 - [ ] Configurar las fuentes de Lion Data, verificar contacto observable y documentar estado externo de Brevo.

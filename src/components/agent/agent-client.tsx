@@ -51,6 +51,7 @@ type Profile = MissionFormValue & {
   enabled: boolean;
   name: string;
   responseLanguage: AgentResponseLanguage;
+  preferredContactChannel: "whatsapp" | "sms";
   tone: string | null;
   tonePresets: string[];
   instructions: string | null;
@@ -393,6 +394,16 @@ function ProfileSection({
           <p id="agent-response-language-hint" className="text-xs text-muted-foreground">
             En español e inglés, responde en el idioma del cliente y cambia cuando él lo pida.
           </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="agent-preferred-channel">Canal favorito para nuevos leads</Label>
+          <select id="agent-preferred-channel" value={form.preferredContactChannel}
+            onChange={e => setForm({ ...form, preferredContactChannel: e.target.value as "whatsapp" | "sms" })}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+            <option value="whatsapp">WhatsApp</option><option value="sms">SMS</option>
+          </select>
+          <p className="text-xs text-muted-foreground">La bienvenida automática usa este canal. SMS requiere consentimiento, número de EE. UU., remitente aprobado y créditos. Las respuestas siguen en el canal donde escribe cada contacto.</p>
         </div>
 
         <MissionSettings value={form} onChange={patch => setForm(current => ({ ...current, ...patch }))} />

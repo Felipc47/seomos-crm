@@ -15,7 +15,7 @@ import {
   extractLeadPhone,
 } from "@/server/leadgen/fields";
 import { getLeadgenSettings } from "@/server/org-settings";
-import { sendTemplate } from "@/server/whatsapp/templates";
+import { sendPreferredGreeting } from "@/server/leadgen/preferred-greeting";
 import { smsLeadEnrollmentSql } from "@/server/sms/lead-enrollment";
 import type { WebhookValue } from "@/server/inbox/webhook";
 
@@ -229,14 +229,8 @@ export async function processLeadgenValue(value: WebhookValue): Promise<void> {
     }
     if (greetingTemplateId) {
       try {
-        const firstName = (name ?? "").split(/\s+/)[0] || "Hola";
-        await sendTemplate({
-          automaticGreeting: true,
-          organizationId,
-          conversationId: conversation.id,
-          templateId: greetingTemplateId,
-          variable: firstName,
-        });
+        await sendPreferredGreeting({ organizationId, contactId: contact.id,
+          conversationId: conversation.id, templateId: greetingTemplateId });
       } catch (err) {
         console.error(
           `[leadgen] el saludo automático falló para ${contact.id} (el lead queda en la bandeja):`,

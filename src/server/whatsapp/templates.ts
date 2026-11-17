@@ -915,7 +915,7 @@ export async function applyTemplateStatusEvent(
 
 /** Contexto de personalización del destinatario: contacto + su lead (el
  * lead es 1:1 con el contacto) con nombres de servicio y etapa. */
-async function loadVariableContext(
+export async function loadVariableContext(
   organizationId: string,
   contact: typeof schema.contact.$inferSelect
 ): Promise<{

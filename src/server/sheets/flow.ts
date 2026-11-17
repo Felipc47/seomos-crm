@@ -5,7 +5,7 @@ import { getOrCreateConversation } from "@/server/inbox/ingest";
 import { ensureLeadActivity } from "@/server/inbox/lead-activity";
 import { notifyNewLeadByEmail } from "@/server/email/new-lead";
 import { getLeadgenSettings } from "@/server/org-settings";
-import { sendTemplate } from "@/server/whatsapp/templates";
+import { sendPreferredGreeting } from "@/server/leadgen/preferred-greeting";
 import { InitialGreetingSkipped } from "@/server/whatsapp/template-dispatch";
 import { publish } from "@/server/events/bus";
 import { isCompanyServiceActive } from "@/server/company-service";
@@ -38,12 +38,13 @@ async function runFlow(row: Row) {
     const templateId = service.greetingTemplateId ?? (await getLeadgenSettings(org)).greetingTemplateId;
     if (!templateId) results.push("Servicio sin plantilla de saludo configurada.");
     else {
-      await sendTemplate({ organizationId: org, conversationId: conversation.id, templateId, variable: contact.name?.split(/\s+/)[0] || "Hola", automaticGreeting: true, timeoutMs: 15000 });
-      results.push("Plantilla enviada.");
+      const channel = await sendPreferredGreeting({ organizationId: org, contactId: contact.id,
+        conversationId: conversation.id, templateId, timeoutMs: 15000 });
+      results.push(channel === "sms" ? "SMS de bienvenida aceptado; entrega pendiente." : "Plantilla de WhatsApp enviada.");
     }
   } catch (error) {
     if (error instanceof InitialGreetingSkipped) results.push(error.message);
-    else { failed = true; results.push("No se confirmó el envío de la plantilla. Revisa la conversación y la conexión; no se reenviará automáticamente."); }
+    else { failed = true; results.push("No se confirmó el saludo. Revisa el canal y la conexión; no se reenviará automáticamente."); }
   }
   publish(org, { type: "conversation.updated", data: { conversation: { id: conversation.id } } });
   return { failed, result: results.join(" ") };

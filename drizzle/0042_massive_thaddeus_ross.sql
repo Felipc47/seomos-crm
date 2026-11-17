@@ -1,0 +1,2 @@
+ALTER TABLE "agent_profile" ADD COLUMN "preferred_contact_channel" text DEFAULT 'whatsapp' NOT NULL;--> statement-breakpoint
+ALTER TABLE "agent_profile" ADD CONSTRAINT "agent_profile_preferred_contact_channel_check" CHECK ("agent_profile"."preferred_contact_channel" in ('whatsapp', 'sms'));

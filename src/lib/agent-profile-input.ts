@@ -17,6 +17,7 @@ export const agentProfileUpdateSchema = z.object({
   schedulingWarmupEnabled: z.boolean().optional(),
   schedulingWarmupMessages: z.number().int().min(1).max(MAX_WARMUP_MESSAGES).optional(),
   responseLanguage: z.enum(AGENT_RESPONSE_LANGUAGE_IDS).optional(),
+  preferredContactChannel: z.enum(["whatsapp", "sms"]).optional(),
   name: z.string().trim().min(1).max(60).optional(),
   tone: z.string().max(1000).nullable().optional(),
   tonePresets: z

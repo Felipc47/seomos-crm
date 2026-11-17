@@ -35,6 +35,7 @@ export const GET = withAuth(async (session) => {
       schedulingWarmupMessages: p.schedulingWarmupMessages,
       name: p.name,
       responseLanguage: p.responseLanguage,
+      preferredContactChannel: p.preferredContactChannel,
       tone: p.tone,
       tonePresets: p.tonePresets ?? [],
       instructions: p.instructions,

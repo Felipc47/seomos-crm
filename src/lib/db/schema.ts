@@ -691,6 +691,7 @@ export const agentProfile = pgTable(
     enabled: boolean("enabled").notNull().default(false),
     name: text("name").notNull().default("Asistente"),
     responseLanguage: text("response_language", { enum: ["es", "en", "es-en"] }).notNull().default("es"),
+    preferredContactChannel: text("preferred_contact_channel", { enum: ["whatsapp", "sms"] }).notNull().default("whatsapp"),
     mission: text("mission", { enum: ["legacy", "schedule", "sales", "ecommerce", "qualify", "support", "inform", "custom"] }).notNull().default("legacy"),
     missionDetails: text("mission_details"),
     ecommerceUrl: text("ecommerce_url"),
@@ -714,6 +715,7 @@ export const agentProfile = pgTable(
   (t) => [
     uniqueIndex("agent_profile_org_uq").on(t.organizationId),
     check("agent_profile_response_language_check", sql`${t.responseLanguage} in ('es', 'en', 'es-en')`),
+    check("agent_profile_preferred_contact_channel_check", sql`${t.preferredContactChannel} in ('whatsapp', 'sms')`),
     check("agent_profile_mission_check", sql`${t.mission} in ('legacy', 'schedule', 'sales', 'ecommerce', 'qualify', 'support', 'inform', 'custom')`),
     check("agent_profile_warmup_messages_check", sql`${t.schedulingWarmupMessages} between 1 and 50`),
   ]
@@ -1130,7 +1132,7 @@ export const smsMessage = pgTable("sms_message", {
   contactId: text("contact_id").notNull().references(() => smsContact.id, { onDelete: "cascade" }),
   operationId: text("operation_id").notNull(), direction: text("direction", { enum: ["in", "out"] }).notNull(),
   content: text("content").notNull(), sender: text("sender").notNull(),
-  source: text("source", { enum: ["manual", "agent"] }).notNull().default("manual"),
+  source: text("source", { enum: ["manual", "agent", "automation"] }).notNull().default("manual"),
   status: text("status").$type<import("@/lib/sms").SmsStatus>().notNull(),
   providerMessageId: text("provider_message_id"), errorCode: text("error_code"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

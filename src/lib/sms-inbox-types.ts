@@ -14,7 +14,7 @@ export type SmsInboxContact = {
 export type SmsInboxMessage = {
   id: string;
   direction: "in" | "out";
-  source: "manual" | "agent";
+  source: "manual" | "agent" | "automation";
   content: string;
   status: SmsStatus;
   createdAt: string;
