@@ -6,7 +6,7 @@ Fecha: 2026-11-16. El dueño elige SMS para Lion Data (LD) y WhatsApp para SEOMO
 - Agente permite elegir WhatsApp o SMS por empresa, con WhatsApp como valor inicial para todas las organizaciones existentes y nuevas.
 - La preferencia determina el canal de bienvenida de los nuevos leads Meta y Sheets. Las respuestas siguen en el canal por el que el contacto escribe. Cada lead SMS nuevo y consentido tiene la IA individual activada por defecto; el interruptor maestro del agente sigue gobernando las respuestas y las pausas existentes se conservan.
 - Cada pestaña Sheets conserva su servicio. Su plantilla aprobada se personaliza con el contacto/servicio y se envía como SMS si la empresa eligió SMS; no se envía también WhatsApp.
-- El SMS identifica la marca e incluye STOP si la plantilla no lo trae. Se muestra como bienvenida automática y aceptación del proveedor se distingue de entrega.
+- El SMS identifica la marca y usa el cuerpo de la plantilla aprobada sin añadir una frase de baja ni cambiar su idioma. El sistema sigue procesando las respuestas STOP como baja. Se muestra como bienvenida automática y la aceptación del proveedor se distingue de la entrega.
 - Sin consentimiento SMS, número US válido, remitente aprobado, webhook o saldo, no se intenta WhatsApp como canal alterno. El contacto y el fallo quedan visibles para revisión, sin envío duplicado.
 - Meta y Sheets comparten la reserva de saludo, y los ciclos repetidos no duplican SMS ni WhatsApp.
 - Activar la preferencia no envía mensajes retroactivos ni cambia la IA de contactos existentes. Cambios de empresa no alteran la preferencia de otras empresas.

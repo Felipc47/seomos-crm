@@ -110,8 +110,8 @@ try {
   check(true, "Agent UI saves SMS as this company's preferred channel");
   add(5); await mock(); await sync();
   const sends5 = (await get("/api/dev/brevo-mock/control")).sends.filter(m => m.recipient === `+${phone(5)}`);
-  check((await sms(5)).aiEnabled && sends5.length === 1 && sends5[0].content.includes("Hello Persona") && sends5[0].content.includes("STOP") && (await wa(5)).length === 0,
-    "first Sheets service sends its approved greeting by SMS only with brand and STOP");
+  check((await sms(5)).aiEnabled && sends5.length === 1 && sends5[0].content.includes("Hello Persona") && !sends5[0].content.includes("STOP") && (await wa(5)).length === 0,
+    "first Sheets service sends its approved greeting by SMS only, without an added STOP footer");
   const [auto5] = await sql`select source,status from sms_message where organization_id=${org} and contact_id=${(await sms(5)).id} and direction='out'`;
   check(auto5.source === "automation" && auto5.status === "accepted", "SMS inbox records automatic source and provider acceptance");
   const service2 = (await post("/api/services", { name: "Ecommerce QA" })).service;
@@ -125,7 +125,7 @@ try {
   await put("/api/settings/sms/lead-sources", { sourceType: "sheet", sourceKey: source2.id, consentEvidence: evidence });
   await post(`/api/settings/sheets/${source2.id}/sync`);
   const sends6 = (await get("/api/dev/brevo-mock/control")).sends.filter(m => m.recipient === `+${phone(6)}`);
-  check(sends6.length === 1 && sends6[0].content.includes("ecommerce inventory") && !sends6[0].content.includes("how can we help") && (await wa(6)).length === 0,
+  check(sends6.length === 1 && sends6[0].content.includes("ecommerce inventory") && !sends6[0].content.includes("STOP") && !sends6[0].content.includes("how can we help") && (await wa(6)).length === 0,
     "second Sheets source selects its own service template and sends SMS only");
   await sync(); await post(`/api/settings/sheets/${source2.id}/sync`);
   check((await get("/api/dev/brevo-mock/control")).sends.filter(m => [`+${phone(5)}`, `+${phone(6)}`].includes(m.recipient)).length === 2,

@@ -57,7 +57,7 @@ export async function sendPreferredGreeting(input: {
   if (!body || /\{\{\s*\d+\s*\}\}/.test(body)) throw new Error("La plantilla SMS no se pudo completar.");
   const brand = organization?.name?.trim() || "Empresa";
   const branded = body.toLocaleLowerCase().includes(brand.toLocaleLowerCase()) ? body : `${brand}: ${body}`;
-  const content = /\bSTOP\b/i.test(branded) ? branded : `${branded}\nResponde STOP para salir.`;
+  const content = branded;
   if (content.length > 1600) throw new Error("La plantilla SMS supera el límite permitido.");
 
   const dispatchId = await reserveTemplateDispatch({ organizationId: org, contactId: contact.id,
