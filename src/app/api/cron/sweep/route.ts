@@ -5,6 +5,7 @@ import { sweepPendingConversations } from "@/server/ai/sweep";
 import { sweepFollowUps } from "@/server/ai/follow-up";
 import { sendWeeklyLeadDigests } from "@/server/email/weekly-digest";
 import { sweepMailing } from "@/server/mailing/runner";
+import { sweepSmsAgentTurns } from "@/server/sms/agent";
 
 /**
  * Endpoint del barrido de recuperación, pensado para un cron externo
@@ -42,7 +43,8 @@ async function handle(req: Request): Promise<Response> {
   const followUps = await sweepFollowUps(now);
   const weeklyEmail = await sendWeeklyLeadDigests(now);
   const mailing = await sweepMailing(now).catch(() => ({ error: "No se pudo completar el barrido de mailing" }));
-  return Response.json({ ok: true, ...result, meetings, followUps, weeklyEmail, mailing });
+  const smsAgent = await sweepSmsAgentTurns().catch(() => ({ error: "No se pudo completar el barrido SMS" }));
+  return Response.json({ ok: true, ...result, meetings, followUps, weeklyEmail, mailing, smsAgent });
 }
 
 export const POST = handle;

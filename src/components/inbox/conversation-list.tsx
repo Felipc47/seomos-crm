@@ -13,6 +13,7 @@ import {
   Pin,
   PinOff,
   Search,
+  Smartphone,
   ShieldBan,
   ShieldCheck,
   SlidersHorizontal,
@@ -24,6 +25,8 @@ import {
   UsersRound,
 } from "lucide-react";
 import type { ConversationDto, InboxAssigneeOptionDto } from "@/lib/types";
+import type { SmsInboxContact } from "@/lib/sms-inbox-types";
+import { countryFromPhone } from "@/lib/phone-country";
 import { ROLE_LABELS, type Role } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import { InboxContactAvatar } from "./inbox-contact-avatar";
@@ -34,6 +37,7 @@ import { stageColor } from "@/lib/stage-colors";
 import { useStages } from "@/components/use-stage-colors";
 import { useTimezone } from "@/components/timezone-provider";
 import { formatTime, previewText } from "./helpers";
+import { ChannelPill } from "./channel-pill";
 import {
   InboxFilterDropdown,
   type InboxFilterOption,
@@ -237,6 +241,13 @@ export function ConversationList({
   conversations: conversationsProp,
   selectedId,
   onSelect,
+  smsContacts: smsContactsProp,
+  smsSelectedId,
+  smsEnabled,
+  initialChannel,
+  onSelectSms,
+  onNewSms,
+  onChannelChange,
   onSeeded,
   onPatch,
   onAction,
@@ -250,6 +261,13 @@ export function ConversationList({
   conversations: ConversationDto[] | null;
   selectedId: string | null;
   onSelect: (id: string) => void;
+  smsContacts: SmsInboxContact[] | null;
+  smsSelectedId: string | null;
+  smsEnabled: boolean;
+  initialChannel: "all" | "sms";
+  onSelectSms: (id: string) => void;
+  onNewSms: () => void;
+  onChannelChange: (channel: "all" | "whatsapp" | "sms") => void;
   onSeeded: () => void;
   onPatch: (id: string, patch: { pinned?: boolean; archived?: boolean }) => void;
   onAction: (action: InboxConversationAction, ids: string[]) => void;
@@ -263,6 +281,7 @@ export function ConversationList({
   const { timezone } = useTimezone();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "unread" | "archived">("all");
+  const [channelFilter, setChannelFilter] = useState<"all" | "whatsapp" | "sms">(initialChannel);
   const [stageFilter, setStageFilter] = useState("");
   // "all" | "mine" | "unassigned" | memberId concreto (ids con prefijo, sin
   // colisión posible con los valores reservados).
@@ -333,8 +352,9 @@ export function ConversationList({
     [currentMemberId, members]
   );
 
-  const loading = conversationsProp === null;
+  const loading = conversationsProp === null || (smsEnabled && smsContactsProp === null);
   const conversations = conversationsProp ?? [];
+  const smsContacts = smsEnabled ? (smsContactsProp ?? []) : [];
   const q = query.trim().toLowerCase();
   const matches = (c: ConversationDto) =>
     (!stageFilter || c.stageName === stageFilter) &&
@@ -363,7 +383,7 @@ export function ConversationList({
         : inboxed;
   // Ancladas primero (la más antigua arriba, orden estable estilo WhatsApp);
   // el resto conserva el orden del servidor (último mensaje primero).
-  const visible =
+  const visibleWhatsapp =
     filter === "archived"
       ? filtered
       : [...filtered].sort((a, b) => {
@@ -372,11 +392,26 @@ export function ConversationList({
             return a.pinnedAt < b.pinnedAt ? -1 : 1;
           return 0;
         });
+  const visible = channelFilter === "sms" ? [] : visibleWhatsapp;
+  const visibleSms = filter === "all" && !selecting && !stageFilter && assigneeFilter === "all" && channelFilter !== "whatsapp"
+    ? smsContacts.filter((contact) => !q || contact.name.toLowerCase().includes(q) || contact.phone.includes(q) || (contact.lastMessagePreview ?? "").toLowerCase().includes(q))
+    : [];
+  const mixedVisible = [
+    ...visible.map((conversation) => ({ channel: "whatsapp" as const, conversation, at: conversation.lastMessageAt })),
+    ...visibleSms.map((contact) => ({ channel: "sms" as const, contact, at: contact.lastMessageAt ?? contact.createdAt })),
+  ].sort((a, b) => {
+    const aPinned = a.channel === "whatsapp" ? a.conversation.pinnedAt : null;
+    const bPinned = b.channel === "whatsapp" ? b.conversation.pinnedAt : null;
+    if (!!aPinned !== !!bPinned) return aPinned ? -1 : 1;
+    if (aPinned && bPinned) return aPinned.localeCompare(bPinned);
+    return (b.at ? Date.parse(b.at) : 0) - (a.at ? Date.parse(a.at) : 0);
+  });
   const selectedSet = useMemo(
     () => new Set(selectedActionIds),
     [selectedActionIds]
   );
-  const visibleIds = useMemo(() => visible.map((c) => c.id), [visible]);
+  const visibleIds = visible.map((c) => c.id);
+  const visibleIdsKey = visibleIds.join("|");
   const allVisibleSelected =
     visibleIds.length > 0 && visibleIds.every((id) => selectedSet.has(id));
   const selectedConversations = conversations.filter((c) =>
@@ -396,7 +431,7 @@ export function ConversationList({
 
   useEffect(() => {
     if (!selecting || selectedActionIds.length === 0) return;
-    const visibleSet = new Set(visibleIds);
+    const visibleSet = new Set(visibleIdsKey ? visibleIdsKey.split("|") : []);
     const next = selectedActionIds.filter((id) => visibleSet.has(id));
     if (next.length !== selectedActionIds.length) {
       onSelectedActionIdsChange(next);
@@ -404,7 +439,7 @@ export function ConversationList({
   }, [
     selecting,
     selectedActionIds,
-    visibleIds,
+    visibleIdsKey,
     onSelectedActionIdsChange,
   ]);
 
@@ -424,17 +459,21 @@ export function ConversationList({
   return (
     <div className="flex h-full min-h-0 flex-col bg-surface">
       <header className="shrink-0 border-b px-4 pb-4 pt-5 xl:px-5 xl:pt-6">
-        <p className="crm-eyebrow mb-2">WhatsApp · Conversaciones</p>
+        <p className="crm-eyebrow mb-2">{smsEnabled ? "WhatsApp · SMS" : "WhatsApp"} · Conversaciones</p>
         <div className="mb-5 flex items-center justify-between gap-3">
           <div className="flex items-baseline gap-2">
             <h2 className="crm-heading">Bandeja</h2>
             <span className="ml-1 rounded-md bg-surface-2 px-2 py-0.5 text-[12px] font-medium tabular-nums text-mute">
-              {conversations.filter((c) => !c.archivedAt).length}
+              {conversations.filter((c) => !c.archivedAt).length + smsContacts.length}
             </span>
           </div>
-          {conversations.length > 0 && (
+          <div className="flex items-center gap-1">
+          {smsEnabled && !selecting && <button type="button" onClick={() => { setChannelFilter("sms"); setFilter("all"); onChannelChange("sms"); onNewSms(); }} aria-label="Nuevo contacto SMS" className="inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2 text-[11px] font-bold text-orange-700 transition-colors hover:bg-orange-500/10 dark:text-orange-300"><Smartphone className="h-3.5 w-3.5" />Nuevo SMS</button>}
+          {conversations.length > 0 && channelFilter !== "sms" && (
           <button data-help="inbox-select"
             type="button"
+              aria-label={selecting ? "Cancelar selección" : "Seleccionar conversaciones"}
+              title={selecting ? "Cancelar selección" : "Seleccionar conversaciones"}
               onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
               className={cn(
                 "inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-[11px] font-medium text-mute transition-colors hover:bg-subtle hover:text-foreground",
@@ -442,9 +481,10 @@ export function ConversationList({
               )}
             >
               <ListChecks className="h-4 w-4" strokeWidth={2} />
-              {selecting ? "Cancelar" : "Seleccionar"}
+              <span className="hidden xl:inline">{selecting ? "Cancelar" : "Seleccionar"}</span>
             </button>
           )}
+          </div>
         </div>
         <div className="flex items-center gap-2 rounded-xl border border-transparent bg-surface-2 px-3 py-[11px] transition-colors focus-within:border-brand/60 focus-within:bg-surface focus-within:ring-2 focus-within:ring-brand-soft">
           <Search className="h-4 w-4 shrink-0 text-faint" strokeWidth={2} />
@@ -456,10 +496,13 @@ export function ConversationList({
             className="w-full bg-transparent text-[16px] outline-none placeholder:text-faint md:text-[13.5px]"
           />
         </div>
-        <div className="mt-4 flex items-center justify-between gap-1 border-b">
+        {smsEnabled && <div className="mt-3 grid grid-cols-3 gap-1 rounded-xl bg-surface-2 p-1" role="group" aria-label="Filtrar por canal">
+          {(["all", "whatsapp", "sms"] as const).map((channel) => <button type="button" key={channel} aria-pressed={channelFilter === channel} onClick={() => { setChannelFilter(channel); setFilter("all"); stopSelecting(); setStageFilter(""); setAssigneeFilter("all"); onChannelChange(channel); }} className={cn("rounded-lg px-2 py-1.5 text-[11px] font-bold transition-all", channelFilter === channel ? "bg-surface text-foreground shadow-sm ring-1 ring-border" : "text-mute hover:text-foreground")}>{channel === "all" ? "Todos" : channel === "sms" ? "SMS" : "WhatsApp"}</button>)}
+        </div>}
+        {channelFilter !== "sms" && <div className="mt-4 flex items-center justify-between gap-1 border-b">
           {(
             [
-              { id: "all", label: "Todas", count: inboxed.length },
+              { id: "all", label: "Todas", count: inboxed.length + (channelFilter === "all" ? visibleSms.length : 0) },
               { id: "unread", label: "No leídas", count: unreadCount },
               { id: "archived", label: "Archivadas", count: archived.length },
             ] as const
@@ -478,7 +521,8 @@ export function ConversationList({
               <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-mute">{f.count}</span>
             </button>
           ))}
-        </div>
+        </div>}
+        {channelFilter !== "sms" && <>
         <div className="mt-3 flex h-4 items-center justify-between px-0.5">
           <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[.1em] text-faint">
             <SlidersHorizontal className="h-3 w-3" strokeWidth={2.2} />
@@ -590,14 +634,15 @@ export function ConversationList({
             </div>
           </div>
         )}
+        </>}
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4 pt-2">
         {loading ? (
           <p className="p-6 text-center text-xs text-text-3">Cargando…</p>
-        ) : conversations.length === 0 ? (
+        ) : conversations.length === 0 && smsContacts.length === 0 ? (
           <EmptyState onSeeded={onSeeded} />
-        ) : visible.length === 0 ? (
+        ) : mixedVisible.length === 0 ? (
           <p className="p-6 text-center text-xs text-text-3">
             {filter === "archived"
               ? "No tienes chats archivados."
@@ -605,7 +650,20 @@ export function ConversationList({
           </p>
         ) : (
           <ul>
-            {visible.map((c) => {
+            {mixedVisible.map((entry) => {
+              if (entry.channel === "sms") {
+                const contact = entry.contact;
+                return <li key={`sms-${contact.id}`} data-testid={`inbox-sms-${contact.id}`} className="border-b border-border/60 last:border-b-0">
+                  <button type="button" onClick={() => onSelectSms(contact.id)} className={cn("flex w-full items-start gap-3 rounded-lg px-3 py-4 text-left transition-colors", smsSelectedId === contact.id ? "bg-orange-500/10 shadow-[inset_2px_0_0_#f97316]" : "hover:bg-subtle")}>
+                    <InboxContactAvatar name={contact.name} seed={contact.id} size="lg" country={countryFromPhone(contact.phone)} />
+                    <span className="min-w-0 flex-1"><span className="flex items-baseline justify-between gap-2"><span className="truncate text-[13px] font-semibold">{contact.name}</span><span className="shrink-0 text-[11px] font-semibold text-faint">{formatTime(entry.at, timezone)}</span></span>
+                      <span className="mt-0.5 block truncate text-[12px] leading-5 text-mute">{previewText(contact.lastMessagePreview) || contact.phone}</span>
+                      <span className="mt-[7px] flex items-center gap-1.5"><ChannelPill channel="sms" compact />{contact.optedOutAt && <span className="text-[10px] font-semibold text-destructive">Baja SMS</span>}</span>
+                    </span>
+                  </button>
+                </li>;
+              }
+              const c = entry.conversation;
               const unread = c.unreadCount > 0;
               const active = selectedId === c.id;
               return (
@@ -708,6 +766,7 @@ export function ConversationList({
                         )}
                       </span>
                       <span className="mt-[7px] flex flex-wrap items-center gap-1.5">
+                        <ChannelPill channel="whatsapp" compact />
                         {c.stageName && (
                           <StageTag
                             name={c.stageName}

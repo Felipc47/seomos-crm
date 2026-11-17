@@ -1120,7 +1120,8 @@ export const smsContact = pgTable("sms_contact", {
   organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
   name: text("name").notNull(), phone: text("phone").notNull(),
   consentEvidence: text("consent_evidence").notNull(), consentAt: timestamp("consent_at").notNull().defaultNow(),
-  optedOutAt: timestamp("opted_out_at"), createdAt: timestamp("created_at").notNull().defaultNow(),
+  optedOutAt: timestamp("opted_out_at"), aiEnabled: boolean("ai_enabled").notNull().default(false),
+  aiLastInboundId: text("ai_last_inbound_id"), createdAt: timestamp("created_at").notNull().defaultNow(),
 }, t => [uniqueIndex("sms_contact_org_phone_uq").on(t.organizationId, t.phone), uniqueIndex("sms_contact_org_id_uq").on(t.organizationId, t.id)]);
 
 export const smsMessage = pgTable("sms_message", {
@@ -1129,6 +1130,7 @@ export const smsMessage = pgTable("sms_message", {
   contactId: text("contact_id").notNull().references(() => smsContact.id, { onDelete: "cascade" }),
   operationId: text("operation_id").notNull(), direction: text("direction", { enum: ["in", "out"] }).notNull(),
   content: text("content").notNull(), sender: text("sender").notNull(),
+  source: text("source", { enum: ["manual", "agent"] }).notNull().default("manual"),
   status: text("status").$type<import("@/lib/sms").SmsStatus>().notNull(),
   providerMessageId: text("provider_message_id"), errorCode: text("error_code"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

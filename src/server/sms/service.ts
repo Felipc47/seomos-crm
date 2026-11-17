@@ -5,7 +5,7 @@ import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
-import { getEnv } from "@/lib/env";
+import { getEnv, isAiConfigured } from "@/lib/env";
 import { getSmsAccount } from "@/lib/brevo/account";
 import { registerSmsWebhook, sendBrevoSms, SmsProviderError } from "@/lib/brevo/client";
 import { type SmsWebhookEvent, smsEventKey } from "@/lib/brevo/events";
@@ -56,7 +56,20 @@ export async function smsSnapshot(org: string, contactId?: string) {
   // A process restart may leave an attempt in-flight. Never automatically resend it.
   await getDb().update(messages).set({ status: "uncertain", errorCode: "interrupted" })
     .where(scoped(messages.organizationId,org,eq(messages.status,"sending"),sql`${messages.createdAt} < now() - interval '90 seconds'`));
-  const people = await getDb().select().from(contacts).where(scoped(contacts.organizationId,org)).orderBy(desc(contacts.createdAt)).limit(200);
+  const lastMessageAt = sql<Date | null>`(
+    select m.created_at from sms_message m
+    where m.organization_id = ${org} and m.contact_id = sms_contact.id
+    order by m.created_at desc, m.id desc limit 1
+  )`;
+  const lastMessagePreview = sql<string | null>`(
+    select m.content from sms_message m
+    where m.organization_id = ${org} and m.contact_id = sms_contact.id
+    order by m.created_at desc, m.id desc limit 1
+  )`;
+  const people = (await getDb().select({ contact: contacts, lastMessageAt, lastMessagePreview })
+    .from(contacts).where(scoped(contacts.organizationId,org))
+    .orderBy(desc(sql`coalesce(${lastMessageAt}, ${contacts.createdAt})`)).limit(200))
+    .map(({ contact, lastMessageAt: at, lastMessagePreview: preview }) => ({ ...contact, lastMessageAt: at, lastMessagePreview: preview }));
   const history = contactId ? await getDb().select().from(messages).where(scoped(messages.organizationId,org,eq(messages.contactId,contactId)))
     .orderBy(desc(messages.createdAt),desc(messages.id)).limit(200) : [];
   const c = await connection(org);
@@ -71,13 +84,38 @@ export async function createSmsContact(org: string, input: z.infer<typeof smsCon
   if (!row) throw new SmsError("duplicate_phone", "Este número ya tiene un contacto SMS. Su consentimiento o baja se conserva.");
   return row;
 }
+export async function setSmsAgentEnabled(org: string, id: string, enabled: boolean) {
+  return getDb().transaction(async tx => {
+    const [contact] = await tx.select().from(contacts)
+      .where(scoped(contacts.organizationId, org, eq(contacts.id, id))).for("update");
+    if (!contact || (enabled && contact.optedOutAt))
+      throw new SmsError("not_found", "Contacto SMS no encontrado o dado de baja.", 404);
+    if (enabled) {
+      if (!isAiConfigured()) throw new SmsError("agent_unavailable", "El proveedor de IA no está configurado.");
+      const [profile] = await tx.select({ enabled: schema.agentProfile.enabled })
+        .from(schema.agentProfile).where(scoped(schema.agentProfile.organizationId, org)).limit(1);
+      if (!profile?.enabled) throw new SmsError("agent_unavailable", "Activa primero el agente de la empresa.");
+    }
+    // Encender IA atiende únicamente respuestas NUEVAS, nunca un historial anterior.
+    const [latest] = enabled ? await tx.select({ id: messages.id, direction: messages.direction })
+      .from(messages).where(scoped(messages.organizationId, org, eq(messages.contactId, id)))
+      .orderBy(desc(messages.createdAt), desc(messages.id)).limit(1) : [];
+    const [row] = await tx.update(contacts).set({
+      aiEnabled: enabled,
+      ...(enabled && latest?.direction === "in" ? { aiLastInboundId: latest.id } : {}),
+    }).where(scoped(contacts.organizationId, org, eq(contacts.id, id)))
+      .returning({ id: contacts.id, aiEnabled: contacts.aiEnabled });
+    return row!;
+  });
+}
+
 export async function optOutSms(org: string, id: string) {
-  const [row] = await getDb().update(contacts).set({ optedOutAt: new Date() })
+  const [row] = await getDb().update(contacts).set({ optedOutAt: new Date(), aiEnabled: false })
     .where(scoped(contacts.organizationId,org,eq(contacts.id,id))).returning();
   if (!row) throw new SmsError("not_found", "Contacto SMS no encontrado.",404);
   return row;
 }
-export async function sendSms(org: string, input: z.infer<typeof smsSendInput>) {
+export async function sendSms(org: string, input: z.infer<typeof smsSendInput>, options: { source?: "manual" | "agent"; expectedLatestInboundId?: string } = {}) {
   if (!(await isCompanyServiceActive(org))) throw new SmsError("service_suspended", "El servicio de esta empresa está en pausa", 403);
   const findExisting = async () => (await getDb().select().from(messages)
     .where(scoped(messages.organizationId,org,eq(messages.operationId,input.operationId))).limit(1))[0];
@@ -100,9 +138,17 @@ export async function sendSms(org: string, input: z.infer<typeof smsSendInput>) 
         eq(schema.contact.phone, person.phone.replace(/^\+/, "")))).limit(1);
     if (crmContact?.blockedAt || crmContact?.optedOutAt || crmContact?.archivedAt)
       throw new SmsError("crm_blocked", "El contacto está bloqueado, archivado o pidió no recibir mensajes.");
+    if (options.expectedLatestInboundId) {
+      if (!person.aiEnabled) throw new SmsError("agent_paused", "La IA está pausada.");
+      const [latest] = await tx.select({ id: messages.id, direction: messages.direction }).from(messages)
+        .where(scoped(messages.organizationId, org, eq(messages.contactId, person.id)))
+        .orderBy(desc(messages.createdAt), desc(messages.id)).limit(1);
+      if (latest?.id !== options.expectedLatestInboundId || latest.direction !== "in")
+        throw new SmsError("stale_agent_turn", "El hilo cambió mientras el agente preparaba su respuesta.");
+    }
     const [row] = await tx.insert(messages).values({ id: newId("smsMessage"), organizationId: org,
       contactId: person.id, operationId: input.operationId, direction: "out", content: input.content,
-      sender: c.sender!, status: "sending" }).onConflictDoNothing({ target: [messages.organizationId,messages.operationId] }).returning();
+      sender: c.sender!, source: options.source ?? "manual", status: "sending" }).onConflictDoNothing({ target: [messages.organizationId,messages.operationId] }).returning();
     return { row, person };
   });
   if (!reservation.row) return checkExisting((await findExisting())!);
@@ -134,7 +180,8 @@ export async function ingestSmsEvent(org: string, event: SmsWebhookEvent) {
 async function processSmsEvents(org: string) {
   const pending = await getDb().select({ id: events.id }).from(events).where(scoped(events.organizationId,org,isNull(events.processedAt)))
     .orderBy(asc(events.createdAt)).limit(100);
-  for (const item of pending) await getDb().transaction(async tx => {
+  for (const item of pending) {
+    const agentContactId = await getDb().transaction(async tx => {
     const [record] = await tx.select().from(events).where(scoped(events.organizationId,org,eq(events.id,item.id),isNull(events.processedAt))).for("update");
     if (!record) return;
     const e = record.payload;
@@ -145,16 +192,32 @@ async function processSmsEvents(org: string) {
     if (!person || person.phone !== e.phone) {
       await tx.update(events).set({ processedAt: new Date() }).where(scoped(events.organizationId,org,eq(events.id,record.id))); return;
     }
-    if (e.status === "replied" && e.reply) await tx.insert(messages).values({ id: newId("smsMessage"), organizationId: org,
-      contactId: person.id, operationId: `event:${record.eventKey}`, direction: "in", content: e.reply,
-      sender: person.phone, status: "received" }).onConflictDoNothing({ target: [messages.organizationId,messages.operationId] });
+    let insertedInbound = false;
+    if (e.status === "replied" && e.reply) {
+      const inserted = await tx.insert(messages).values({ id: newId("smsMessage"), organizationId: org,
+        contactId: person.id, operationId: `event:${record.eventKey}`, direction: "in", content: e.reply,
+        sender: person.phone, status: "received" }).onConflictDoNothing({ target: [messages.organizationId,messages.operationId] }).returning({ id: messages.id });
+      insertedInbound = !!inserted[0];
+    }
     if (["unsubscribe","unsubscribed","bl"].includes(e.status) || (e.status === "replied" && e.reply && isSmsStop(e.reply)))
-      await tx.update(contacts).set({ optedOutAt: person.optedOutAt ?? new Date() }).where(scoped(contacts.organizationId,org,eq(contacts.id,person.id)));
+      await tx.update(contacts).set({ optedOutAt: person.optedOutAt ?? new Date(), aiEnabled: false }).where(scoped(contacts.organizationId,org,eq(contacts.id,person.id)));
     if (!message.providerMessageId && e.messageId !== "0") await tx.update(messages).set({ providerMessageId: e.messageId })
       .where(scoped(messages.organizationId,org,eq(messages.id,message.id)));
     const next = nextSmsStatus(message.status,e.status);
     if (next !== message.status) await tx.update(messages).set({ status: next, errorCode: next === "failed" ? "provider_delivery" : null })
       .where(scoped(messages.organizationId,org,eq(messages.id,message.id)));
     await tx.update(events).set({ processedAt: new Date() }).where(scoped(events.organizationId,org,eq(events.id,record.id)));
-  });
+    return insertedInbound && person.aiEnabled && !person.optedOutAt && e.reply && !isSmsStop(e.reply)
+      ? person.id : null;
+    });
+    if (agentContactId) {
+      // La respuesta al webhook no depende del LLM; el barrido recupera un turno perdido por reinicio.
+      try {
+        const { scheduleSmsAgentTurn } = await import("./agent");
+        scheduleSmsAgentTurn(org, agentContactId);
+      } catch (error) {
+        console.error("[sms-agent] no se pudo encolar el turno:", error);
+      }
+    }
+  }
 }

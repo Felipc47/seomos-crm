@@ -15,7 +15,7 @@ const config = async () => json(await api.get("/api/settings/sms"));
 async function saveUI(value, success = true) {
   await page.getByLabel("Nueva clave API de Brevo", { exact: true }).or(page.getByLabel("Clave API de Brevo", { exact: true })).fill(value);
   const response = page.waitForResponse(r => r.url().endsWith("/api/settings/sms") && r.request().method() === "PUT");
-  await page.getByRole("button", { name: "Verificar y conectar Brevo" }).click();
+  await page.getByRole("button", { name: /Verificar y (conectar Brevo|reemplazar clave)/ }).click();
   const r = await response;
   if (success) { await json(r); await page.getByRole("status").waitFor(); }
   else { check(!r.ok(), "UI conserva fallo como error de operación"); await page.getByLabel("Conexión de SMS", { exact: true }).getByRole("alert").waitFor(); }
@@ -49,6 +49,14 @@ try {
   check(stored.secret_cipher !== key && !stored.secret_cipher.includes(key) && stored.secret_iv && stored.secret_tag, "clave cifrada en reposo");
   check(await page.getByLabel("Nueva clave API de Brevo").inputValue() === "", "clave se limpia al guardar");
   await page.reload(); await page.getByText("Cuenta API conectada", { exact: true }).waitFor();
+  check(await page.getByLabel("Clave conectada terminada en 1111").isVisible(), "identificador de la clave visible sin revelar el secreto");
+  check(!(await page.locator("body").innerText()).includes(key), "la pantalla no muestra la clave completa");
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.getByRole("button", { name: "Copiar últimos 4 caracteres de la clave" }).click();
+  check(await page.evaluate(() => navigator.clipboard.readText()) === "1111", "copiar identificador solo copia los últimos 4 caracteres");
+  check(await page.getByText("Copiado", { exact: true }).isVisible(), "confirmación de copia visible junto a la clave");
+  await page.getByText("Ver requisitos para enviar SMS").click();
+  check(await page.getByText("Registrar y aprobar el remitente para el país de destino.").isVisible(), "requisitos de envío visibles al desplegar");
   check(await page.getByLabel("Nueva clave API de Brevo").inputValue() === "", "recarga no recupera clave completa");
   await page.getByRole("button", { name: "Actualizar cuenta y saldo" }).click(); await page.getByRole("status").waitFor();
   check((await config()).connection.smsCredits === 25, "comprueba la cuenta guardada sin enviar SMS");
@@ -60,8 +68,10 @@ try {
   }
   await saveUI("sms-mock-zero-balance-0000"); check((await config()).connection.smsCredits === 0, "saldo cero se muestra explícitamente");
   await saveUI("sms-mock-unknown-balance-0000"); check((await config()).connection.smsCredits === null, "saldo ausente no se inventa como cero");
+  await page.getByRole("heading", { name: "SMS con Brevo" }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${evidence}/connection-desktop.png`, fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("heading", { name: "SMS con Brevo" }).scrollIntoViewIfNeeded();
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "configuración SMS sin desbordamiento móvil");
   await page.screenshot({ path: `${evidence}/connection-mobile.png`, fullPage: true });
   const email = `sms-b-${Date.now()}@test.local`;

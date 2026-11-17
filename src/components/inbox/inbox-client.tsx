@@ -36,12 +36,19 @@ import {
 } from "./conversation-actions-dialogs";
 import type { ContactReportReason } from "@/lib/types";
 import { ConversationTransferDialog } from "./conversation-transfer-dialog";
+import { ChannelPill } from "./channel-pill";
+import { SmsConversationPanel } from "@/components/sms/sms-conversation-panel";
+import { SmsNewContactDialog } from "@/components/sms/sms-new-contact-dialog";
+import type { SmsInboxSnapshot } from "@/lib/sms-inbox-types";
 
-export function InboxClient() {
+export function InboxClient({ smsEnabled = false }: { smsEnabled?: boolean }) {
   const [conversations, setConversations] = useState<ConversationDto[] | null>(
     null
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedSmsId, setSelectedSmsId] = useState<string | null>(null);
+  const [smsData, setSmsData] = useState<SmsInboxSnapshot | null>(null);
+  const [newSmsOpen, setNewSmsOpen] = useState(false);
   const [messages, setMessages] = useState<MessageDto[]>([]);
   // Slide-over de detalles del lead (mock SEOMOS): se abre con "Ver detalles".
   const [detailOpen, setDetailOpen] = useState(false);
@@ -70,6 +77,8 @@ export function InboxClient() {
   const toast = useToast();
   const selectedIdRef = useRef<string | null>(null);
   selectedIdRef.current = selectedId;
+  const selectedSmsRef = useRef<string | null>(null);
+  selectedSmsRef.current = selectedSmsId;
   const lastFetchRef = useRef<string | null>(null);
 
   const refetchConversations = useCallback(async () => {
@@ -79,6 +88,21 @@ export function InboxClient() {
     setConversations(data.conversations);
     lastFetchRef.current = new Date().toISOString();
   }, []);
+
+  const refetchSms = useCallback(async (contactId = selectedSmsRef.current ?? "") => {
+    if (!smsEnabled) return;
+    const res = await fetch(`/api/sms${contactId ? `?contactId=${encodeURIComponent(contactId)}` : ""}`, { cache: "no-store" }).catch(() => null);
+    if (!res?.ok) return;
+    const snapshot = (await res.json()) as SmsInboxSnapshot;
+    if ((selectedSmsRef.current ?? "") === contactId) setSmsData(snapshot);
+  }, [smsEnabled]);
+
+  useEffect(() => {
+    if (!smsEnabled) return;
+    void refetchSms();
+    const timer = setInterval(() => { if (document.visibilityState === "visible") void refetchSms(); }, 5000);
+    return () => clearInterval(timer);
+  }, [smsEnabled, refetchSms]);
 
   const refetchMessages = useCallback(async (conversationId: string) => {
     const res = await fetch(
@@ -121,6 +145,8 @@ export function InboxClient() {
 
   const select = useCallback(
     (id: string) => {
+      setSelectedSmsId(null);
+      selectedSmsRef.current = null;
       setSelectedId(id);
       setMessages([]);
       void refetchMessages(id);
@@ -132,6 +158,15 @@ export function InboxClient() {
     },
     [refetchMessages]
   );
+
+  const selectSms = useCallback((id: string) => {
+    setSelectedId(null);
+    selectedIdRef.current = null;
+    setSelectedSmsId(id);
+    selectedSmsRef.current = id;
+    setSmsData((current) => current ? { ...current, messages: [] } : current);
+    void refetchSms(id);
+  }, [refetchSms]);
 
   // Enlace directo desde Contactos/Pipeline: /inbox?contact=<id>. Si el
   // contacto aún no tiene conversación (importado por CSV o creado a mano),
@@ -199,6 +234,8 @@ export function InboxClient() {
   });
 
   const selected = conversations?.find((c) => c.id === selectedId) ?? null;
+  const selectedSms = smsData?.contacts.find((contact) => contact.id === selectedSmsId) ?? null;
+  const hasSelection = !!selected || !!selectedSmsId;
   const transferConversation =
     conversations?.find((c) => c.id === transferConversationId) ?? null;
 
@@ -535,7 +572,7 @@ export function InboxClient() {
 
   return (
     <div className="flex h-full min-h-0 overflow-hidden" data-help="inbox"
-      data-help-state={selected ? "selected" : "empty"}
+      data-help-state={hasSelection ? "selected" : "empty"}
       data-help-ai={!selected ? undefined : selected.contact.blockedAt ? "blocked" : agentAvailability === null ? "loading" : !agentAvailability.enabled || !agentAvailability.aiConfigured ? "unavailable" : aiUpdatingId === selected.id ? "loading" : !selected.aiEnabled || selected.handoffAt ? "paused" : "active"}
       data-help-window={selected ? selected.windowOpen ? "open" : "closed" : undefined}>
       {/* Master-detail en mobile: lista a pantalla completa sin selección;
@@ -544,13 +581,24 @@ export function InboxClient() {
         data-help="conversation-list"
         className={cn(
           "w-full shrink-0 overflow-hidden md:w-[340px] md:border-r xl:w-[380px]",
-          selected && "hidden md:block"
+          hasSelection && "hidden md:block"
         )}
       >
         <ConversationList
+          key={searchParams.get("channel") === "sms" ? "sms" : "all"}
           conversations={conversations}
           selectedId={selectedId}
           onSelect={select}
+          smsContacts={smsData?.contacts ?? null}
+          smsSelectedId={selectedSmsId}
+          smsEnabled={smsEnabled}
+          initialChannel={searchParams.get("channel") === "sms" ? "sms" : "all"}
+          onSelectSms={selectSms}
+          onNewSms={() => setNewSmsOpen(true)}
+          onChannelChange={(channel) => {
+            if (channel === "sms") { setSelectedId(null); selectedIdRef.current = null; }
+            if (channel === "whatsapp") { setSelectedSmsId(null); selectedSmsRef.current = null; }
+          }}
           onSeeded={() => void refetchConversations()}
           onPatch={(id, patch) => void pinOrArchive(id, patch)}
           onAction={requestConversationAction}
@@ -566,10 +614,14 @@ export function InboxClient() {
       <section
         className={cn(
           "min-h-0 min-w-0 flex-1 flex-col",
-          selected ? "flex" : "hidden md:flex"
+          hasSelection ? "flex" : "hidden md:flex"
         )}
       >
-        {selected ? (
+        {selectedSms ? (
+          <SmsConversationPanel key={selectedSms.id} contact={selectedSms} messages={smsData?.messages ?? []} connection={smsData?.connection ?? null} agentAvailability={agentAvailability} onBack={() => { setSelectedSmsId(null); selectedSmsRef.current = null; void refetchSms(""); }} onRefresh={() => refetchSms(selectedSms.id)} />
+        ) : selectedSmsId ? (
+          <div className="flex flex-1 items-center justify-center text-sm text-mute">Cargando conversación SMS…</div>
+        ) : selected ? (
           <>
             <header className="flex shrink-0 items-center gap-2 border-b bg-surface px-3 py-4 md:gap-3 md:px-6 md:py-5">
               <button
@@ -589,6 +641,7 @@ export function InboxClient() {
                 <p className="truncate font-display text-[16px] font-semibold leading-tight tracking-[-0.025em] md:text-[18px]">
                   {selected.contact.name}
                 </p>
+                <div className="mt-1"><ChannelPill channel="whatsapp" compact /></div>
                 <p
                   className={
                     selected.windowOpen
@@ -750,6 +803,7 @@ export function InboxClient() {
           onCancel={() => !transferBusy && setTransferConversationId(null)}
         />
       )}
+      {newSmsOpen && <SmsNewContactDialog onClose={() => setNewSmsOpen(false)} onCreated={(id) => { setNewSmsOpen(false); selectSms(id); }} />}
     </div>
   );
 }

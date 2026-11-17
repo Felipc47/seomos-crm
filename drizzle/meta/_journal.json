@@ -278,15 +278,22 @@
     {
       "idx": 39,
       "version": "7",
-      "when": 1794502286742,
-      "tag": "0039_plain_stingray",
+      "when": 1794868656114,
+      "tag": "0039_orange_dazzler",
       "breakpoints": true
     },
     {
       "idx": 40,
       "version": "7",
-      "when": 1794876823695,
-      "tag": "0040_breezy_ricochet",
+      "when": 1794868750274,
+      "tag": "0040_overjoyed_roughhouse",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1794877541440,
+      "tag": "0041_bitter_random",
       "breakpoints": true
     }
   ]

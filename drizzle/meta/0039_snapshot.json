@@ -1,5 +1,5 @@
 {
-  "id": "00c0b57e-3586-4ac0-b132-451c6c080acf",
+  "id": "794232a3-6825-4289-972c-f183e7c9f30b",
   "prevId": "0f391331-d687-4651-9cae-d57156c784ff",
   "version": "7",
   "dialect": "postgresql",
@@ -5028,31 +5028,6 @@
       "name": "sheets_row",
       "schema": "",
       "columns": {
-        "flow_service_id": {
-          "name": "flow_service_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "flow_state": {
-          "name": "flow_state",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'none'"
-        },
-        "flow_result": {
-          "name": "flow_result",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "flow_completed_at": {
-          "name": "flow_completed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "id": {
           "name": "id",
           "type": "text",
@@ -5158,49 +5133,9 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "sheets_row_pending_idx": {
-          "name": "sheets_row_pending_idx",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "source_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "flow_state",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
-        "sheets_row_flow_service_id_service_id_fk": {
-          "name": "sheets_row_flow_service_id_service_id_fk",
-          "tableFrom": "sheets_row",
-          "tableTo": "service",
-          "columnsFrom": [
-            "flow_service_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "sheets_row_organization_id_organization_id_fk": {
           "name": "sheets_row_organization_id_organization_id_fk",
           "tableFrom": "sheets_row",
@@ -5251,12 +5186,6 @@
       "name": "sheets_source",
       "schema": "",
       "columns": {
-        "service_id": {
-          "name": "service_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "id": {
           "name": "id",
           "type": "text",
@@ -5417,19 +5346,6 @@
         }
       },
       "foreignKeys": {
-        "sheets_source_service_id_service_id_fk": {
-          "name": "sheets_source_service_id_service_id_fk",
-          "tableFrom": "sheets_source",
-          "tableTo": "service",
-          "columnsFrom": [
-            "service_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "sheets_source_organization_id_organization_id_fk": {
           "name": "sheets_source_organization_id_organization_id_fk",
           "tableFrom": "sheets_source",
@@ -5642,6 +5558,13 @@
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false
+        },
+        "ai_enabled": {
+          "name": "ai_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "created_at": {
           "name": "created_at",
@@ -5868,6 +5791,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'manual'"
         },
         "status": {
           "name": "status",
@@ -6157,174 +6087,6 @@
             "id"
           ],
           "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.template_dispatch": {
-      "name": "template_dispatch",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "organization_id": {
-          "name": "organization_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "contact_id": {
-          "name": "contact_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "template_id": {
-          "name": "template_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "message_id": {
-          "name": "message_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "automatic_greeting": {
-          "name": "automatic_greeting",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'sending'"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "template_dispatch_org_contact_idx": {
-          "name": "template_dispatch_org_contact_idx",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "contact_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "template_dispatch_greeting_uq": {
-          "name": "template_dispatch_greeting_uq",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "contact_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"template_dispatch\".\"automatic_greeting\" = true",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "template_dispatch_organization_id_organization_id_fk": {
-          "name": "template_dispatch_organization_id_organization_id_fk",
-          "tableFrom": "template_dispatch",
-          "tableTo": "organization",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "template_dispatch_contact_id_contact_id_fk": {
-          "name": "template_dispatch_contact_id_contact_id_fk",
-          "tableFrom": "template_dispatch",
-          "tableTo": "contact",
-          "columnsFrom": [
-            "contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "template_dispatch_template_id_template_id_fk": {
-          "name": "template_dispatch_template_id_template_id_fk",
-          "tableFrom": "template_dispatch",
-          "tableTo": "template",
-          "columnsFrom": [
-            "template_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "template_dispatch_message_id_message_id_fk": {
-          "name": "template_dispatch_message_id_message_id_fk",
-          "tableFrom": "template_dispatch",
-          "tableTo": "message",
-          "columnsFrom": [
-            "message_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
