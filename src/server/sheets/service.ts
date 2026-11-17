@@ -8,6 +8,7 @@ import { mergeSheetContact, parseSheetContacts, parseSheetsUrl, sheetsUrl, Sheet
 import { activeCompanyCondition, isCompanyServiceActive } from "@/server/company-service";
 
 import { drainSheetFlows } from "./flow";
+import { smsLeadEnrollmentSql } from "@/server/sms/lead-enrollment";
 import { publish } from "@/server/events/bus";
 
 type Source = typeof schema.sheetsSource.$inferSelect;
@@ -95,6 +96,14 @@ async function importRow(source: Source, token: string, row: SheetContact) {
     }
     await tx.insert(schema.sheetsRow).values({ id: newId("sheetsRow"), organizationId: org, sourceId: source.id, externalKey: row.externalKey, contactId: contact.id, fingerprint, snapshot, flowServiceId: currentSource.serviceId, flowState: currentSource.serviceId ? "pending" : "none" })
       .onConflictDoUpdate({ target: [schema.sheetsRow.organizationId, schema.sheetsRow.sourceId, schema.sheetsRow.externalKey], set: { fingerprint, snapshot, updatedAt: new Date() } });
+
+    // Enrollment is atomic with the first import. Historical rows and later
+    // edits never become SMS contacts after a source is enabled.
+    if (!prior && !contact.optedOutAt && !contact.blockedAt && !contact.archivedAt) {
+      const enrollment = smsLeadEnrollmentSql({ organizationId: org, sourceType: "sheet",
+        sourceKey: source.id, leadKey: row.externalKey, phone: row.phone, name: contact.name });
+      if (enrollment) await tx.execute(enrollment);
+    }
     return { kind: inserted ? "created" as const : changed ? "updated" as const : "unchanged" as const };
   });
 }

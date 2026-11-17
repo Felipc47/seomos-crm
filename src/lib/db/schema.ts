@@ -1104,6 +1104,17 @@ export const smsConnection = pgTable("sms_connection", {
 }, t => [uniqueIndex("sms_connection_org_uq").on(t.organizationId)]);
 
 
+/** Fuentes de captación cuyo opt-in SMS fue confirmado por el administrador. */
+export const smsLeadSource = pgTable("sms_lead_source", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  sourceType: text("source_type", { enum: ["meta_form", "sheet"] }).notNull(),
+  sourceKey: text("source_key").notNull(),
+  consentEvidence: text("consent_evidence").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, t => [uniqueIndex("sms_lead_source_org_type_key_uq").on(t.organizationId, t.sourceType, t.sourceKey)]);
+
 export const smsContact = pgTable("sms_contact", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),

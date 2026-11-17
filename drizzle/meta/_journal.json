@@ -281,6 +281,13 @@
       "when": 1794502286742,
       "tag": "0039_plain_stingray",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1794876823695,
+      "tag": "0040_breezy_ricochet",
+      "breakpoints": true
     }
   ]
 }

@@ -95,6 +95,11 @@ export async function sendSms(org: string, input: z.infer<typeof smsSendInput>) 
     const [person] = await tx.select().from(contacts).where(scoped(contacts.organizationId,org,eq(contacts.id,input.contactId))).for("update");
     if (!person) throw new SmsError("not_found", "Contacto SMS no encontrado.",404);
     if (person.optedOutAt || !person.consentEvidence) throw new SmsError("opted_out", "El contacto no permite envíos SMS.");
+    const [crmContact] = await tx.select({ blockedAt: schema.contact.blockedAt, optedOutAt: schema.contact.optedOutAt,
+      archivedAt: schema.contact.archivedAt }).from(schema.contact).where(scoped(schema.contact.organizationId, org,
+        eq(schema.contact.phone, person.phone.replace(/^\+/, "")))).limit(1);
+    if (crmContact?.blockedAt || crmContact?.optedOutAt || crmContact?.archivedAt)
+      throw new SmsError("crm_blocked", "El contacto está bloqueado, archivado o pidió no recibir mensajes.");
     const [row] = await tx.insert(messages).values({ id: newId("smsMessage"), organizationId: org,
       contactId: person.id, operationId: input.operationId, direction: "out", content: input.content,
       sender: c.sender!, status: "sending" }).onConflictDoNothing({ target: [messages.organizationId,messages.operationId] }).returning();

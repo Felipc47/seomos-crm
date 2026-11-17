@@ -9,6 +9,7 @@ const prefixes = {
   sheetsRow: "gsr",
   smsConnection: "smc",
   smsContact: "sct",
+  smsLeadSource: "sls",
   smsMessage: "smsg",
   smsEvent: "sev",
   commerceConnection: "ecc",

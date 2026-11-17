@@ -16,6 +16,7 @@ import {
 } from "@/server/leadgen/fields";
 import { getLeadgenSettings } from "@/server/org-settings";
 import { sendTemplate } from "@/server/whatsapp/templates";
+import { smsLeadEnrollmentSql } from "@/server/sms/lead-enrollment";
 import type { WebhookValue } from "@/server/inbox/webhook";
 
 /**
@@ -43,16 +44,32 @@ export async function processLeadgenValue(value: WebhookValue): Promise<void> {
 
   const db = getDb();
 
-  // Una instancia = un negocio: la conexión de WhatsApp define la organización.
-  const credRows = await db.select().from(schema.metaCredentials).limit(1);
-  const creds = credRows[0];
-  if (!creds) {
-    console.warn(
-      "[leadgen] evento recibido sin conexión de WhatsApp guardada: se ignora"
-    );
+  // A shared instance may hold several companies. Route a known form only to
+  // its linked tenant; never assign it to an arbitrary first credential.
+  const credentialOrgs = await db.select({ organizationId: schema.metaCredentials.organizationId })
+    .from(schema.metaCredentials);
+  const formIdFromEvent = value.form_id ?? null;
+  let organizationId: string | null = null;
+  if (formIdFromEvent) {
+    const [serviceLinks, smsLinks] = await Promise.all([
+      db.select({ organizationId: schema.serviceForm.organizationId }).from(schema.serviceForm)
+        .where(eq(schema.serviceForm.formId, formIdFromEvent)),
+      db.select({ organizationId: schema.smsLeadSource.organizationId }).from(schema.smsLeadSource)
+        .where(and(eq(schema.smsLeadSource.sourceType, "meta_form"), eq(schema.smsLeadSource.sourceKey, formIdFromEvent))),
+    ]);
+    const candidates = [...new Set([...serviceLinks, ...smsLinks].map(link => link.organizationId))]
+      .filter(org => credentialOrgs.some(c => c.organizationId === org));
+    if (candidates.length === 1) organizationId = candidates[0]!;
+    if (candidates.length > 1) {
+      console.warn("[leadgen] formulario asociado a varias empresas: evento omitido");
+      return;
+    }
+  }
+  if (!organizationId && credentialOrgs.length === 1) organizationId = credentialOrgs[0]!.organizationId;
+  if (!organizationId) {
+    console.warn("[leadgen] evento sin empresa inequívoca: vincula el formulario a un servicio");
     return;
   }
-  const organizationId = creds.organizationId;
 
   // Idempotencia por leadgen_id: el mismo evento repetido no duplica nada.
   const eventRow = await db
@@ -189,6 +206,17 @@ export async function processLeadgenValue(value: WebhookValue): Promise<void> {
     .update(schema.leadgenEvent)
     .set({ contactId: contact.id })
     .where(eq(schema.leadgenEvent.id, eventRow[0].id));
+
+  // Only forms with a tenant-specific SMS attestation enroll automatically.
+  // This never lifts a prior SMS opt-out or sends an SMS on its own.
+  if (formId && !contact.optedOutAt && !contact.blockedAt && !contact.archivedAt) {
+    const enrollment = smsLeadEnrollmentSql({ organizationId, sourceType: "meta_form",
+      sourceKey: formId, leadKey: leadgenId, phone, name: contact.name });
+    if (enrollment) {
+      try { await db.execute(enrollment); }
+      catch (error) { console.error(`[leadgen] no se pudo registrar SMS para ${leadgenId}:`, error); }
+    }
+  }
 
   // Saludo automático SOLO para contactos nuevos (spec B: existente no se
   // vuelve a saludar). Sin plantilla configurada, el lead entra igual.

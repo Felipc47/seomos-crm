@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SmsLeadSources } from "./sms-lead-sources";
 
 type Connection = { email: string; companyName: string; smsCredits: number | null; keyLast4: string; verifiedAt: string; deliveryEnabled: boolean; sender: string | null; approvalEvidence: string | null; webhookReady: boolean; webhookUncertain: boolean };
 export function SmsClient() {
@@ -85,6 +86,7 @@ export function SmsClient() {
       </div>
       <a href="/sms" className="inline-block text-sm font-semibold underline">Abrir bandeja SMS</a>
     </div>}
+    <SmsLeadSources />
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}{message && <p role="status" className="text-sm">{message}</p>}
     <details className="rounded-xl border p-4"><summary className="cursor-pointer text-sm font-semibold">Preparar la cuenta en Brevo</summary><div className="mt-3 space-y-3 text-sm text-mute"><p>En Brevo abre Configuración → SMTP & API → API keys & MCP. Crea una clave restringida con lectura de Account para comprobar la cuenta. No es necesario otorgar acceso a contactos, email, pagos u otros canales.</p><p>Para registrar el remitente abre Configuración → Campañas → SMS Sender ID. Estados Unidos y Canadá requieren el trámite de número toll-free, datos de la empresa y evidencia de consentimiento. La aprobación la realiza Brevo.</p><p><a className="underline" href="https://app.brevo.com/settings/keys/api" target="_blank" rel="noreferrer">Administrar claves en Brevo</a> · <a className="underline" href="https://app.brevo.com/sms-compliance/listing?source=settings" target="_blank" rel="noreferrer">Registro de remitente</a></p><p>El saldo depende del país y de los segmentos de cada mensaje. Verificar esta conexión no compra créditos ni envía una prueba.</p></div></details>
   </section>;
