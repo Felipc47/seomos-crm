@@ -6,4 +6,4 @@
 - [x] Activar IA individual por defecto en leads SMS nuevos, sin cambiar pausas existentes.
 - [x] E2E con mocks: 23 comprobaciones, incluida respuesta de IA a un SMS entrante y degradación sin envíos reales.
 - [x] Gate técnico (typecheck, lint, build, 630 tests) y migración 0042 revisada.
-- [ ] Publicar y configurar Lion Data; comprobar producción y requisitos de Brevo.
+- [x] Publicar SHA 93687906af66; Lion Data=SMS, demás=WhatsApp; conexión SMS activa, cron y healthcheck verificados. No se provocó un envío real de prueba.

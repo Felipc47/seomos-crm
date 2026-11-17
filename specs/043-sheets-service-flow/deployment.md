@@ -1,3 +1,11 @@
+# Actualización de producción — 2026-11-17
+
+El alcance 043 se desplegó junto con 044–045 en `93687906af661fb986bd0d84e5edafd66e5cac9f` (`codex/lead-sms-auto-enroll`). La migración final de 043 se aplicó como 0041; el selector de canal de 045 se aplicó como 0042. Coolify terminó el rolling update, `https://seomos.cloud/api/health` respondió 200 y el contenedor quedó `running:healthy`.
+
+Las fuentes de Lion Data `gss_cfb735cd34c76f2426bb` (Ecommerce Assessment) y `gss_b3dd992ecf71786338d8` (Integration Assessment) se vincularon respectivamente a Ecommerce Development & Optimization y ERP & Ecommerce Integration. El cron natural de 01:38 UTC completó ambas sin fallos. Las 19 filas previas conservan `flow_state=none`; el cambio no envió saludos históricos. La copia previa de PostgreSQL quedó en `/root/backups/seomos-crm/pre-lead-sms-20261117.dump` del VPS.
+
+## Registro histórico del 2026-11-12
+
 # Estado de despliegue — servicio por fuente Sheets
 
 **Fecha**: 2026-11-12
