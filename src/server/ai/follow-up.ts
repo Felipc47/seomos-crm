@@ -589,7 +589,7 @@ export async function sweepFollowUps(
       const operationId = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
       try {
         const sent = await sendSms(l.organizationId, { contactId: sms.id, content, operationId }, { source: "automation" });
-        if (!["accepted", "sent", "delivered", "read"].includes(sent.status)) {
+        if (!["accepted", "sent", "delivered"].includes(sent.status)) {
           await appendNote(l.contactId, `Seguimiento SMS ${sent.status}; requiere revisión humana.`);
           await handoffSms(l.organizationId, sms.id, "seguimiento_sms");
           continue;

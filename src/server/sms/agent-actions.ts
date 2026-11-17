@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { customerRequestsMeeting, schedulingOfferPolicy } from "@/lib/agent-mission";
@@ -32,7 +32,7 @@ export function asksSmsAvailability(text: string, history: SmsMessage[]): boolea
 }
 
 /** Dos fechas distintas, no horas inventadas ni un rango ambiguo. */
-export async function smsSlotOffer(org: string, profile: Profile, history: SmsMessage[]): Promise<string | null> {
+export async function smsSlotOffer(org: string, profile: Profile, history: SmsMessage[], knownEmail?: string | null): Promise<string | null> {
   const settings = await getCalendarSettings(org);
   const connected = isGoogleConfigured() && (await getGoogleConnection(org))?.status === "connected";
   const days = await fetchAvailabilityByDay(org, settings);
@@ -50,16 +50,16 @@ export async function smsSlotOffer(org: string, profile: Profile, history: SmsMe
     .formatToParts(slots[0]!).find(part => part.type === "timeZoneName")?.value ?? settings.timezone;
   const times = slots.map(label).join("; ");
   return lang === "en"
-    ? `${connected ? "Available" : "Proposed"} (${zone}): ${times}. Which works? Please confirm your email.`
-    : `${connected ? "Disponibles" : "Propuestos"} (${zone}): ${times}. ¿Cuál te sirve? Confirma tu correo.`;
+    ? `${connected ? "Available" : "Proposed"} (${zone}): ${times} | Which works? ${knownEmail ? "We have your email." : "Please share your email."}`
+    : `${connected ? "Disponibles" : "Propuestos"} (${zone}): ${times} | ¿Cuál te sirve? ${knownEmail ? "Ya tenemos tu correo." : "Compártenos tu correo."}`;
 }
 
 export async function smsSchedulingPolicy(org: string, smsId: string, profile: Profile, history: SmsMessage[]) {
   const sent = profile.schedulingWarmupEnabled
-    ? (await getDb().select({ id: schema.smsMessage.id }).from(schema.smsMessage)
+    ? (await getDb().select({ count: sql<number>`count(*)::int` }).from(schema.smsMessage)
         .where(scoped(schema.smsMessage.organizationId, org,
-          eq(schema.smsMessage.contactId, smsId), eq(schema.smsMessage.direction, "out"), eq(schema.smsMessage.source, "agent"))))
-        .length
+          eq(schema.smsMessage.contactId, smsId), eq(schema.smsMessage.direction, "out"), eq(schema.smsMessage.source, "agent"),
+          inArray(schema.smsMessage.status, ["accepted", "sent", "delivered"]))))[0]?.count ?? 0
     : 0;
   return schedulingOfferPolicy(profile, { sentAgentMessages: sent,
     customerRequestedMeeting: customerRequestsMeeting(history.filter(message => message.direction === "in").map(message => message.content)) });
@@ -90,7 +90,7 @@ export async function executeSmsAction(input: {
   switch (action.action) {
     case "none":
       if (asksSmsAvailability(inbound.content, history)) {
-        const offer = await smsSlotOffer(org, profile, history);
+        const offer = await smsSlotOffer(org, profile, history, crm?.email);
         if (offer) await send(offer);
         else await handoffSms(org, sms.id, "agenda");
       }
@@ -99,7 +99,7 @@ export async function executeSmsAction(input: {
       // Si el cliente pide horarios, el servidor ofrece franjas concretas aunque
       // el modelo dé una respuesta vaga como la vista en la conversación real.
       if (asksSmsAvailability(inbound.content, history)) {
-        const offer = await smsSlotOffer(org, profile, history);
+        const offer = await smsSlotOffer(org, profile, history, crm?.email);
         if (offer) { await send(offer); return; }
         await send(en ? "I can't verify the schedule now. A teammate will confirm available times." : "No puedo verificar la agenda ahora. Una persona confirmará los horarios.");
         await handoffSms(org, sms.id, "agenda"); return;
@@ -108,7 +108,7 @@ export async function executeSmsAction(input: {
     }
     case "handoff":
       if (asksSmsAvailability(inbound.content, history)) {
-        const offer = await smsSlotOffer(org, profile, history);
+        const offer = await smsSlotOffer(org, profile, history, crm?.email);
         if (offer) { await send(offer); return; }
       }
       if (action.farewell) await send(action.farewell);
@@ -157,7 +157,7 @@ export async function executeSmsAction(input: {
       const min = minSchedulableStart(new Date(), settings.timezone, { leadDays: settings.leadTimeBusinessDays, workStartMin: settings.workStartMin });
       if (start < min || !isValidMeetingStart(start, settings.timezone, { workStartMin: settings.workStartMin,
         workEndMin: settings.workEndMin, slotMinutes: settings.slotMinutes })) {
-        await send((await smsSlotOffer(org, profile, history)) ?? (en ? "Please suggest another business-hour time." : "Propón otra hora de atención.")); return;
+        await send((await smsSlotOffer(org, profile, history, crm?.email)) ?? (en ? "Please suggest another business-hour time." : "Propón otra hora de atención.")); return;
       }
       const schedulingHistory: SchedulingMessage[] = history.map(message => ({ direction: message.direction,
         text: message.content, createdAt: message.createdAt }));
@@ -166,7 +166,7 @@ export async function executeSmsAction(input: {
       const rejected = currentTexts.some(text => /\b(?:not available|doesn['’]?t work|can['’]?t|cannot|no puedo|no me sirve|no me funciona)\b|^\s*(?:no|not)\b/i.test(text));
       if (rejected || (!inboundMentionsTime(localMinutesOfDay(start, settings.timezone), currentTexts) &&
         !confirmsProposedMeeting(start, settings.timezone, schedulingHistory))) {
-        await send((await smsSlotOffer(org, profile, history)) ?? (en ? "Please confirm your preferred date and time." : "Confirma la fecha y hora que prefieres.")); return;
+        await send((await smsSlotOffer(org, profile, history, crm?.email)) ?? (en ? "Please confirm your preferred date and time." : "Confirma la fecha y hora que prefieres.")); return;
       }
       if (!crm) { await send(en ? "A teammate will confirm the call with you shortly." : "Una persona del equipo confirmará la llamada."); await handoffSms(org, sms.id, "sin_contacto"); return; }
       const existing = await getMeeting(org, crm.id);
@@ -181,7 +181,7 @@ export async function executeSmsAction(input: {
           : `Reunión para el ${when}. ${booked.calendarSynced ? `Invitación a ${email}.` : "Confirmada aquí por SMS."}`);
       } catch (error) {
         if (error instanceof ScheduleError && error.code === "slot_taken") {
-          await send((await smsSlotOffer(org, profile, history)) ?? (en ? "That time is taken. Which other time works?" : "Esa hora está ocupada. ¿Qué otra te sirve?"));
+          await send((await smsSlotOffer(org, profile, history, crm?.email)) ?? (en ? "That time is taken. Which other time works?" : "Esa hora está ocupada. ¿Qué otra te sirve?"));
         } else {
           await send(en ? "I couldn't book the call. A teammate will confirm it with you." : "No pude agendar. Una persona del equipo te confirmará.");
           await handoffSms(org, sms.id, "agenda");

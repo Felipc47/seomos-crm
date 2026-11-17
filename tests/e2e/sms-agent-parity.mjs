@@ -55,6 +55,7 @@ try {
   await waitFor(async () => (await snap()).messages.some(message => message.source === "agent"));
   const offer = (await snap()).messages.find(message => message.source === "agent")?.content ?? "";
   check(/(?:Available|Proposed) \(.+\):.+;.+Which works\?/i.test(offer), "SMS ofrece dos fechas concretas en lugar de una respuesta vaga");
+  check(offer.includes("We have your email.") && !offer.includes("Please share your email."), "la oferta utiliza el correo ya conocido sin pedirlo otra vez");
   check((await db`select id from meeting where organization_id=${org} and contact_id=${crmId}`).length === 0, "oferta no crea reunión sin confirmación");
 
   await hook("SMS_AGENT_NOTE I need inventory integration");
