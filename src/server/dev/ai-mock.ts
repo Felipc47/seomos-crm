@@ -104,11 +104,19 @@ export function aiMockCompletion(messages: InMessage[]): string {
     [...messages].reverse().find((m) => m.role === "user")?.content ?? ""
   );
 
-  if (system.includes("agente SMS de este negocio")) {
+  if (system.includes("asistente de SMS de este negocio")) {
     if (lastUser.includes("SMS_AGENT_BAD_JSON")) return "Respuesta sin JSON";
     if (lastUser.includes("SMS_AGENT_HANDOFF")) return JSON.stringify({ action: "handoff" });
     if (lastUser.includes("SMS_AGENT_NONE")) return JSON.stringify({ action: "none" });
     if (lastUser.includes("SMS_AGENT_LONG")) return JSON.stringify({ action: "reply", text: "Esta respuesta es deliberadamente demasiado larga para un solo segmento SMS y el servidor debe pedir una versión más corta antes de enviar nada." });
+    if (lastUser.includes("SMS_AGENT_SCHEDULE")) {
+      const iso = /SMS_AGENT_SCHEDULE\s+(\S+)/.exec(lastUser)?.[1] ?? "...";
+      return JSON.stringify({ action: "schedule_meeting", email: "sms-qa@example.test", datetime: iso, clientOk: lastUser });
+    }
+    if (lastUser.includes("SMS_AGENT_STAGE")) return JSON.stringify({ action: "move_stage", stage: "Calificado", reply: "Your lead is qualified." });
+    if (lastUser.includes("SMS_AGENT_NOTE")) return JSON.stringify({ action: "update_lead", note: "SMS QA note", reply: "Thanks, I noted that." });
+    if (lastUser.includes("SMS_AGENT_FOLLOWUP")) return JSON.stringify({ action: "follow_up_later", reply: "I'll follow up by SMS later." });
+    if (lastUser.includes("SMS_AGENT_AVAILABILITY")) return JSON.stringify({ action: "reply", text: "Please let me know when you are free." });
     return JSON.stringify({ action: "reply", text: "Respuesta automatica de prueba." });
   }
 

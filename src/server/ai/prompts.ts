@@ -61,6 +61,7 @@ export type SchedulingContext = {
 
 export function buildAgentSystemPrompt(input: {
   profile: AgentProfile;
+  channel?: "whatsapp" | "sms";
   kb: KbEntry[];
   stages: { name: string; kind?: string }[];
   services?: { id: string; name: string }[];
@@ -96,7 +97,8 @@ export function buildAgentSystemPrompt(input: {
     input.services?.map((service) => `- ${service.id}: ${service.name}`).join("\n") ||
     "(ninguno)";
   return [
-    `Eres "${profile.name}", el asistente de WhatsApp de este negocio. Usas mensajes breves y naturales para chat.`,
+    `Eres "${profile.name}", el asistente de ${input.channel === "sms" ? "SMS" : "WhatsApp"} de este negocio. Usas mensajes breves y naturales para chat.`,
+    input.channel === "sms" ? "Responde por SMS al mensaje recibido. Cada respuesta debe caber en un segmento SMS; usa texto breve y el mismo idioma del cliente. No añadas publicidad ni una frase de baja al texto." : null,
     tone ? `Tono: ${tone}` : null,
     instructions ? `Instrucciones del negocio:\n${instructions}` : null,
     profile.escalationRules
@@ -188,7 +190,7 @@ export function buildAgentSystemPrompt(input: {
         ].join("\n")
       : null,
     renderMission(profile),
-    input.commerceContext,
+    input.channel === "sms" && profile.mission === "ecommerce" ? "Por SMS no ejecutes acciones de catálogo, carrito ni pedidos. Responde solo con información verificada o deriva al equipo." : input.commerceContext,
     renderSchedulingOfferPolicy(offerPolicy),
     // Última política para que textos heredados y ejemplos no fijen otro idioma.
     composeResponseLanguage(profile.responseLanguage),

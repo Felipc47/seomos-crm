@@ -8,3 +8,10 @@
 - La conexión SMS de Lion Data estaba activa con remitente, webhook y saldo guardado; existían mensajes SMS anteriores con estado `delivered`. No se generó un nuevo lead real ni se envió un SMS de prueba en producción durante la verificación, así que la primera bienvenida automática real aún no tiene estado de entrega observable.
 - Pruebas locales integradas: 23 comprobaciones E2E con mocks, incluida respuesta de IA sin activar interruptor individual, fallo incierto sin WhatsApp alterno ni reenvío; 630 tests unitarios, typecheck, lint y build verdes.
 - Respaldo PostgreSQL previo: `/root/backups/seomos-crm/pre-lead-sms-20261117.dump` en el VPS; no contiene credenciales en este documento.
+
+## Corrección de texto de baja — 2026-11-17
+
+- El cuerpo de la bienvenida SMS conserva la plantilla inglesa del servicio y la marca; ya no agrega automáticamente «Responde STOP para salir.». Las respuestas STOP continúan registrando la baja.
+- Versión desplegada `d791b57e393ea1dbce512b1c606daf6575087648`, imagen activa verificada, Coolify `running:healthy`, `/api/health` 200 y cadena de pie ausente del bundle de producción.
+- El primer SMS automático real anterior a esta corrección sí incluyó ese pie y Brevo lo marcó `delivered`; no puede retirarse. La nueva versión se aplicará a los próximos leads.
+- El primer intento de deploy saturó la memoria del VPS y el servidor reinició. Se fijó `cpus: 1` y `webpackMemoryOptimizations: true` en el build de Next; el segundo deploy terminó sano.

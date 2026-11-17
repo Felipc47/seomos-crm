@@ -345,6 +345,7 @@ export const lead = pgTable(
     lastActivityAt: timestamp("last_activity_at"),
     /** Próximo intento de la rutina de seguimiento (008); NULL = sin rutina. */
     followUpDueAt: timestamp("follow_up_due_at"),
+    followUpChannel: text("follow_up_channel", { enum: ["whatsapp", "sms"] }).notNull().default("whatsapp"),
     /** Intentos de seguimiento ya enviados (0, 1 o 2). */
     followUpAttempts: integer("follow_up_attempts").notNull().default(0),
     /** Motivo normalizado cuando termina en No calificado/No convertido. */
@@ -1123,6 +1124,7 @@ export const smsContact = pgTable("sms_contact", {
   name: text("name").notNull(), phone: text("phone").notNull(),
   consentEvidence: text("consent_evidence").notNull(), consentAt: timestamp("consent_at").notNull().defaultNow(),
   optedOutAt: timestamp("opted_out_at"), aiEnabled: boolean("ai_enabled").notNull().default(false),
+  handoffAt: timestamp("handoff_at"), handoffReason: text("handoff_reason"),
   aiLastInboundId: text("ai_last_inbound_id"), createdAt: timestamp("created_at").notNull().defaultNow(),
 }, t => [uniqueIndex("sms_contact_org_phone_uq").on(t.organizationId, t.phone), uniqueIndex("sms_contact_org_id_uq").on(t.organizationId, t.id)]);
 

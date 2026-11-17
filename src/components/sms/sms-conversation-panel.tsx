@@ -12,6 +12,13 @@ import type { SmsInboxContact, SmsInboxSnapshot } from "@/lib/sms-inbox-types";
 import { countryFromPhone } from "@/lib/phone-country";
 
 type Review = { content: string; contactId: string; operationId: string };
+const HANDOFF_REASONS: Record<string, string> = {
+  cliente: "El cliente pidió atención humana.", modelo: "El agente solicitó apoyo humano.",
+  error_modelo: "El proveedor de IA no dio una respuesta válida.", agenda: "La agenda requiere revisión.",
+  creditos_sms: "No hay créditos SMS disponibles.", creditos_ia: "No hay créditos de IA disponibles.",
+  sin_contacto: "No se encontró la ficha del contacto en el CRM.", seguimiento: "El seguimiento requiere revisión.",
+  seguimiento_sms: "No se pudo enviar el seguimiento SMS.", accion_no_disponible: "La acción requiere atención del equipo.",
+};
 
 export function SmsConversationPanel({ contact, messages, connection, agentAvailability, onBack, onRefresh }: {
   contact: SmsInboxContact;
@@ -97,7 +104,7 @@ export function SmsConversationPanel({ contact, messages, connection, agentAvail
       </div>
       <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
         <ChannelPill channel="sms" compact />
-        <AiConversationHeaderControl active={contact.aiEnabled} availability={agentAvailability} busy={busy} shortLabel onCheckedChange={(enabled) => void toggleAgent(enabled)} />
+        <AiConversationHeaderControl active={contact.aiEnabled && !contact.handoffAt} availability={agentAvailability} busy={busy} shortLabel onCheckedChange={(enabled) => void toggleAgent(enabled)} />
         <Button size="sm" variant="ghost" disabled={busy || !!contact.optedOutAt} onClick={() => void optOut()} aria-label="Registrar baja SMS">
           <ShieldBan className="h-4 w-4" /><span className="hidden lg:inline">Registrar baja</span>
         </Button>
@@ -118,7 +125,8 @@ export function SmsConversationPanel({ contact, messages, connection, agentAvail
         <span>{contact.optedOutAt ? "Baja SMS registrada" : ready ? `Remitente ${connection?.sender} · ${connection?.smsCredits} créditos` : "Envía cuando Brevo informe créditos y el webhook esté listo"}</span>
         <Link href="/settings/sms" className="font-semibold text-foreground underline-offset-2 hover:underline">Configurar Brevo</Link>
       </div>
-      {contact.aiEnabled && <p className="rounded-lg bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-300">IA activa: responderá automáticamente a los próximos SMS entrantes.</p>}
+      {contact.handoffAt && <p className="rounded-lg bg-orange-500/10 px-3 py-2 text-xs font-medium text-orange-800 dark:text-orange-300" role="status">Atención humana: el agente derivó este SMS al equipo. {HANDOFF_REASONS[contact.handoffReason ?? ""] ?? "El equipo debe revisar la conversación."} Puedes reactivar la IA con el interruptor.</p>}
+      {contact.aiEnabled && !contact.handoffAt && <p className="rounded-lg bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-300">IA activa: responderá automáticamente a los próximos SMS entrantes.</p>}
       {error && <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</p>}
       {notice && <p role="status" className="rounded-lg bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">{notice}</p>}
       {review ? <div role="dialog" aria-label="Confirmar envío SMS" className="space-y-3 rounded-xl border border-orange-400/30 bg-orange-500/5 p-3">

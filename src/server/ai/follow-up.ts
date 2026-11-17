@@ -1,4 +1,8 @@
 import { isCompanyServiceActive } from "@/server/company-service";
+import { createHash } from "node:crypto";
+import { sendSms } from "@/server/sms/service";
+import { handoffSms } from "@/server/sms/handoff";
+import { schedulingLanguage } from "@/server/ai/schedule-language";
 import { unverifiedCommerceClaim } from "@/lib/ecommerce/contracts";
 import { renderMission, renderSchedulingOfferPolicy, guardMeetingOfferText } from "@/lib/agent-mission";
 import { getSchedulingOfferPolicy } from "./mission-policy";
@@ -165,6 +169,7 @@ function publishBoardChange(organizationId: string, conversationId?: string) {
 export async function armFollowUp(input: {
   organizationId: string;
   contactId: string;
+  channel?: "whatsapp" | "sms";
   requestedAt?: Date | null;
   now?: Date;
 }): Promise<Date | null> {
@@ -190,6 +195,7 @@ export async function armFollowUp(input: {
     .set({
       ...(stage ? { stageId: stage.id } : {}),
       followUpDueAt: due,
+      followUpChannel: input.channel ?? "whatsapp",
       followUpAttempts: 0,
       closureReason: null,
       closedAt: null,
@@ -340,6 +346,8 @@ type DueLead = {
   optedOutAt: Date | null;
   blockedAt: Date | null;
   contactName: string;
+  phone: string;
+  channel: "whatsapp" | "sms";
 };
 
 /**
@@ -512,6 +520,8 @@ export async function sweepFollowUps(
       optedOutAt: schema.contact.optedOutAt,
       blockedAt: schema.contact.blockedAt,
       contactName: schema.contact.name,
+      phone: schema.contact.phone,
+      channel: schema.lead.followUpChannel,
     })
     .from(schema.lead)
     .innerJoin(
@@ -544,6 +554,54 @@ export async function sweepFollowUps(
     // El operador lo movió fuera de «En calificación» → desarmar.
     if (l.stageName.toLowerCase() !== "en calificación") {
       await disarmFollowUp(l.contactId);
+      continue;
+    }
+
+    if (l.channel === "sms") {
+      const [sms] = await db.select({ id: schema.smsContact.id, aiEnabled: schema.smsContact.aiEnabled,
+        optedOutAt: schema.smsContact.optedOutAt, handoffAt: schema.smsContact.handoffAt })
+        .from(schema.smsContact).where(and(eq(schema.smsContact.organizationId, l.organizationId),
+          eq(schema.smsContact.phone, `+${l.phone}`))).limit(1);
+      if (!sms?.aiEnabled || sms.optedOutAt || sms.handoffAt || l.optedOutAt || l.blockedAt) {
+        await disarmFollowUp(l.contactId);
+        continue;
+      }
+      if (l.attempts >= 2) {
+        const target = await stageByKind(l.organizationId, "lost");
+        await db.update(schema.lead).set({ ...(target ? { stageId: target.id } : {}),
+          followUpDueAt: null, followUpAttempts: 0, closureReason: "no_response",
+          closedAt: now, updatedAt: new Date(), lastActivityAt: new Date() })
+          .where(eq(schema.lead.id, l.leadId));
+        await appendNote(l.contactId, "Sin respuesta tras dos seguimientos SMS: pasa a No convertido.");
+        closed++;
+        continue;
+      }
+      const [profile] = await db.select({ responseLanguage: schema.agentProfile.responseLanguage })
+        .from(schema.agentProfile).where(eq(schema.agentProfile.organizationId, l.organizationId)).limit(1);
+      const smsHistory = await db.select({ direction: schema.smsMessage.direction, text: schema.smsMessage.content })
+        .from(schema.smsMessage).where(and(eq(schema.smsMessage.organizationId, l.organizationId),
+          eq(schema.smsMessage.contactId, sms.id))).orderBy(desc(schema.smsMessage.createdAt)).limit(8);
+      const language = schedulingLanguage(profile?.responseLanguage, smsHistory.reverse());
+      const content = language === "en"
+        ? "Hi! Following up as you requested. Would you like to continue our conversation?"
+        : "Hola. Te escribo para retomar nuestra conversación, como pediste. ¿Quieres continuar?";
+      const hex = createHash("sha256").update(`sms-follow-up:${l.leadId}:${l.attempts + 1}`).digest("hex");
+      const operationId = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+      try {
+        const sent = await sendSms(l.organizationId, { contactId: sms.id, content, operationId }, { source: "automation" });
+        if (!["accepted", "sent", "delivered", "read"].includes(sent.status)) {
+          await appendNote(l.contactId, `Seguimiento SMS ${sent.status}; requiere revisión humana.`);
+          await handoffSms(l.organizationId, sms.id, "seguimiento_sms");
+          continue;
+        }
+      } catch (error) {
+        await appendNote(l.contactId, `Seguimiento SMS no enviado (${error instanceof Error ? error.name : "error"}).`);
+        await handoffSms(l.organizationId, sms.id, "seguimiento_sms");
+        continue;
+      }
+      await db.update(schema.lead).set({ followUpDueAt: nextBusinessAttempt(now, attention),
+        followUpAttempts: l.attempts + 1, updatedAt: new Date() }).where(eq(schema.lead.id, l.leadId));
+      attempts++;
       continue;
     }
 

@@ -173,6 +173,12 @@ export function InboxClient({ smsEnabled = false }: { smsEnabled?: boolean }) {
   // se crea vacía: con la ventana cerrada, el composer ofrece plantillas.
   const searchParams = useSearchParams();
   const contactParam = searchParams.get("contact");
+  const smsParam = searchParams.get("sms");
+  useEffect(() => {
+    if (smsParam && smsData?.contacts.some(contact => contact.id === smsParam) && selectedSmsRef.current !== smsParam) {
+      selectSms(smsParam);
+    }
+  }, [smsParam, smsData?.contacts, selectSms]);
   const createTriedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!contactParam || selectedIdRef.current || !conversations) return;

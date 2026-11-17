@@ -6,6 +6,8 @@ export type SmsInboxContact = {
   phone: string;
   optedOutAt: string | null;
   aiEnabled: boolean;
+  handoffAt: string | null;
+  handoffReason: string | null;
   createdAt: string;
   lastMessageAt: string | null;
   lastMessagePreview: string | null;

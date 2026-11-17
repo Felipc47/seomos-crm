@@ -130,7 +130,7 @@ export function buildAvailabilityLabel(
 }
 
 /** Disponibilidad por día desde el calendario real (freeBusy). */
-async function fetchAvailabilityByDay(
+export async function fetchAvailabilityByDay(
   organizationId: string,
   settings: CalendarSettings
 ): Promise<DayAvailability[]> {
@@ -204,7 +204,7 @@ async function alternativesText(
 }
 
 /** Contexto temporal del agente (004): hoy + primera disponibilidad. */
-function buildSchedulingContext(
+export function buildSchedulingContext(
   settings: CalendarSettings
 ): SchedulingContext {
   const now = new Date();
@@ -1163,7 +1163,7 @@ export async function applyHandoff(
   }
 }
 
-async function moveLeadToStage(
+export async function moveLeadToStage(
   _organizationId: string,
   contactId: string,
   stage: { id: string; kind: StageKind },
@@ -1193,7 +1193,7 @@ async function moveLeadToStage(
  * Silencioso a propósito: si el operador borró o renombró la etapa, el
  * agendamiento NO se cae — la reunión ya está creada, el tablero es secundario.
  */
-async function moveLeadToScheduledStage(
+export async function moveLeadToScheduledStage(
   organizationId: string,
   contactId: string
 ): Promise<boolean> {
@@ -1215,7 +1215,7 @@ async function moveLeadToScheduledStage(
   return true;
 }
 
-async function appendLeadNote(
+export async function appendLeadNote(
   organizationId: string,
   contactId: string,
   note: string

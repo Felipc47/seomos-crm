@@ -1,0 +1,1 @@
+ALTER TABLE "lead" ADD COLUMN "follow_up_channel" text DEFAULT 'whatsapp' NOT NULL;

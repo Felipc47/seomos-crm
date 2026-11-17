@@ -102,6 +102,7 @@ export async function setSmsAgentEnabled(org: string, id: string, enabled: boole
       .orderBy(desc(messages.createdAt), desc(messages.id)).limit(1) : [];
     const [row] = await tx.update(contacts).set({
       aiEnabled: enabled,
+      ...(enabled ? { handoffAt: null, handoffReason: null } : {}),
       ...(enabled && latest?.direction === "in" ? { aiLastInboundId: latest.id } : {}),
     }).where(scoped(contacts.organizationId, org, eq(contacts.id, id)))
       .returning({ id: contacts.id, aiEnabled: contacts.aiEnabled });
@@ -181,7 +182,7 @@ async function processSmsEvents(org: string) {
   const pending = await getDb().select({ id: events.id }).from(events).where(scoped(events.organizationId,org,isNull(events.processedAt)))
     .orderBy(asc(events.createdAt)).limit(100);
   for (const item of pending) {
-    const agentContactId = await getDb().transaction(async tx => {
+    const processed = await getDb().transaction(async tx => {
     const [record] = await tx.select().from(events).where(scoped(events.organizationId,org,eq(events.id,item.id),isNull(events.processedAt))).for("update");
     if (!record) return;
     const e = record.payload;
@@ -207,14 +208,28 @@ async function processSmsEvents(org: string) {
     if (next !== message.status) await tx.update(messages).set({ status: next, errorCode: next === "failed" ? "provider_delivery" : null })
       .where(scoped(messages.organizationId,org,eq(messages.id,message.id)));
     await tx.update(events).set({ processedAt: new Date() }).where(scoped(events.organizationId,org,eq(events.id,record.id)));
-    return insertedInbound && person.aiEnabled && !person.optedOutAt && e.reply && !isSmsStop(e.reply)
-      ? person.id : null;
+    return { inboundPhone: insertedInbound ? person.phone : null,
+      agentContactId: insertedInbound && person.aiEnabled && !person.optedOutAt && e.reply && !isSmsStop(e.reply)
+        ? person.id : null };
     });
-    if (agentContactId) {
+    if (processed?.inboundPhone) {
+      const [crm] = await getDb().select({ id: schema.contact.id }).from(schema.contact)
+        .where(scoped(schema.contact.organizationId, org,
+          eq(schema.contact.phone, processed.inboundPhone.replace(/^\+/, "")))).limit(1);
+      if (crm) {
+        try {
+          const { cancelFollowUpOnInbound } = await import("@/server/ai/follow-up");
+          await cancelFollowUpOnInbound(org, crm.id);
+        } catch (error) {
+          console.error("[sms] no se pudo cancelar el seguimiento tras la respuesta:", error instanceof Error ? error.name : "unknown");
+        }
+      }
+    }
+    if (processed?.agentContactId) {
       // La respuesta al webhook no depende del LLM; el barrido recupera un turno perdido por reinicio.
       try {
         const { scheduleSmsAgentTurn } = await import("./agent");
-        scheduleSmsAgentTurn(org, agentContactId);
+        scheduleSmsAgentTurn(org, processed.agentContactId);
       } catch (error) {
         console.error("[sms-agent] no se pudo encolar el turno:", error);
       }
