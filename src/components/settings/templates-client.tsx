@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { FileText, ImageIcon, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import {
@@ -178,7 +179,7 @@ export function TemplatesClient({
   const [templates, setTemplates] = useState<TemplateDto[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
-  // 004: plantilla que se envía automáticamente a los leads de Meta Ads.
+  const [greetingChannel, setGreetingChannel] = useState<"whatsapp" | "sms">("whatsapp");
   const [greetingTemplateId, setGreetingTemplateId] = useState<string | "">("");
   const [savingGreeting, setSavingGreeting] = useState(false);
   const [greetingMsg, setGreetingMsg] = useState<string | null>(null);
@@ -194,9 +195,10 @@ export function TemplatesClient({
     }
     if (lg?.ok) {
       const data = (await lg.json()) as {
-        settings: { greetingTemplateId: string | null };
+        settings: { greetingTemplateId: string | null; channel: "whatsapp" | "sms" };
       };
       setGreetingTemplateId(data.settings.greetingTemplateId ?? "");
+      setGreetingChannel(data.settings.channel);
     }
   }, []);
 
@@ -204,17 +206,23 @@ export function TemplatesClient({
     void refetch();
   }, [refetch]);
 
-  async function saveGreeting(value: string) {
-    setGreetingTemplateId(value);
+  async function saveGreeting(settings: { greetingTemplateId?: string | null; channel?: "whatsapp" | "sms" }) {
     setSavingGreeting(true);
     setGreetingMsg(null);
     const res = await fetch("/api/settings/leadgen", {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ greetingTemplateId: value || null }),
+      body: JSON.stringify(settings),
     }).catch(() => null);
+    if (res?.ok) {
+      if (settings.greetingTemplateId !== undefined) setGreetingTemplateId(settings.greetingTemplateId ?? "");
+      if (settings.channel) setGreetingChannel(settings.channel);
+      setGreetingMsg("Guardado");
+    } else {
+      const data = await res?.json().catch(() => null) as { error?: { message?: string } } | null;
+      setGreetingMsg(data?.error?.message ?? "No se pudo guardar");
+    }
     setSavingGreeting(false);
-    setGreetingMsg(res?.ok ? "Guardado ✓" : "No se pudo guardar");
   }
 
   async function sync() {
@@ -244,36 +252,54 @@ export function TemplatesClient({
 
   return (
     <div className="max-w-3xl space-y-6">
-      {/* 004: saludo automático para leads de Meta Ads (solo admin) */}
       {canApprove && (
       <Card>
         <CardHeader>
-          <CardTitle>Saludo automático para leads de Meta</CardTitle>
+          <CardTitle>Saludo automático de leads</CardTitle>
           <CardDescription>
-            Cuando llega un lead nuevo desde tus campañas de Meta, se le envía
-            esta plantilla por WhatsApp (con {"{{1}}"} = su primer nombre) y el
-            agente IA continúa la conversación cuando responda.
+            Se usa la plantilla del servicio vinculado a Meta Ads o Google Sheets, con la plantilla general como respaldo.
+            Al elegir SMS, se envía el texto de la plantilla a los contactos con consentimiento SMS.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-3">
-            <select
-              data-help="templates-greeting" value={greetingTemplateId}
-              onChange={(e) => void saveGreeting(e.target.value)}
-              disabled={savingGreeting}
-              className="flex h-11 w-full max-w-sm rounded-xl border border-border bg-surface-2 px-3.5 text-sm font-medium focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-soft"
-            >
-              <option value="">No enviar saludo automático</option>
-              {approved.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} ({t.language})
-                </option>
-              ))}
-            </select>
-            {greetingMsg && (
-              <span className="text-xs font-bold text-mute">{greetingMsg}</span>
-            )}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="greeting-channel">Canal del saludo automático</Label>
+              <select
+                id="greeting-channel"
+                value={greetingChannel}
+                onChange={(e) => void saveGreeting({ channel: e.target.value as "whatsapp" | "sms" })}
+                disabled={savingGreeting}
+                className="h-11 w-full rounded-xl border border-border bg-surface-2 px-3.5 text-sm"
+              >
+                <option value="whatsapp">WhatsApp</option>
+                <option value="sms">SMS</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="greeting-template">Plantilla general de saludo</Label>
+              <select
+                id="greeting-template"
+                data-help="templates-greeting" value={greetingTemplateId}
+                onChange={(e) => void saveGreeting({ greetingTemplateId: e.target.value || null })}
+                disabled={savingGreeting}
+                className="h-11 w-full rounded-xl border border-border bg-surface-2 px-3.5 text-sm"
+              >
+                <option value="">Sin plantilla general</option>
+                {approved.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} ({t.language})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
+          {greetingChannel === "sms" && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              <Link href="/settings/sms" className="underline underline-offset-2">Ver conexión de Brevo y fuentes de consentimiento SMS</Link>
+            </p>
+          )}
+          {greetingMsg && <p role="status" className="mt-2 text-xs font-semibold text-mute">{greetingMsg}</p>}
           {approved.length === 0 && (
             <p className="mt-2 text-xs text-muted-foreground">
               Necesitas al menos una plantilla aprobada por Meta.

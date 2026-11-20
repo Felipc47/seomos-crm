@@ -13,6 +13,7 @@ export function smsLeadEnrollmentSql(input: {
   sourceType: "meta_form" | "sheet";
   sourceKey: string;
   leadKey: string;
+  contactId: string;
   phone: string;
   name: string;
 }): SQL | null {
@@ -20,8 +21,8 @@ export function smsLeadEnrollmentSql(input: {
   if (!phone) return null; // SMS currently supports US numbers only.
   const prefix = `${input.sourceType === "meta_form" ? "Meta Lead Ads" : "Google Sheets/Meta"}; origen ${input.sourceKey}; lead ${input.leadKey}; `;
   return sql`
-    insert into ${schema.smsContact} (id, organization_id, name, phone, consent_evidence, ai_enabled)
-    select ${newId("smsContact")}, ${input.organizationId}, ${input.name}, ${phone},
+    insert into ${schema.smsContact} (id, organization_id, crm_contact_id, name, phone, consent_evidence, ai_enabled)
+    select ${newId("smsContact")}, ${input.organizationId}, ${input.contactId}, ${input.name}, ${phone},
       left(${prefix} || ${schema.smsLeadSource.consentEvidence}, 1000), true
     from ${schema.smsLeadSource}
     where ${schema.smsLeadSource.organizationId} = ${input.organizationId}

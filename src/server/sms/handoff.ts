@@ -1,3 +1,4 @@
+import { smsCrmContactCondition } from "./crm-contact";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
@@ -12,7 +13,7 @@ export async function handoffSms(org: string, smsContactId: string, reason: stri
     .set({ aiEnabled: false, handoffAt: new Date(), handoffReason: reason })
     .where(scoped(schema.smsContact.organizationId, org,
       eq(schema.smsContact.id, smsContactId), eq(schema.smsContact.aiEnabled, true), isNull(schema.smsContact.handoffAt)))
-    .returning({ phone: schema.smsContact.phone, name: schema.smsContact.name });
+    .returning({ phone: schema.smsContact.phone, name: schema.smsContact.name, crmContactId: schema.smsContact.crmContactId });
   if (!sms) return;
 
   try {
@@ -23,7 +24,7 @@ export async function handoffSms(org: string, smsContactId: string, reason: stri
     }).from(schema.lead)
       .innerJoin(schema.contact, and(eq(schema.contact.id, schema.lead.contactId), eq(schema.contact.organizationId, org)))
       .leftJoin(schema.service, and(eq(schema.service.id, schema.lead.serviceId), eq(schema.service.organizationId, org)))
-      .where(and(eq(schema.lead.organizationId, org), eq(schema.contact.phone, sms.phone.replace(/^\+/, ""))))
+      .where(and(eq(schema.lead.organizationId, org), smsCrmContactCondition(sms)))
       .limit(1);
 
     let memberId = lead?.assignedMemberId ?? null;

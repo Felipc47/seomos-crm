@@ -1,3 +1,4 @@
+import { smsCrmContactCondition } from "./crm-contact";
 import { asc, eq, inArray, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
@@ -73,7 +74,7 @@ export async function executeSmsAction(input: {
   const db = getDb();
   const [crm] = await db.select({ id: schema.contact.id, email: schema.contact.email })
     .from(schema.contact).where(scoped(schema.contact.organizationId, org,
-      eq(schema.contact.phone, sms.phone.replace(/^\+/, "")))).limit(1);
+      smsCrmContactCondition(sms))).limit(1);
   const services = await listServiceRoutingOptions(org);
   const detected = resolveDetectedService(input.action.serviceId, services);
   if (detected && crm) {

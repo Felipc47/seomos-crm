@@ -624,7 +624,20 @@ export function InboxClient({ smsEnabled = false }: { smsEnabled?: boolean }) {
         )}
       >
         {selectedSms ? (
-          <SmsConversationPanel key={selectedSms.id} contact={selectedSms} messages={smsData?.messages ?? []} connection={smsData?.connection ?? null} agentAvailability={agentAvailability} onBack={() => { setSelectedSmsId(null); selectedSmsRef.current = null; void refetchSms(""); }} onRefresh={() => refetchSms(selectedSms.id)} />
+          <SmsConversationPanel
+            key={selectedSms.id}
+            contact={selectedSms}
+            messages={smsData?.messages ?? []}
+            connection={smsData?.connection ?? null}
+            agentAvailability={agentAvailability}
+            refreshKey={detailRev}
+            onBack={() => {
+              setSelectedSmsId(null);
+              selectedSmsRef.current = null;
+              void refetchSms("");
+            }}
+            onRefresh={() => refetchSms(selectedSms.id)}
+          />
         ) : selectedSmsId ? (
           <div className="flex flex-1 items-center justify-center text-sm text-mute">Cargando conversación SMS…</div>
         ) : selected ? (

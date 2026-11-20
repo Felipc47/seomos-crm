@@ -11,6 +11,7 @@ import {
 } from "@/lib/lead-closure";
 import { cn, formatPhone } from "@/lib/utils";
 import { stageColor, stageTint } from "@/lib/stage-colors";
+import { ChannelPill } from "./channel-pill";
 import { InboxContactAvatar } from "./inbox-contact-avatar";
 import { LeadAssignmentBadges } from "@/components/lead-assignment-badges";
 import { ProspectEditorDialog } from "@/components/contacts/prospect-editor-dialog";
@@ -37,6 +38,7 @@ const HANDOFF_LABELS: Record<string, string> = {
 
 export function ContactPanel({
   conversation,
+  channel = "whatsapp",
   refreshKey = 0,
   agentAvailability,
   aiUpdating,
@@ -46,7 +48,12 @@ export function ContactPanel({
   onContactUpdated,
   onClose,
 }: {
-  conversation: ConversationDto;
+  conversation: Pick<ConversationDto, "aiEnabled" | "handoffAt" | "handoffReason"> & {
+    contact: Pick<ConversationDto["contact"], "id" | "name" | "phone" | "country">;
+    service?: ConversationDto["service"];
+    assignee?: ConversationDto["assignee"];
+  };
+  channel?: "whatsapp" | "sms";
   /** Aumenta con cada evento SSE relevante: dispara un refetch en vivo. */
   refreshKey?: number;
   agentAvailability: AgentAvailability | null;
@@ -56,9 +63,9 @@ export function ContactPanel({
     reactivate?: boolean;
   }) => Promise<boolean>;
   /** Borra el historial de la conversación y limpia su estado. */
-  onResetConversation: () => Promise<boolean>;
+  onResetConversation?: () => Promise<boolean>;
   /** Borra el contacto de forma permanente (cascada). */
-  onDeleteContact: (contactId: string) => Promise<boolean>;
+  onDeleteContact?: (contactId: string) => Promise<boolean>;
   /** Refresca la identidad visible en la lista y el encabezado del chat. */
   onContactUpdated: () => void | Promise<void>;
   onClose: () => void;
@@ -78,6 +85,7 @@ export function ContactPanel({
   const [stages, setStages] = useState<StageDto[]>([]);
   const [currentStageId, setCurrentStageId] = useState<string | null>(null);
   const [leadId, setLeadId] = useState<string | null>(null);
+  const [assignment, setAssignment] = useState<Pick<ConversationDto, "service" | "assignee"> | null>(null);
   const [closureReason, setClosureReason] = useState<string | null>(null);
   const [followUpDueAt, setFollowUpDueAt] = useState<string | null>(null);
   const [pendingStage, setPendingStage] = useState<StageDto | null>(null);
@@ -102,6 +110,7 @@ export function ContactPanel({
       setAiProfile(detail.contact?.aiProfile ?? null);
       setCurrentStageId(detail.stage?.id ?? null);
       setLeadId(detail.lead?.id ?? null);
+      setAssignment({ service: detail.lead?.service ?? null, assignee: detail.lead?.assignee ?? null });
       setClosureReason(detail.lead?.closureReason ?? null);
       setFollowUpDueAt(detail.lead?.followUpDueAt ?? null);
     }
@@ -121,6 +130,7 @@ export function ContactPanel({
       setAiProfile(detail.contact?.aiProfile ?? null);
       setCurrentStageId(detail.stage?.id ?? null);
       setLeadId(detail.lead?.id ?? null);
+      setAssignment({ service: detail.lead?.service ?? null, assignee: detail.lead?.assignee ?? null });
       setClosureReason(detail.lead?.closureReason ?? null);
       setFollowUpDueAt(detail.lead?.followUpDueAt ?? null);
     }
@@ -179,15 +189,17 @@ export function ContactPanel({
 
   async function saveNotes() {
     setSavingNotes(true);
-    await fetch(`/api/contacts/${contactId}`, {
+    const response = await fetch(`/api/contacts/${contactId}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ notes }),
     }).catch(() => null);
     setSavingNotes(false);
-    toast("Notas guardadas");
+    toast(response?.ok ? "Notas guardadas" : "No se pudieron guardar las notas");
   }
 
+  const service = assignment ? assignment.service : conversation.service ?? null;
+  const assignee = assignment ? assignment.assignee : conversation.assignee ?? null;
   const currentStage = stages.find((s) => s.id === currentStageId) ?? null;
 
   return (
@@ -204,6 +216,7 @@ export function ContactPanel({
           <p className="truncate font-display text-lg font-semibold">
             {conversation.contact.name}
           </p>
+          <ChannelPill channel={channel} compact />
           <p className="text-[13px] font-semibold text-mute">
             {formatPhone(conversation.contact.phone)}
           </p>
@@ -218,7 +231,7 @@ export function ContactPanel({
       </header>
 
       <div className="flex-1 overflow-y-auto p-[22px]">
-        {(currentStage || conversation.service) && (
+        {(currentStage || service || assignee) && (
           <div className="mb-5 flex flex-wrap gap-2">
             {currentStage && (
               <StageTag
@@ -227,8 +240,8 @@ export function ContactPanel({
               />
             )}
             <LeadAssignmentBadges
-              service={conversation.service}
-              assignee={conversation.assignee}
+              service={service}
+              assignee={assignee}
             />
             {closureReason && (
               <span className="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-semibold text-mute">
@@ -482,7 +495,7 @@ export function ContactPanel({
             <Pencil className="h-4 w-4" strokeWidth={2.2} />
             Editar
           </button>
-          <button
+          {onResetConversation && <button
             title="Reiniciar conversación"
             aria-label="Reiniciar conversación"
             disabled={busy}
@@ -490,8 +503,8 @@ export function ContactPanel({
             className="flex w-12 shrink-0 items-center justify-center rounded-xl border text-mute transition-colors hover:bg-surface-2 hover:text-foreground disabled:opacity-50"
           >
             <RotateCcw className="h-[17px] w-[17px]" strokeWidth={2} />
-          </button>
-          <button
+          </button>}
+          {onDeleteContact && <button
             title="Eliminar contacto"
             aria-label="Eliminar contacto"
             disabled={busy}
@@ -499,7 +512,7 @@ export function ContactPanel({
             className="flex w-12 shrink-0 items-center justify-center rounded-xl border border-destructive/30 text-destructive transition-colors hover:bg-destructive/5 disabled:opacity-50"
           >
             <Trash2 className="h-[17px] w-[17px]" strokeWidth={2} />
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -513,7 +526,7 @@ export function ContactPanel({
         />
       )}
 
-      {confirming === "delete" && (
+      {confirming === "delete" && onDeleteContact && (
         <ConfirmDialog
           title="Eliminar contacto"
           message={
@@ -547,7 +560,7 @@ export function ContactPanel({
         />
       )}
 
-      {confirming === "reset" && (
+      {confirming === "reset" && onResetConversation && (
         <ConfirmDialog
           title="Reiniciar conversación"
           message="Se borrará todo el historial de mensajes. El contacto y su etapa del pipeline se conservan."

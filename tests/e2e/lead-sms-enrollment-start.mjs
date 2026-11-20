@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 const base = "http://127.0.0.1:3114";
 const child = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "--port", "3114", "--hostname", "127.0.0.1"], {
   stdio: "inherit", env: { ...process.env,
-    APP_BASE_URL: base, DATABASE_URL: "postgresql://postgres@127.0.0.1:5433/seomos_leadsms_044",
+    APP_BASE_URL: base, DATABASE_URL: process.env.CRM_TEST_DATABASE_URL ?? "postgresql://postgres@127.0.0.1:5433/seomos_leadsms_044",
     BETTER_AUTH_SECRET: "lead044-local-fictitious-secret-32", ENCRYPTION_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
     META_WEBHOOK_VERIFY_TOKEN: "lead044-verify-token", META_APP_SECRET: "",
     WA_MOCK_ENABLED: "true", META_GRAPH_BASE_URL: `${base}/api/dev/wa-mock/graph`,

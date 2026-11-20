@@ -4,7 +4,7 @@ import postgres from "postgres";
 import { createDecipheriv, randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 const baseURL = "http://127.0.0.1:3114", stamp = Date.now(), password = "LeadSms044!";
-const sql = postgres("postgresql://postgres@127.0.0.1:5433/seomos_leadsms_044");
+const sql = postgres(process.env.CRM_TEST_DATABASE_URL ?? "postgresql://postgres@127.0.0.1:5433/seomos_leadsms_044");
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 const context = await browser.newContext({ baseURL, extraHTTPHeaders: { Origin: baseURL } });
 const page = await context.newPage(), api = context.request, checks = [], errors = [];
@@ -108,6 +108,18 @@ try {
   await page.getByRole("button", { name: "Guardar comportamiento" }).click();
   await wait(async () => (await get("/api/agent/profile")).profile.preferredContactChannel === "sms");
   check(true, "Agent UI saves SMS as this company's preferred channel");
+  await page.goto("/templates");
+  const channelSelect = page.getByLabel("Canal del saludo automático");
+  const generalTemplate = page.getByLabel("Plantilla general de saludo");
+  await channelSelect.waitFor();
+  await wait(async () => (await channelSelect.inputValue()) === "sms");
+  await generalTemplate.selectOption(template.id);
+  await wait(async () => (await get("/api/settings/leadgen")).settings.greetingTemplateId === template.id);
+  await channelSelect.selectOption("whatsapp");
+  await wait(async () => (await get("/api/agent/profile")).profile.preferredContactChannel === "whatsapp");
+  await channelSelect.selectOption("sms");
+  await wait(async () => (await get("/api/agent/profile")).profile.preferredContactChannel === "sms");
+  check((await generalTemplate.inputValue()) === template.id, "Templates switches the same greeting channel without replacing the selected template");
   add(5); await mock(); await sync();
   const sends5 = (await get("/api/dev/brevo-mock/control")).sends.filter(m => m.recipient === `+${phone(5)}`);
   check((await sms(5)).aiEnabled && sends5.length === 1 && sends5[0].content.includes("Hello Persona") && !sends5[0].content.includes("STOP") && (await wa(5)).length === 0,
@@ -122,6 +134,12 @@ try {
   await patch(`/api/services/${service2.id}`, { greetingTemplateId: template2.id });
   await post("/api/dev/sheets-mock", { gid: "1", csv: header + `l:${stamp}_6,Persona 6,p:+${phone(6)},lead6@example.test,${formId}` });
   const source2 = (await post("/api/settings/sheets", { name: "Ecommerce Meta QA", url: "https://docs.google.com/spreadsheets/d/123456789012345678901234567890/edit#gid=1", serviceId: service2.id })).source;
+  await post("/api/dev/sheets-mock", { gid: "1", csv: header + `l:${stamp}_10,Persona 10,p:+${phone(10)},lead10@example.test,${formId}` });
+  await post(`/api/settings/sheets/${source2.id}/sync`);
+  const [noConsent] = await sql`select flow_state, flow_result from sheets_row where organization_id=${org} and external_key=${`l:${stamp}_10`}`;
+  check(noConsent?.flow_state === "failed" && noConsent.flow_result.includes("falta consentimiento") && !(await sms(10)),
+    "a Sheets source missing SMS consent leaves a visible reason and never calls the provider");
+  await post("/api/dev/sheets-mock", { gid: "1", csv: header + `l:${stamp}_6,Persona 6,p:+${phone(6)},lead6@example.test,${formId}` });
   await put("/api/settings/sms/lead-sources", { sourceType: "sheet", sourceKey: source2.id, consentEvidence: evidence });
   await post(`/api/settings/sheets/${source2.id}/sync`);
   const sends6 = (await get("/api/dev/brevo-mock/control")).sends.filter(m => m.recipient === `+${phone(6)}`);
@@ -161,11 +179,43 @@ try {
   await sync();
   check((await sql`select count(*)::int as n from sms_message m join sms_contact c on c.id=m.contact_id where c.organization_id=${org} and c.phone=${`+${phone(8)}`}`)[0].n === count8,
     "failed automatic SMS is not blindly retried by another sync");
+  const person6 = await sms(6);
+  const crm6 = await crm(6);
+  await page.goto(`/inbox?channel=sms&sms=${person6.id}`);
+  const smsPanel = page.getByTestId("sms-conversation-panel");
+  await smsPanel.getByRole("button", { name: "Ver detalles del contacto" }).click();
+  const details = page.getByRole("dialog", { name: "Detalles de Persona 6" });
+  await details.getByText("lead6@example.test", { exact: true }).waitFor();
+  await details.getByText("Ecommerce QA", { exact: true }).waitFor();
+  await details.getByRole("button", { name: "Agendar reunión" }).waitFor();
+  const notes = details.getByPlaceholder("Notas internas sobre este contacto…");
+  assert.match(await notes.inputValue(), /Google Sheets/);
+  await notes.fill("Notas QA desde el chat SMS");
+  await details.getByRole("button", { name: "Guardar notas" }).click();
+  await wait(async () => (await get(`/api/contacts/${crm6.id}`)).contact.notes === "Notas QA desde el chat SMS");
+  check(true, "SMS opens the shared CRM contact with email, service, meeting controls and editable notes");
+  await page.keyboard.press("Escape");
+  await smsPanel.getByRole("button", { name: "Usar plantilla" }).click();
+  await smsPanel.getByLabel("Plantilla para SMS").selectOption(template2.id);
+  const draft = smsPanel.getByLabel("Mensaje SMS");
+  await wait(async () => (await draft.inputValue()).includes("Hi Persona, let's review your ecommerce inventory."));
+  check((await get("/api/dev/brevo-mock/control")).sends.filter(m => m.recipient === `+${phone(6)}`).length === 1,
+    "applying the approved template personalizes an editable SMS without sending");
+  await smsPanel.getByRole("button", { name: "Revisar SMS" }).click();
+  await smsPanel.getByRole("button", { name: "Confirmar y enviar SMS" }).click();
+  await wait(async () => (await get("/api/dev/brevo-mock/control")).sends.filter(m => m.recipient === `+${phone(6)}`).length === 2);
+  check(true, "the operator can send the personalized template by SMS after confirming");
+  const manual = (await post("/api/sms/contacts", { name: "Manual QA", phone: `+${phone(11)}`, consentEvidence: evidence })).contact;
+  const linked = await Promise.all([post(`/api/sms/contacts/${manual.id}/details`), post(`/api/sms/contacts/${manual.id}/details`)]);
+  check(linked[0].contact.id === linked[1].contact.id && !!(await crm(11)), "concurrent opens of an SMS-only contact link one CRM record");
   const other = await request.newContext({ baseURL, extraHTTPHeaders: { Origin: baseURL } });
   await json(await other.post("/api/auth/sign-in/email", { data: { email: otherEmail, password } }));
   check((await json(await other.get("/api/agent/profile"))).profile.preferredContactChannel === "whatsapp", "other companies keep WhatsApp as the default");
   check((await other.put("/api/settings/sms/lead-sources", { data: { sourceType: "sheet", sourceKey: source.id, consentEvidence: evidence } })).status() === 422,
     "another tenant cannot attest this Sheets source");
+  check((await other.post(`/api/sms/contacts/${person6.id}/details`)).status() === 404 &&
+    (await other.post(`/api/sms/contacts/${person6.id}/template-preview`, { data: { templateId: template2.id } })).status() === 404,
+    "other tenants cannot see the SMS contact details or render a template for that contact");
   await other.dispose();
   check(errors.length === 0, "no browser JavaScript errors");
   await writeFile(".artifacts/lead-sms-044/results.json", JSON.stringify({ count: checks.length, checks, errors }, null, 2));

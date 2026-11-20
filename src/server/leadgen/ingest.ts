@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { graphRequest } from "@/lib/meta/client";
@@ -8,7 +8,9 @@ import {
   getOrCreateContact,
   getOrCreateConversation,
 } from "@/server/inbox/ingest";
-import { onLeadActivity } from "@/server/inbox/lead-activity";
+import { ensureLeadActivity } from "@/server/inbox/lead-activity";
+import { notifyNewLeadByEmailSafely } from "@/server/email/new-lead";
+import { InitialGreetingSkipped } from "@/server/whatsapp/template-dispatch";
 import {
   extractLeadEmail,
   extractLeadName,
@@ -20,15 +22,8 @@ import { smsLeadEnrollmentSql } from "@/server/sms/lead-enrollment";
 import type { WebhookValue } from "@/server/inbox/webhook";
 
 /**
- * Ingesta de Meta Lead Ads (004, spec B): al llegar un evento `leadgen`, se
- * recupera el lead vía Graph API, se crea el contacto+lead idempotentemente
- * (Principio IV: UNIQUE por leadgen_id) y, si es nuevo y hay plantilla de
- * saludo configurada, se le envía por WhatsApp.
- *
- * Enrutamiento: una instancia = un negocio, así que el evento se atribuye a
- * la única conexión de WhatsApp guardada (supuesto trazable — Principio VII:
- * si algún día hay varias organizaciones por instancia, habrá que guardar el
- * page_id junto a las credenciales y enrutar por él).
+ * Recupera eventos de Meta Lead Ads para la empresa vinculada al formulario.
+ * Registra el contacto y el servicio antes de ejecutar el saludo del canal configurado.
  */
 
 type LeadDetail = {
@@ -182,7 +177,7 @@ export async function processLeadgenValue(value: WebhookValue): Promise<void> {
     organizationId,
     contact.id
   );
-  const leadId = await onLeadActivity(organizationId, contact.id, new Date());
+  const { leadId, created } = await ensureLeadActivity(organizationId, contact.id, new Date(), { notifyByEmail: false });
 
   // El form define el SERVICIO, no el responsable: el comercial se marca
   // únicamente cuando la conversación se deriva a atención humana
@@ -197,7 +192,8 @@ export async function processLeadgenValue(value: WebhookValue): Promise<void> {
       .where(
         and(
           eq(schema.lead.organizationId, organizationId),
-          eq(schema.lead.id, leadId)
+          eq(schema.lead.id, leadId),
+          isNull(schema.lead.serviceId)
         )
       );
   }
@@ -211,7 +207,7 @@ export async function processLeadgenValue(value: WebhookValue): Promise<void> {
   // This never lifts a prior SMS opt-out or sends an SMS on its own.
   if (formId && !contact.optedOutAt && !contact.blockedAt && !contact.archivedAt) {
     const enrollment = smsLeadEnrollmentSql({ organizationId, sourceType: "meta_form",
-      sourceKey: formId, leadKey: leadgenId, phone, name: contact.name });
+      sourceKey: formId, leadKey: leadgenId, contactId: contact.id, phone, name: contact.name });
     if (enrollment) {
       try { await db.execute(enrollment); }
       catch (error) { console.error(`[leadgen] no se pudo registrar SMS para ${leadgenId}:`, error); }
@@ -232,10 +228,12 @@ export async function processLeadgenValue(value: WebhookValue): Promise<void> {
         await sendPreferredGreeting({ organizationId, contactId: contact.id,
           conversationId: conversation.id, templateId: greetingTemplateId });
       } catch (err) {
-        console.error(
-          `[leadgen] el saludo automático falló para ${contact.id} (el lead queda en la bandeja):`,
-          err
-        );
+        if (!(err instanceof InitialGreetingSkipped)) {
+          console.error(
+            `[leadgen] el saludo automático falló para ${contact.id} (el lead queda en la bandeja):`,
+            err
+          );
+        }
       }
     } else {
       console.warn(
@@ -243,6 +241,8 @@ export async function processLeadgenValue(value: WebhookValue): Promise<void> {
       );
     }
   }
+
+  if (leadId && created) await notifyNewLeadByEmailSafely({ organizationId, leadId });
 
   publish(organizationId, {
     type: "conversation.updated",

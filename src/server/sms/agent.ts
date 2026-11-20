@@ -1,3 +1,4 @@
+import { smsCrmContactCondition } from "./crm-contact";
 import { createHash } from "node:crypto";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { chatJson, type ChatMessage } from "@/lib/ai";
@@ -113,7 +114,7 @@ export async function runSmsAgentTurn(org: string, contactId: string): Promise<v
     db.select({ name: schema.contact.name, email: schema.contact.email, notes: schema.contact.notes,
       consentSource: schema.contact.consentSource })
       .from(schema.contact).where(scoped(schema.contact.organizationId, org,
-        eq(schema.contact.phone, contact.phone.replace(/^\+/, "")))).limit(1).then(rows => rows[0]),
+        smsCrmContactCondition(contact))).limit(1).then(rows => rows[0]),
   ]);
   let calendarAvailable = false;
   const scheduling = buildSchedulingContext(settings);

@@ -1,7 +1,10 @@
 import { apiError } from "@/lib/api";
 import { BrevoError } from "@/lib/brevo/account";
-import { SmsError } from "./service";
 import { SmsProviderError } from "@/lib/brevo/client";
+export class SmsError extends Error {
+  constructor(public code: string, message: string, public status = 409) { super(message); }
+}
+
 export function smsApiError(error: unknown) {
   if (error instanceof SmsError) return apiError(error.status,error.code,error.message);
   if (error instanceof SmsProviderError) return apiError(503, `brevo_${error.code}`,

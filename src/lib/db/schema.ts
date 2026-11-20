@@ -1121,6 +1121,7 @@ export const smsLeadSource = pgTable("sms_lead_source", {
 export const smsContact = pgTable("sms_contact", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  crmContactId: text("crm_contact_id").references(() => contact.id, { onDelete: "set null" }),
   name: text("name").notNull(), phone: text("phone").notNull(),
   consentEvidence: text("consent_evidence").notNull(), consentAt: timestamp("consent_at").notNull().defaultNow(),
   optedOutAt: timestamp("opted_out_at"), aiEnabled: boolean("ai_enabled").notNull().default(false),

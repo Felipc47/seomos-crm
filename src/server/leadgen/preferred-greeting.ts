@@ -4,8 +4,8 @@ import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { usPhone } from "@/lib/sms";
 import { sendSms, SmsError } from "@/server/sms/service";
-import { parseStoredVariables, resolveTemplateVariables } from "@/server/whatsapp/template-vars";
-import { loadVariableContext, renderBody, sendTemplate } from "@/server/whatsapp/templates";
+import { renderSmsTemplate } from "@/server/sms/templates";
+import { sendTemplate } from "@/server/whatsapp/templates";
 import { reserveTemplateDispatch, finishTemplateDispatch } from "@/server/whatsapp/template-dispatch";
 
 export async function preferredContactChannel(organizationId: string): Promise<"whatsapp" | "sms"> {
@@ -39,33 +39,22 @@ export async function sendPreferredGreeting(input: {
 
   const smsPhone = usPhone(`+${contact.phone.replace(/^\+/, "")}`);
   if (!smsPhone) throw new SmsError("invalid_phone", "El lead no tiene un número SMS válido de Estados Unidos.");
-  const [smsContact, template, organization] = await Promise.all([
-    db.select().from(schema.smsContact).where(scoped(schema.smsContact.organizationId, org, eq(schema.smsContact.phone, smsPhone))).limit(1).then(rows => rows[0]),
-    db.select().from(schema.template).where(scoped(schema.template.organizationId, org, eq(schema.template.id, input.templateId))).limit(1).then(rows => rows[0]),
-    db.select({ name: schema.organization.name }).from(schema.organization).where(eq(schema.organization.id, org)).limit(1).then(rows => rows[0]),
-  ]);
-  if (!smsContact?.consentEvidence || smsContact.optedOutAt) throw new SmsError("opted_out", "El lead no tiene consentimiento SMS activo.");
-  if (!template || template.status !== "approved") throw new Error("La plantilla de bienvenida no está aprobada.");
-  const mapping = parseStoredVariables(template.variables);
-  let values: string[] | undefined;
-  if (mapping) {
-    const resolved = resolveTemplateVariables(mapping, await loadVariableContext(org, contact));
-    if (!resolved.ok) throw new Error(`Falta ${resolved.missing} para personalizar el SMS.`);
-    values = resolved.values;
+  const [smsContact] = await db.select().from(schema.smsContact)
+    .where(scoped(schema.smsContact.organizationId, org, eq(schema.smsContact.phone, smsPhone))).limit(1);
+  if (smsContact?.optedOutAt) {
+    throw new SmsError("opted_out", "Saludo SMS omitido: el contacto se dio de baja.");
   }
-  const body = renderBody(template.body, values ?? contact.name.split(/\s+/)[0] ?? "Hola").trim();
-  if (!body || /\{\{\s*\d+\s*\}\}/.test(body)) throw new Error("La plantilla SMS no se pudo completar.");
-  const brand = organization?.name?.trim() || "Empresa";
-  const branded = body.toLocaleLowerCase().includes(brand.toLocaleLowerCase()) ? body : `${brand}: ${body}`;
-  const content = branded;
-  if (content.length > 1600) throw new Error("La plantilla SMS supera el límite permitido.");
+  if (!smsContact?.consentEvidence) {
+    throw new SmsError("missing_sms_consent", "Saludo SMS omitido: falta consentimiento. Revisa la fuente en Ajustes → SMS.");
+  }
+  const content = await renderSmsTemplate(org, input.templateId, contact);
 
   const dispatchId = await reserveTemplateDispatch({ organizationId: org, contactId: contact.id,
-    templateId: template.id, automaticGreeting: true });
+    templateId: input.templateId, automaticGreeting: true });
   try {
     const result = await sendSms(org, { contactId: smsContact.id, content,
       operationId: greetingOperationId(org, contact.id) }, { source: "automation" });
-    if (["failed", "uncertain"].includes(result.status)) throw new Error("El SMS no confirmó su envío; revisa el resultado en Bandeja.");
+    if (["failed", "uncertain"].includes(result.status)) throw new SmsError("sms_not_confirmed", "El envío SMS falló o quedó sin confirmar. Revisa el estado en Bandeja.");
     await db.update(schema.templateDispatch).set({ status: "sent", updatedAt: new Date() })
       .where(scoped(schema.templateDispatch.organizationId, org, eq(schema.templateDispatch.id, dispatchId)));
     return "sms";

@@ -101,7 +101,7 @@ async function importRow(source: Source, token: string, row: SheetContact) {
     // edits never become SMS contacts after a source is enabled.
     if (!prior && !contact.optedOutAt && !contact.blockedAt && !contact.archivedAt) {
       const enrollment = smsLeadEnrollmentSql({ organizationId: org, sourceType: "sheet",
-        sourceKey: source.id, leadKey: row.externalKey, phone: row.phone, name: contact.name });
+        sourceKey: source.id, leadKey: row.externalKey, contactId: contact.id, phone: row.phone, name: contact.name });
       if (enrollment) await tx.execute(enrollment);
     }
     return { kind: inserted ? "created" as const : changed ? "updated" as const : "unchanged" as const };

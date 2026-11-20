@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ShieldBan } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShieldBan } from "lucide-react";
+import { ContactPanel } from "@/components/inbox/contact-panel";
+import { SlideOver } from "@/components/ui/slide-over";
 import { ChannelPill } from "@/components/inbox/channel-pill";
 import { AiConversationHeaderControl, type AgentAvailability } from "@/components/inbox/ai-conversation-control";
 import { InboxContactAvatar } from "@/components/inbox/inbox-contact-avatar";
@@ -10,7 +12,9 @@ import { Button } from "@/components/ui/button";
 import { smsSegments, SMS_STATUS_LABEL, type SmsStatus } from "@/lib/sms";
 import type { SmsInboxContact, SmsInboxSnapshot } from "@/lib/sms-inbox-types";
 import { countryFromPhone } from "@/lib/phone-country";
+import type { TemplateDto } from "@/lib/types";
 
+type CrmContact = { id: string; name: string; phone: string };
 type Review = { content: string; contactId: string; operationId: string };
 const HANDOFF_REASONS: Record<string, string> = {
   cliente: "El cliente pidió atención humana.", modelo: "El agente solicitó apoyo humano.",
@@ -20,11 +24,12 @@ const HANDOFF_REASONS: Record<string, string> = {
   seguimiento_sms: "No se pudo enviar el seguimiento SMS.", accion_no_disponible: "La acción requiere atención del equipo.",
 };
 
-export function SmsConversationPanel({ contact, messages, connection, agentAvailability, onBack, onRefresh }: {
+export function SmsConversationPanel({ contact, messages, connection, agentAvailability, refreshKey, onBack, onRefresh }: {
   contact: SmsInboxContact;
   messages: SmsInboxSnapshot["messages"];
   connection: SmsInboxSnapshot["connection"];
   agentAvailability: AgentAvailability | null;
+  refreshKey: number;
   onBack: () => void;
   onRefresh: () => Promise<void>;
 }) {
@@ -33,6 +38,11 @@ export function SmsConversationPanel({ contact, messages, connection, agentAvail
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsError, setDetailsError] = useState("");
+  const [details, setDetails] = useState<CrmContact | null>(null);
+  const [templates, setTemplates] = useState<TemplateDto[] | null>(null);
+  const closeDetails = useCallback(() => setDetailsOpen(false), []);
   const endRef = useRef<HTMLDivElement>(null);
   const ready = !!connection?.deliveryEnabled && connection.webhookReady && (connection.smsCredits ?? 0) > 0;
   const info = smsSegments(content);
@@ -40,6 +50,45 @@ export function SmsConversationPanel({ contact, messages, connection, agentAvail
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length, contact.id]);
+
+  async function loadDetails() {
+    setDetailsError("");
+    const response = await fetch(`/api/sms/contacts/${contact.id}/details`, { method: "POST" }).catch(() => null);
+    const result = await response?.json().catch(() => null) as { contact?: CrmContact; error?: { message?: string } } | null;
+    if (response?.ok && result?.contact) setDetails(result.contact);
+    else setDetailsError(result?.error?.message ?? "No se pudo abrir la ficha del contacto.");
+  }
+
+  async function loadTemplates() {
+    setError("");
+    setBusy(true);
+    try {
+      const response = await fetch("/api/templates");
+      if (!response.ok) throw new Error("No se pudieron cargar las plantillas.");
+      const result = await response.json() as { templates: TemplateDto[] };
+      setTemplates(result.templates.filter((template) => template.status === "approved"));
+    } catch {
+      setError("No se pudieron cargar las plantillas.");
+    } finally { setBusy(false); }
+  }
+
+  async function applyTemplate(templateId: string) {
+    if (!templateId) return;
+    setError("");
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/sms/contacts/${contact.id}/template-preview`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateId }),
+      });
+      const result = await response.json().catch(() => null) as { content?: string; error?: { message?: string } } | null;
+      if (!response.ok || !result?.content) throw new Error(result?.error?.message ?? "No se pudo cargar la plantilla.");
+      setContent(result.content);
+      setTemplates(null);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "No se pudo cargar la plantilla.");
+    } finally { setBusy(false); }
+  }
 
   async function request(path: string, body?: unknown) {
     const response = await fetch(path, {
@@ -67,7 +116,7 @@ export function SmsConversationPanel({ contact, messages, connection, agentAvail
   }
 
   async function toggleAgent(enabled: boolean) {
-    if (busy) return;
+    if (busy) return false;
     setBusy(true); setError(""); setNotice("");
     try {
       const response = await fetch(`/api/sms/contacts/${contact.id}/agent`, {
@@ -78,8 +127,10 @@ export function SmsConversationPanel({ contact, messages, connection, agentAvail
       if (!response.ok) throw new Error(result?.error?.message ?? "No se pudo actualizar la IA.");
       await onRefresh();
       if (!enabled) setNotice("Agente SMS pausado.");
+      return true;
     } catch (error) {
       setError(error instanceof Error ? error.message : "No se pudo actualizar la IA.");
+      return false;
     } finally { setBusy(false); }
   }
 
@@ -107,6 +158,12 @@ export function SmsConversationPanel({ contact, messages, connection, agentAvail
         <AiConversationHeaderControl active={contact.aiEnabled && !contact.handoffAt} availability={agentAvailability} busy={busy} shortLabel onCheckedChange={(enabled) => void toggleAgent(enabled)} />
         <Button size="sm" variant="ghost" disabled={busy || !!contact.optedOutAt} onClick={() => void optOut()} aria-label="Registrar baja SMS">
           <ShieldBan className="h-4 w-4" /><span className="hidden lg:inline">Registrar baja</span>
+        </Button>
+        <Button type="button" variant="outline" size="sm" aria-label="Ver detalles del contacto" onClick={() => {
+          setDetailsOpen(true);
+          void loadDetails();
+        }}>
+          <span className="hidden xl:inline">Ver detalles</span><ChevronRight className="h-4 w-4" />
         </Button>
       </div>
     </header>
@@ -137,8 +194,45 @@ export function SmsConversationPanel({ contact, messages, connection, agentAvail
       </div> : <form onSubmit={(event) => { event.preventDefault(); setError(""); setNotice(""); setReview({ content: content.trim(), contactId: contact.id, operationId: crypto.randomUUID() }); }}>
         <label htmlFor="sms-content" className="sr-only">Mensaje SMS</label>
         <textarea id="sms-content" value={content} onChange={(event) => setContent(event.target.value)} placeholder={contact.optedOutAt ? "Este contacto se dio de baja de SMS" : "Escribe un mensaje SMS…"} maxLength={1600} required disabled={!ready || !!contact.optedOutAt || busy} className="max-h-40 min-h-20 w-full resize-y rounded-xl border bg-background px-3 py-2.5 text-[13px] outline-none focus:border-orange-400 disabled:opacity-50" />
-        <div className="mt-1.5 flex flex-wrap items-center gap-3"><Button size="sm" type="submit" disabled={!ready || !!contact.optedOutAt || busy || !content.trim()}>Revisar SMS</Button><p className="text-[10px] text-mute">{info.segments} segmento(s) · {info.unicode ? "Unicode" : "GSM"} · Solo avisos solicitados</p></div>
+        <div className="mt-1.5 flex flex-wrap items-center gap-3">
+          <Button size="sm" type="submit" disabled={!ready || !!contact.optedOutAt || busy || !content.trim()}>Revisar SMS</Button>
+          <Button size="sm" type="button" variant="outline" disabled={busy || !!contact.optedOutAt} onClick={() => void loadTemplates()}>
+            Usar plantilla
+          </Button>
+          <p className="text-[10px] text-mute">{info.segments} segmento(s) · {info.unicode ? "Unicode" : "GSM"}</p>
+        </div>
+        {templates && <div className="mt-2">
+          {templates.length ? <select aria-label="Plantilla para SMS" className="h-9 max-w-full rounded-md border bg-background px-2 text-sm"
+            value="" disabled={busy} onChange={(event) => void applyTemplate(event.target.value)}>
+            <option value="">Selecciona una plantilla</option>
+            {templates.map((template) => <option value={template.id} key={template.id}>{template.name} ({template.language})</option>)}
+          </select> : <p className="text-xs text-mute">No hay plantillas aprobadas.</p>}
+        </div>}
       </form>}
     </div>
+    {detailsOpen && <SlideOver onClose={closeDetails} ariaLabel={`Detalles de ${contact.name}`}>
+      {error && <p role="alert" className="px-5 pt-3 text-xs text-destructive">{error}</p>}
+      {details ? <ContactPanel
+        channel="sms"
+        conversation={{
+          contact: { ...details, country: countryFromPhone(details.phone) },
+          aiEnabled: contact.aiEnabled && !contact.optedOutAt,
+          handoffAt: contact.handoffAt,
+          handoffReason: contact.handoffReason,
+        }}
+        refreshKey={refreshKey + messages.length}
+        agentAvailability={agentAvailability}
+        aiUpdating={busy}
+        onPatchConversation={(patch) => toggleAgent(patch.reactivate ?? patch.aiEnabled ?? false)}
+        onContactUpdated={async () => { await Promise.all([loadDetails(), onRefresh()]); }}
+        onClose={closeDetails}
+      /> : <div className="space-y-3 p-5 text-sm">
+        {detailsError ? <>
+          <p role="alert">{detailsError}</p>
+          <Button size="sm" onClick={() => void loadDetails()}>Reintentar</Button>
+        </> : <p role="status">Cargando ficha…</p>}
+        <Button size="sm" variant="outline" onClick={closeDetails}>Cerrar</Button>
+      </div>}
+    </SlideOver>}
   </div>;
 }

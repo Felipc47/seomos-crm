@@ -6,6 +6,7 @@ import { ensureLeadActivity } from "@/server/inbox/lead-activity";
 import { notifyNewLeadByEmail } from "@/server/email/new-lead";
 import { getLeadgenSettings } from "@/server/org-settings";
 import { sendPreferredGreeting } from "@/server/leadgen/preferred-greeting";
+import { SmsError } from "@/server/sms/service";
 import { InitialGreetingSkipped } from "@/server/whatsapp/template-dispatch";
 import { publish } from "@/server/events/bus";
 import { isCompanyServiceActive } from "@/server/company-service";
@@ -44,6 +45,7 @@ async function runFlow(row: Row) {
     }
   } catch (error) {
     if (error instanceof InitialGreetingSkipped) results.push(error.message);
+    else if (error instanceof SmsError) { failed = true; results.push(error.message); }
     else { failed = true; results.push("No se confirmó el saludo. Revisa el canal y la conexión; no se reenviará automáticamente."); }
   }
   publish(org, { type: "conversation.updated", data: { conversation: { id: conversation.id } } });

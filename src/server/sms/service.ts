@@ -12,11 +12,11 @@ import { type SmsWebhookEvent, smsEventKey } from "@/lib/brevo/events";
 import { isSmsStop, nextSmsStatus, type smsContactInput, type smsSenderInput, type smsSendInput } from "@/lib/sms";
 import type { z } from "zod";
 import { connection, publicConnection } from "./connections";
+import { smsCrmContactCondition, smsCrmContactMatch } from "./crm-contact";
+import { SmsError } from "./errors";
+export { SmsError } from "./errors";
 
 const { smsContact: contacts, smsMessage: messages, smsEvent: events, smsConnection: connections } = schema;
-export class SmsError extends Error {
-  constructor(public code: string, message: string, public status = 409) { super(message); }
-}
 function apiKey(c: typeof connections.$inferSelect) {
   return decryptSecret({ cipher: c.secretCipher, iv: c.secretIv, tag: c.secretTag });
 }
@@ -66,10 +66,12 @@ export async function smsSnapshot(org: string, contactId?: string) {
     where m.organization_id = ${org} and m.contact_id = sms_contact.id
     order by m.created_at desc, m.id desc limit 1
   )`;
-  const people = (await getDb().select({ contact: contacts, lastMessageAt, lastMessagePreview })
-    .from(contacts).where(scoped(contacts.organizationId,org))
+  const people = (await getDb().select({ contact: contacts, crmName: schema.contact.name, lastMessageAt, lastMessagePreview })
+    .from(contacts).leftJoin(schema.contact, smsCrmContactMatch(org)).where(scoped(contacts.organizationId, org))
     .orderBy(desc(sql`coalesce(${lastMessageAt}, ${contacts.createdAt})`)).limit(200))
-    .map(({ contact, lastMessageAt: at, lastMessagePreview: preview }) => ({ ...contact, lastMessageAt: at, lastMessagePreview: preview }));
+    .map(({ contact, crmName, lastMessageAt: at, lastMessagePreview: preview }) => ({
+      ...contact, name: crmName ?? contact.name, lastMessageAt: at, lastMessagePreview: preview,
+    }));
   const history = contactId ? await getDb().select().from(messages).where(scoped(messages.organizationId,org,eq(messages.contactId,contactId)))
     .orderBy(desc(messages.createdAt),desc(messages.id)).limit(200) : [];
   const c = await connection(org);
@@ -135,8 +137,11 @@ export async function sendSms(org: string, input: z.infer<typeof smsSendInput>, 
     if (!person) throw new SmsError("not_found", "Contacto SMS no encontrado.",404);
     if (person.optedOutAt || !person.consentEvidence) throw new SmsError("opted_out", "El contacto no permite envíos SMS.");
     const [crmContact] = await tx.select({ blockedAt: schema.contact.blockedAt, optedOutAt: schema.contact.optedOutAt,
-      archivedAt: schema.contact.archivedAt }).from(schema.contact).where(scoped(schema.contact.organizationId, org,
-        eq(schema.contact.phone, person.phone.replace(/^\+/, "")))).limit(1);
+      archivedAt: schema.contact.archivedAt, phone: schema.contact.phone }).from(schema.contact)
+      .where(scoped(schema.contact.organizationId, org, smsCrmContactCondition(person))).limit(1);
+    if (person.crmContactId && crmContact?.phone !== person.phone.slice(1)) {
+      throw new SmsError("crm_phone_changed", "El teléfono de la ficha cambió. Para escribir al número nuevo, regístralo con su consentimiento SMS.");
+    }
     if (crmContact?.blockedAt || crmContact?.optedOutAt || crmContact?.archivedAt)
       throw new SmsError("crm_blocked", "El contacto está bloqueado, archivado o pidió no recibir mensajes.");
     if (options.expectedLatestInboundId) {
